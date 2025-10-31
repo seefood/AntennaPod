@@ -1,0 +1,68 @@
+# Pre-commit hooks for AntennaPod
+# See https://pre-commit.com for more information
+# Install: pre-commit install
+
+default_install_hook_types: [pre-commit, commit-msg]
+default_language_version:
+  python: python3
+
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        args: ['--markdown-linebreak-ext=md']
+      - id: end-of-file-fixer
+        exclude: '\.jar$'
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  # Java/Kotlin formatting (using spotless if configured, otherwise skip)
+  # Note: Checkstyle, SpotBugs, and Android Lint are run via Gradle in CI
+  # Pre-commit focuses on fast, local checks
+
+  # XML formatting for Android layouts
+  - repo: local
+    hooks:
+      - id: android-xml-formatter
+        name: Android XML Formatter
+        entry: bash -c 'if [ -f android-xml-formatter.jar ]; then find . -wholename "*/res/layout/*.xml" -print0 | xargs -0 java -jar android-xml-formatter.jar; else echo "Skipping XML format (android-xml-formatter.jar not found)"; fi'
+        language: system
+        files: '\.xml$'
+        pass_filenames: false
+
+  # Gradle wrapper validation
+  - repo: local
+    hooks:
+      - id: gradle-wrapper-validation
+        name: Validate Gradle Wrapper
+        entry: bash -c 'if command -v gradle &> /dev/null; then gradle wrapper --validate-url 2>/dev/null || true; else echo "Skipping Gradle validation (gradle not in PATH)"; fi'
+        language: system
+        files: 'gradle-wrapper\.(jar|properties)$'
+        pass_filenames: false
+
+  # Commit message format
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: ['--force-scope']
+
+  # Optional: Run quick checkstyle on changed Java files only
+  # Commented out by default as it can be slow
+  # - repo: local
+  #   hooks:
+  #     - id: checkstyle-quick
+  #       name: Checkstyle (changed files only)
+  #       entry: bash -c './gradlew checkstyle'
+  #       language: system
+  #       files: '\.java$'
+  #       pass_filenames: false

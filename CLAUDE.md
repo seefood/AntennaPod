@@ -102,7 +102,8 @@ Both flavors share the same codebase with dimension "market".
 - `Feeds` - Podcast subscriptions
 - `FeedItems` - Episodes
 - `FeedMedia` - Episode media files
-- `Queue` - Playback queue (ordered list of episode IDs)
+- `Queue` - Playback queue (ordered list of episode IDs, associated with specific queue via queue_id)
+- `QueueMetadata` - Queue metadata (name, color, sort order, currently playing episode) - added in v3080100
 - `Favorites` - Favorited episodes
 - `SimpleChapters` - Episode chapters
 - `DownloadLog` - Download history
@@ -114,12 +115,20 @@ Both flavors share the same codebase with dimension "market".
 
 **Critical:** DBWriter uses a single-threaded executor named "DatabaseExecutor" with MIN_PRIORITY. All write operations are serialized through this executor to prevent race conditions.
 
+**Multiple Queues Support (v3080100+):**
+- `QueueMetadata` table stores queue information (name, color, sort_order, currently_playing_*)
+- `Queue` table has `queue_id` column to associate episodes with specific queues
+- Active queue tracked in SharedPreferences as `PREF_CURRENT_QUEUE_ID`
+- Queue operations default to current active queue if queueId not specified
+- Foreign keys enabled via `PRAGMA foreign_keys=ON` in PodDBAdapter.onConfigure()
+- Composite index on (queue_id, id) for optimal query performance
+
 ### Event-Driven Communication
 
 Uses GreenRobot EventBus with annotation processor (generates `ApEventBusIndex`).
 
 **Key Events:**
-- `QueueEvent` - Queue modifications
+- `QueueEvent` - Queue modifications (includes queue switching, queue metadata changes)
 - `FeedEvent` / `FeedListUpdateEvent` - Feed updates
 - `FeedItemEvent` - Episode changes
 - `PlaybackHistoryEvent` - Playback history updates
@@ -127,6 +136,11 @@ Uses GreenRobot EventBus with annotation processor (generates `ApEventBusIndex`)
 - `MessageEvent` - User-visible messages (shown as Snackbars)
 
 **Pattern:** Database writes → EventBus post → UI subscribers update
+
+**Queue Events (v3080100+):**
+- Posted when queues are created, renamed, deleted, or reordered
+- Posted when episodes are added/removed from queues
+- Posted when active queue switches (QueueEvent.Action.SWITCHED)
 
 ### Single Activity Architecture
 
@@ -220,6 +234,8 @@ public void onEventMainThread(QueueEvent event) {
 - Never modify queue directly in SQLite
 - Use `DBWriter.addQueueItem()`, `DBWriter.removeQueueItem()`, etc.
 - Operations automatically trigger `QueueEvent`
+- Queue methods accept optional `queueId` parameter (defaults to current active queue)
+- Active queue: `QueuePreferences.getCurrentQueueId()` / `setCurrentQueueId()`
 
 **Feed Updates:**
 - Managed via `FeedUpdateManager` (singleton)
@@ -255,6 +271,7 @@ public void onEventMainThread(QueueEvent event) {
 - **Queue:** Ordered playback list (temporary, consumed on play)
 - **Favorites:** Permanent episode bookmarks
 - Both are separate tables, episodes can be in both
+- **Multiple Queues (v3080100+):** Each episode can be in at most one queue at a time
 
 ### Release Signing
 For release builds, create a keystore or set properties:
@@ -290,3 +307,7 @@ releaseKeyPassword=yourpassword
 7. **XML Formatting:** CI will fail if XML layouts aren't formatted. Run formatter locally before pushing.
 
 8. **Theme Changes:** MainActivity restarts on theme/navigation changes. Save state appropriately.
+
+9. **Database Migrations (v3080100+):** SQLite ALTER TABLE with DEFAULT applies virtually (instant operation). Use composite indexes for query optimization. Enable foreign keys in `PodDBAdapter.onConfigure()`.
+
+10. **Queue Operations (v3080100+):** Episode can only be in one queue at a time. Always check if episode already in queue before adding. Use `QueuePreferences.getCurrentQueueId()` for default queue parameter.
