@@ -162,6 +162,7 @@ Users need to organize episodes across multiple queues by copying episodes to ad
 - **FR-031**: System MUST continue checking episodes sequentially (and circularly, wrapping to start) until finding an unplayed episode
 - **FR-032**: When unplayed episode is found, system MUST select it and display it in paused state, ready for user to resume playback
 - **FR-033**: If all episodes in queue are marked as 100% played, system MUST stop playback and wait for user action (pause state, no auto-advance)
+- **FR-034**: Queue pane title MUST display the active queue's name instead of the generic word "Queue" (visual indicator of active queue; exception to standard app UI patterns)
 
 ### Key Entities *(include if feature involves data)*
 
@@ -193,10 +194,12 @@ Users need to organize episodes across multiple queues by copying episodes to ad
 - **Color Indicator**: Active queue's color shown as gradient background on top pane (title area), transitioning from queue color at top to default theme background color
 - **Behavior**: Tapping queue button opens queue selector/management pane
 
-### Title Bar Gradient
-- **Implementation**: Apply to all main panes (Play screen, Queue, Inbox, Episodes panes) AND new Queue selection/management pane
-- **Visual**: Gradient background on title (top element) using active queue's color fading to default theme background
-- **Purpose**: Persistent visual indicator of active queue throughout the app
+### Title Bar Gradient & Queue Pane Title
+- **Gradient Implementation**: Apply to all main panes (Play screen, Queue, Inbox, Episodes panes) AND new Queue selection/management pane
+- **Gradient Visual**: Gradient background on title (top element) using active queue's color fading to default theme background
+- **Gradient Purpose**: Persistent visual indicator of active queue throughout the app
+- **Queue Pane Title**: In the Queue pane specifically, display the active queue's name as the title instead of generic word "Queue" (e.g., title shows "Work Podcasts" instead of "Queue")
+- **Queue Pane Exception**: This title behavior breaks from standard app UI patterns and only applies to the Queue pane (not Inbox, Episodes, or Play screen)
 
 ### Queue Selection/Management Pane
 - **Access**: Via queue button in bottom navigation bar
@@ -235,6 +238,8 @@ Users need to organize episodes across multiple queues by copying episodes to ad
 
 - Q: When user invokes Copy/Move to queue actions, what queues should the selector dialog show? → A: Prevent duplicates strictly. For "Copy to queue": show only queues that do NOT already contain the episode. For "Move to queue": show only queues that do NOT already contain the episode. This prevents duplicate episodes in the same queue and simplifies the user workflow (no need to check if episode already exists in a queue).
 
+- Q: How does the user know which queue is currently active? → A: Two visual indicators: (1) Title bar gradient using active queue's color (visible in all panes - Play, Inbox, Episodes, Queue selection/management). (2) In the Queue pane specifically, the title displays the active queue's name instead of the generic word "Queue". This breaks from app UI norms but only applies to the Queue pane. Bottom navigation button styling does not change based on active queue.
+
 ## Assumptions
 
 - Queue switching during playback uses pause-load-restore pattern as confirmed by user
@@ -254,3 +259,5 @@ Users need to organize episodes across multiple queues by copying episodes to ad
 - Circular navigation: when reaching end of queue while searching for unplayed episodes, system wraps to beginning of queue
 - Copy/Move to queue dialogs only show queues that do NOT already contain the episode (prevents duplicates in same queue)
 - Both "Copy to queue" and "Move to queue" enforce the no-duplicate rule in queue selector dialog
+- Active queue is identified by two visual signals: (1) title bar gradient using queue color, (2) Queue pane displays queue name as title instead of "Queue"
+- Queue pane title exception is intentional design break from app norms to provide queue context at a glance
