@@ -9,6 +9,18 @@
 
 This specification defines the database schema changes required to support multiple queues in AntennaPod. Currently, the `Queue` table stores a single ordered list of episodes. This design will add a new `QueueMetadata` table to support multiple named queues while keeping the existing `Queue` table structure mostly unchanged.
 
+## Clarifications
+
+### Session 2025-11-01
+
+- Q: Should `addQueueItemAt()` (insert at specific position) be supported in multi-queue schema? → A: **Yes, preserve existing behavior**. Current code has `addQueueItemAt(context, itemId, index)` method. New multi-queue schema must support this with optional queueId parameter: `addQueueItemAt(context, itemId, index, queueId)` defaulting to current active queue.
+
+- Q: Method naming for color change - `changeQueueColor()` vs `setQueueColor()`? → A: **Use `changeQueueColor()`** to match existing AntennaPod conventions (similar to `changeFeedFilter`, `changePlaybackSpeed`). Follow project naming patterns for consistency.
+
+- Q: `moveEpisodeToQueue()` - require explicit source queue or infer from active queue? → A: **Infer from active queue**. Use 2-parameter signature: `moveQueueItem(FeedItem item, long toQueueId)`. The source queue is always the currently active queue (PREF_CURRENT_QUEUE_ID from SharedPreferences). Note: Same episode can exist in multiple queues simultaneously (no uniqueness constraint across all queues).
+
+- Q: Episode uniqueness - can same episode appear in multiple queues? → A: **Yes, no uniqueness constraint**. Same episode (feeditem) can exist in multiple queues simultaneously. Only constraint is `(queue_id, id)` uniqueness for positions within a single queue. Remove `idx_queue_unique_feeditem` constraint; use regular index `idx_queue_feeditem` for lookups only.
+
 ## Current Database Schema
 
 ### Existing Queue Table (TABLE_NAME_QUEUE)
@@ -311,8 +323,9 @@ WHERE id = ?;
 2. **Queue names are non-empty**: `QueueMetadata.name` cannot be NULL or empty string
 3. **Colors are valid**: `QueueMetadata.color` cannot be NULL
 4. **Unique sort orders**: No two queues share the same `sort_order` value
-5. **Episode uniqueness**: Each `feeditem` appears at most once in `Queue` table (no duplicates across queues)
+5. **No duplicate positions within queue**: Each `(queue_id, id)` pair MUST be unique (no duplicate positions within a single queue)
 6. **Position continuity**: Within each `queue_id`, positions (Queue.id) MUST be continuous (0,1,2,3... with no gaps)
+7. **Episodes can appear in multiple queues**: Same `feeditem` CAN appear in multiple queues (no uniqueness constraint across queues)
 
 ### Data Integrity Rules
 

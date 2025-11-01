@@ -99,8 +99,8 @@ CREATE INDEX idx_queue_queue_id_id ON Queue(queue_id, id);
 -- Unique constraint on (queue_id, id) - position within queue
 CREATE UNIQUE INDEX idx_queue_unique_position ON Queue(queue_id, id);
 
--- Index for episode uniqueness checks
-CREATE UNIQUE INDEX idx_queue_unique_feeditem ON Queue(feeditem);
+-- Index for fast feeditem lookups (no uniqueness - same episode can be in multiple queues)
+CREATE INDEX idx_queue_feeditem ON Queue(feeditem);
 ```
 
 **Migration Path**:
@@ -114,7 +114,7 @@ ALTER TABLE Queue ADD COLUMN queue_id INTEGER DEFAULT 1;
 -- Step 2: Create indexes
 CREATE INDEX idx_queue_queue_id_id ON Queue(queue_id, id);
 CREATE UNIQUE INDEX idx_queue_unique_position ON Queue(queue_id, id);
-CREATE UNIQUE INDEX idx_queue_unique_feeditem ON Queue(feeditem);
+CREATE INDEX idx_queue_feeditem ON Queue(feeditem);
 ```
 
 **Example Rows** (before and after):
@@ -281,8 +281,8 @@ CREATE UNIQUE INDEX idx_queue_unique_position ON Queue(queue_id, id);
 -- UNIQUE constraint on sort_order
 CREATE UNIQUE INDEX idx_queue_metadata_sort_order ON QueueMetadata(sort_order);
 
--- UNIQUE constraint on feeditem (episode appears once)
-CREATE UNIQUE INDEX idx_queue_unique_feeditem ON Queue(feeditem);
+-- Index on feeditem for fast lookups (no uniqueness - episodes can appear in multiple queues)
+CREATE INDEX idx_queue_feeditem ON Queue(feeditem);
 
 -- Foreign key enforcement (requires PRAGMA foreign_keys=ON)
 -- Conceptual: Queue.queue_id REFERENCES QueueMetadata(id) ON DELETE CASCADE
@@ -308,7 +308,7 @@ Optimized by: `idx_queue_queue_id_id` composite index (covers WHERE and ORDER BY
 ```sql
 SELECT queue_id FROM Queue WHERE feeditem = ?;
 ```
-Optimized by: `idx_queue_unique_feeditem` index
+Optimized by: `idx_queue_feeditem` index (returns 0-N rows, no uniqueness)
 
 **Queue Metadata Queries**:
 ```sql

@@ -11,6 +11,8 @@ This document breaks down the multiple queues database feature into actionable i
 
 **Scope**: Database schema changes, domain models, database access layer, preferences helper, and comprehensive testing.
 
+**Total Tasks**: 42 (T001-T042, organized across 6 phases with subtasks)
+
 **Dependencies**: Tasks organized by module, with clear dependencies shown in each phase.
 
 ## Implementation Strategy
@@ -92,7 +94,7 @@ This feature has ONE logical unit (database schema change) with no independent u
   - Execute ALTER TABLE Queue ADD COLUMN queue_id INTEGER DEFAULT 1
   - Create composite index idx_queue_queue_id_id (queue_id, id)
   - Create unique index idx_queue_unique_position (queue_id, id)
-  - Create unique index idx_queue_unique_feeditem (feeditem)
+  - Create index idx_queue_feeditem (feeditem) - no uniqueness, episodes can appear in multiple queues
   - Verify all indexes created successfully
 
 - [ ] T009 Implement default queue creation and data migration in `DBUpgrader.migrateToVersion3080100()` in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBUpgrader.java`
@@ -123,10 +125,10 @@ This feature has ONE logical unit (database schema change) with no independent u
   - Create old no-arg version `getQueue()` that calls new version with QueuePreferences.getCurrentQueueId()
   - Add JavaDoc explaining default queue parameter
 
-- [ ] T013 Implement `getQueueIdForFeedItem(long feedItemId)` in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java`
-  - Return `long` queue ID if item in queue, or -1 if not
-  - Query: SELECT queue_id FROM Queue WHERE feeditem = ? LIMIT 1
-  - Uses idx_queue_unique_feeditem index
+- [ ] T013 Implement `getQueueIdsForFeedItem(long feedItemId)` in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java`
+  - Return `List<Long>` queue IDs (episode can be in multiple queues)
+  - Query: SELECT queue_id FROM Queue WHERE feeditem = ? ORDER BY queue_id
+  - Uses idx_queue_feeditem index (no uniqueness - may return multiple rows)
 
 - [ ] T014 Implement `countQueueItems(long queueId)` in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java`
   - Return `int` count of items in given queue
@@ -149,7 +151,7 @@ This feature has ONE logical unit (database schema change) with no independent u
   - Update: UPDATE QueueMetadata SET name = ? WHERE id = ?
   - Post QueueEvent(QueueEvent.Action.QUEUE_RENAMED, queueId)
 
-- [ ] T017 Implement `setQueueColor(long queueId, int color)` in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java`
+- [ ] T017 Implement `changeQueueColor(long queueId, int color)` in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java`
   - Return `Future<Void>`
   - Validate: color is valid ColorInt
   - Update: UPDATE QueueMetadata SET color = ? WHERE id = ?
@@ -173,12 +175,23 @@ This feature has ONE logical unit (database schema change) with no independent u
 
 - [ ] T020 Modify existing `addQueueItem(FeedItem item)` method signature in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java`
   - Create new overloaded version: `addQueueItem(FeedItem item, long queueId)`
-  - Before insert: verify feeditem not already in queue (check idx_queue_unique_feeditem)
+  - No uniqueness check needed - same episode can be in multiple queues simultaneously
   - Calculate next id = MAX(id) + 1 for given queue_id
   - Insert: INSERT INTO Queue (id, feeditem, feed, queue_id) VALUES (?, ?, ?, ?)
   - Update QueueMetadata.currently_playing_feedmedia_id if first item
   - Post QueueEvent
   - Keep old method signature: `addQueueItem(FeedItem item)` calls new version with QueuePreferences.getCurrentQueueId()
+
+- [ ] T042 Implement `addQueueItemAt(itemId, index, queueId)` in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java`
+  - Create new overloaded version: `addQueueItemAt(long itemId, int index, long queueId)`
+  - Preserve existing behavior: insert episode at specific position (0-indexed)
+  - No uniqueness check needed - same episode can be in multiple queues simultaneously
+  - Get current queue items: SELECT * FROM Queue WHERE queue_id = ? ORDER BY id ASC
+  - Shift positions: for all items at position >= index, increment id by 1
+  - Insert at position: INSERT INTO Queue (id, feeditem, feed, queue_id) VALUES (?, ?, ?, ?)
+  - Update QueueMetadata.currently_playing_feedmedia_id if first item
+  - Post QueueEvent with correct position
+  - Keep old method signature: `addQueueItemAt(long itemId, int index)` calls new version with QueuePreferences.getCurrentQueueId()
 
 - [ ] T021 Modify existing `removeQueueItem(FeedItem item)` method signature in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java`
   - Create new overloaded version: `removeQueueItem(FeedItem item, long queueId)`
@@ -187,9 +200,10 @@ This feature has ONE logical unit (database schema change) with no independent u
   - Renumber subsequent positions (shift down by 1)
   - Keep old method signature: `removeQueueItem(FeedItem item)` calls new version with QueuePreferences.getCurrentQueueId()
 
-- [ ] T022 Implement `moveQueueItem(FeedItem item, long fromQueueId, long toQueueId)` in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java`
+- [ ] T022 Implement `moveQueueItem(FeedItem item, long toQueueId)` in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java`
   - Return `Future<Void>`
-  - Remove from source queue (calls removeQueueItem(item, fromQueueId))
+  - Source queue is always current active queue: `fromQueueId = QueuePreferences.getCurrentQueueId()`
+  - Remove from current queue (calls removeQueueItem(item, fromQueueId))
   - Add to destination queue (calls addQueueItem(item, toQueueId))
   - Post QueueEvent(QueueEvent.Action.QUEUE_ITEM_MOVED, toQueueId)
 

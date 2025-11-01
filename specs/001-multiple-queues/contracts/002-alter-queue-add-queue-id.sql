@@ -13,5 +13,5 @@ CREATE INDEX idx_queue_queue_id_id ON Queue(queue_id, id);
 -- Step 3: Create unique constraint on (queue_id, id) - position within specific queue
 CREATE UNIQUE INDEX idx_queue_unique_position ON Queue(queue_id, id);
 
--- Step 4: Create unique constraint on feeditem - episode appears in at most one queue
-CREATE UNIQUE INDEX idx_queue_unique_feeditem ON Queue(feeditem);
+-- Step 4: Create index on feeditem for fast lookups (no uniqueness - episodes can be in multiple queues)
+CREATE INDEX idx_queue_feeditem ON Queue(feeditem);
