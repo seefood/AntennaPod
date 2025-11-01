@@ -26,10 +26,10 @@
 
 ### Project Initialization
 
-- [ ] T001 Verify Phase 5 database layer is complete (DBReader, DBWriter, PodDBAdapter, QueueMetadata model) in `storage/database/` and `model/`
-- [ ] T002 Review AntennaPod EventBus patterns in existing fragments/activities to establish UI event subscription pattern
-- [ ] T003 Identify target layout for Queue pane modifications in `ui/fragment/QueueFragment.java`
-- [ ] T004 Audit bottom navigation bar implementation in `app/src/main/res/menu/` to understand queue button integration point
+- [x] T001 Verify Phase 5 database layer is complete (DBReader, DBWriter, PodDBAdapter, QueueMetadata model) in `storage/database/` and `model/`
+- [x] T002 Review AntennaPod EventBus patterns in existing fragments/activities to establish UI event subscription pattern
+- [x] T003 Identify target layout for Queue pane modifications in `ui/fragment/QueueFragment.java`
+- [x] T004 Audit bottom navigation bar implementation in `app/src/main/res/menu/` to understand queue button integration point
 
 ---
 
@@ -37,11 +37,11 @@
 
 ### Shared UI Infrastructure (Required for All Stories)
 
-- [ ] T005 [P] Create `QueueViewModel.java` in `ui/common/src/main/java/de/danoeh/antennapod/ui/common/` to manage queue state (currentQueueId, queue list) using Android ViewModel pattern
-- [ ] T006 [P] Create `QueueListAdapter.java` in `ui/common/src/main/java/de/danoeh/antennapod/ui/common/` to render queue items (name, color indicator) in RecyclerView
-- [ ] T007 Create `QueueEvent.java` event class in `event/` module (if not already exists from Phase 5) for EventBus communication on queue changes
-- [ ] T008 Create queue color palette utility in `ui/common/src/main/java/de/danoeh/antennapod/ui/common/QueueColorPalette.java` with 12 theme-matched colors
-- [ ] T009 [P] Create layout files in `ui/common/src/main/res/layout/`:
+- [x] T005 [P] Create `QueueViewModel.java` in `ui/common/src/main/java/de/danoeh/antennapod/ui/common/` to manage queue state (currentQueueId, queue list) using Android ViewModel pattern
+- [x] T006 [P] Create `QueueListAdapter.java` in `ui/common/src/main/java/de/danoeh/antennapod/ui/common/` to render queue items (name, color indicator) in RecyclerView
+- [x] T007 Create `QueueEvent.java` event class in `event/` module (if not already exists from Phase 5) for EventBus communication on queue changes
+- [x] T008 Create queue color palette utility in `ui/common/src/main/java/de/danoeh/antennapod/ui/common/QueueColorPalette.java` with 12 theme-matched colors
+- [x] T009 [P] Create layout files in `ui/common/src/main/res/layout/`:
   - `queue_item.xml` - Single queue item (name, color swatch)
   - `queue_switch_bottom_sheet.xml` - Queue selector pane structure
 
@@ -57,19 +57,19 @@
 
 ### Business Logic
 
-- [ ] T013 [P] [US1] Implement queue switching logic in `QueueViewModel.java`:
+- [x] T013 [P] [US1] Implement queue switching logic in `QueueViewModel.java`:
   - Method `switchActiveQueue(queueId)` that persists to `UserPreferences.setCurrentQueueId()`
   - Method `getCurrentQueueId()` that reads from preferences
   - Method `getQueueList()` that calls `DBReader.getAllQueues()` and exposes via LiveData
 
-- [ ] T014 [P] [US1] Create `QueuePlaybackManager.java` in `playback/` to implement pause-load-restore logic:
+- [x] T014 [P] [US1] Create `QueuePlaybackManager.java` in `playback/` to implement pause-load-restore logic:
   - Method `pauseCurrentQueue()` - saves current episode position
   - Method `switchToQueue(queueId)` - pauses old queue, loads new queue's last position
   - Method `restoreQueuePosition(queueId)` - loads episode position from QueueMetadata
 
 ### UI Components
 
-- [ ] T015 [P] [US1] Create `QueueSwitchBottomSheet.java` fragment in `ui/common/src/main/java/de/danoeh/antennapod/ui/common/` to display queue selector:
+- [x] T015 [P] [US1] Create `QueueSwitchBottomSheet.java` fragment in `ui/common/src/main/java/de/danoeh/antennapod/ui/common/` to display queue selector:
   - Inflate `queue_switch_bottom_sheet.xml`
   - Display queue list via `QueueListAdapter`
   - Handle queue item click → call `QueueViewModel.switchActiveQueue(queueId)`
