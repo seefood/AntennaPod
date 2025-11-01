@@ -56,11 +56,11 @@ Users need to create additional queues to organize episodes by category, mood, o
 
 ### User Story 3 - Edit Queue Properties (Priority: P2)
 
-Users need to customize queue appearance with colors and optionally reorder queues to match their mental model of importance or usage frequency. Color selection uses a visual palette with 12 theme-matched colors, and names can include emoji for additional personalization.
+Users need to customize queue appearance with colors and optionally rename queues for better organization. Color selection uses a visual palette with 12 theme-matched colors, and names can include emoji for additional personalization. Queues are always displayed in creation order (by created_at timestamp).
 
 **Why this priority**: Customization improves usability by helping users visually distinguish queues at a glance, reducing cognitive load. Less critical than switching/creating but important for usability.
 
-**Independent Test**: Can be fully tested by editing queue name, color, and order; verifying changes persist and are reflected in title bar gradient and throughout the app.
+**Independent Test**: Can be fully tested by editing queue name and color; verifying changes persist and are reflected in title bar gradient and throughout the app.
 
 **Acceptance Scenarios**:
 
@@ -68,8 +68,8 @@ Users need to customize queue appearance with colors and optionally reorder queu
 2. **Given** edit dialog is open with 12-color palette visible, **When** user taps a different color, **Then** tick mark moves to new color and dialog updates preview
 3. **Given** edit dialog is open, **When** user changes queue name (including adding emoji) and confirms, **Then** name change persists and displays in queue list
 4. **Given** queue name is changed, **When** user navigates to any main pane, **Then** new queue name is visible and title bar shows updated gradient using queue's color
-5. **Given** multiple queues exist, **When** user reorders queues in queue list, **Then** new order is persisted and reflected in queue selection pane
-6. **Given** queue color is changed, **When** user switches to that queue or views its entry in list, **Then** new color appears immediately in gradient and queue item display
+5. **Given** queue color is changed, **When** user switches to that queue or views its entry in list, **Then** new color appears immediately in gradient and queue item display
+6. **Given** multiple queues exist, **When** user views queue selection pane, **Then** queues are displayed in creation order (oldest created first)
 
 ---
 
@@ -92,11 +92,11 @@ Users need to remove queues they no longer need, with appropriate safeguards to 
 
 ### User Story 5 - Copy and Move Episodes Between Queues (Priority: P3)
 
-Users need to organize episodes across multiple queues by copying episodes to additional queues or moving them between queues. This is accessed via drag actions on queue items.
+Users need to organize episodes across multiple queues by copying episodes to additional queues or moving them between queues. This is accessed via drag actions on queue items. Episodes exist independently in each queue, but share playback position data globally.
 
 **Why this priority**: Episode organization across queues enhances workflow flexibility but is less critical than core queue switching/creation. Complements existing drag-action system.
 
-**Independent Test**: Can be fully tested by dragging queue items left/right, selecting "Copy to queue" or "Move to queue", choosing destination queue, and verifying episode appears in correct queue(s).
+**Independent Test**: Can be fully tested by dragging queue items left/right, selecting "Copy to queue" or "Move to queue", choosing destination queue, and verifying episode appears in correct queue(s); verifying removal and playback status synchronization.
 
 **Acceptance Scenarios**:
 
@@ -104,7 +104,9 @@ Users need to organize episodes across multiple queues by copying episodes to ad
 2. **Given** "Copy to queue" is selected, **When** user selects a destination queue from dialog, **Then** episode is added to destination queue without being removed from current queue
 3. **Given** "Move to queue" is selected, **When** user selects a destination queue from dialog, **Then** episode is removed from current queue and added to destination queue
 4. **Given** user cancels the queue selector dialog, **When** dialog closes, **Then** no changes are made to episode queue assignments
-5. **Given** episode is copied to multiple queues, **When** user views that episode's details, **Then** it shows queues where episode appears
+5. **Given** episode is copied to multiple queues, **When** user removes that episode from one queue, **Then** episode remains in other queues where it exists
+6. **Given** episode is 100% played in one queue, **When** user switches to another queue containing the same episode, **Then** system skips that episode and selects next unplayed episode
+7. **Given** queue becomes active and last-played episode is fully played, **When** system finds unplayed episode in queue, **Then** that episode is selected and displayed in paused state
 
 ### Edge Cases
 
@@ -113,6 +115,8 @@ Users need to organize episodes across multiple queues by copying episodes to ad
 - What happens if queue name is very long? → Text should be truncated with ellipsis while maintaining readability
 - What happens during playback when user switches queues? → Playback pauses, current queue's last position is saved, new queue's last position is restored, ready to resume
 - What happens if a queue becomes empty (all episodes removed)? → Queue remains available, empty state is shown instead of episode list
+- What happens when all episodes in a queue are 100% played? → System stops playback and waits for user action (pause state, no auto-advance)
+- What happens when user copies an episode to multiple queues then marks it played in one? → Episode playback status syncs globally; other queues skip it when encountered
 
 ## Requirements *(mandatory)*
 
@@ -132,7 +136,7 @@ Users need to organize episodes across multiple queues by copying episodes to ad
 - **FR-007**: System MUST prevent queue creation with empty names
 - **FR-008**: Users MUST be able to rename existing queues and changes MUST persist immediately
 - **FR-009**: Users MUST be able to assign a color to each queue for visual distinction in UI
-- **FR-010**: System MUST display all queues in a ranked/ordered list where users can customize order
+- **FR-010**: System MUST display all queues in creation order (sorted by created_at timestamp, oldest first) in queue selection pane
 - **FR-011**: Users MUST be able to delete queues with explicit confirmation dialog warning of data loss
 - **FR-012**: System MUST prevent deletion of the last remaining queue
 - **FR-013**: When a queue is deleted, system MUST switch active queue to another available queue
@@ -149,6 +153,13 @@ Users need to organize episodes across multiple queues by copying episodes to ad
 - **FR-024**: When user invokes "Copy to queue" or "Move to queue" action on a queue item, system MUST display queue selector dialog
 - **FR-025**: "Copy to queue" action MUST add episode to selected queue without removing it from current queue
 - **FR-026**: "Move to queue" action MUST remove episode from current queue and add it to selected queue
+- **FR-027**: When user removes/deletes an episode from a queue, removal MUST only affect that specific queue; episode remains in other queues where it exists
+- **FR-028**: Episode playback position (last play location and completion status) MUST be stored at episode level and shared across all queues
+- **FR-029**: When queue becomes active, system MUST check if the last-played episode has been marked as 100% played (by any queue)
+- **FR-030**: If last-played episode is fully played, system MUST automatically skip to next unplayed episode and check its status
+- **FR-031**: System MUST continue checking episodes sequentially (and circularly, wrapping to start) until finding an unplayed episode
+- **FR-032**: When unplayed episode is found, system MUST select it and display it in paused state, ready for user to resume playback
+- **FR-033**: If all episodes in queue are marked as 100% played, system MUST stop playback and wait for user action (pause state, no auto-advance)
 
 ### Key Entities *(include if feature involves data)*
 
@@ -212,6 +223,14 @@ Users need to organize episodes across multiple queues by copying episodes to ad
 - **Copy to queue**: Adds episode to selected queue (does not remove from current queue)
 - **Move to queue**: Removes episode from current queue and adds to selected queue
 
+## Clarifications
+
+### Session 2025-11-01
+
+- Q: How should queue ordering be persisted when users reorder queues in the UI? → A: No reordering UI will be implemented at this stage. Queues are always displayed in creation order (by created_at timestamp). Queue IDs are unique and immutable (never renumbered) as they serve as foreign keys linking episodes to queues. If future versions add reordering capability, a separate storage mechanism will be introduced at that time.
+
+- Q: When an episode appears in multiple queues (via copy-to-queue) and user removes/deletes it, what happens? → A: Episodes are logically independent within each queue. Removing an episode from one queue only removes it from that queue; it remains in other queues. However, playback position (last play location) is saved at the episode level (shared across all queues). When a queue becomes active, system checks if the "last played" episode has been marked as 100% played (on any queue). If fully played, that episode is skipped and next unplayed episode is selected. This check continues through the queue until an unplayed episode is found, then displays it in paused state. If queue runs out of unplayed episodes, playback stops and waits for user action (future versions may make this configurable).
+
 ## Assumptions
 
 - Queue switching during playback uses pause-load-restore pattern as confirmed by user
@@ -223,3 +242,9 @@ Users need to organize episodes across multiple queues by copying episodes to ad
 - At least one queue must always exist (cannot delete all queues)
 - Theme palette colors are accessible via theme system
 - Drag-to-action feature already exists; "Copy to queue" and "Move to queue" are new options to that existing system
+- Queues are displayed in creation order (by created_at timestamp), not by user-defined sort order
+- Queue IDs are immutable and serve as foreign keys; they are never renumbered or reused
+- Episode removal from a queue is queue-specific; episode remains in all other queues (independent per-queue ownership)
+- Playback position and completion status are episode-level attributes, shared globally across all queues
+- When queue runs out of unplayed episodes, system stops playback (paused state, awaits user action); future versions may make this configurable
+- Circular navigation: when reaching end of queue while searching for unplayed episodes, system wraps to beginning of queue
