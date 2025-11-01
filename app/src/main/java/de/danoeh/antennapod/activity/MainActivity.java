@@ -79,8 +79,6 @@ import de.danoeh.antennapod.ui.screen.subscriptions.SubscriptionFragment;
 import de.danoeh.antennapod.ui.view.BottomSheetBackPressedCallback;
 import de.danoeh.antennapod.ui.view.LockableBottomSheetBehavior;
 import de.danoeh.antennapod.ui.common.QueueSwitchBottomSheet;
-import androidx.lifecycle.ViewModelProvider;
-import de.danoeh.antennapod.ui.common.QueueViewModel;
 import org.apache.commons.lang3.ArrayUtils;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -138,16 +136,15 @@ public class MainActivity extends CastEnabledActivity {
                     startActivity(new Intent(MainActivity.this, PreferenceActivity.class));
                     return;
                 }
-                // Handle queue navigation with bottom sheet for queue switching
+                // Handle queue navigation - show bottom sheet for switching between queues
                 if (itemId == R.id.bottom_navigation_queue) {
                     QueueSwitchBottomSheet queueSheet = new QueueSwitchBottomSheet();
                     queueSheet.setOnQueueEditListener(queueId -> {
-                        // Phase 5: Show queue edit dialog
-                        // For now, just close the sheet
+                        // Phase 5: Implement queue edit dialog
                         queueSheet.dismiss();
                     });
                     queueSheet.show(getSupportFragmentManager(), "queue_switch");
-                    // Load the QueueFragment to show the episodes of the current queue
+                    // Load the QueueFragment to display the current queue's episodes
                     loadFragment(QueueFragment.TAG, null);
                     return;
                 }
