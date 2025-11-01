@@ -201,14 +201,29 @@ public final class DBReader {
     }
 
     /**
-     * Loads a list of the FeedItems in the default queue. If the FeedItems of the queue are not used directly,
+     * Loads a list of the FeedItems in the active queue. If the FeedItems of the queue are not used directly,
      * consider using {@link #getQueueIDList()} instead.
      *
-     * @return A list of FeedItems sorted by the same order as the queue.
+     * NOTE: This method requires access to SharedPreferences to retrieve the active queue ID.
+     * TODO (Phase 4): Update this method to look up the active queue ID from SharedPreferences
+     * using PREF_CURRENT_QUEUE_ID and delegate to getQueue(activeQueueId).
+     * For now, this is a placeholder that needs QueuePreferences integration.
+     *
+     * @return A list of FeedItems sorted by the same order as the active queue.
+     * @deprecated This method cannot determine the active queue ID without context.
+     *             Use {@link #getQueue(long)} with explicit queue ID instead.
      */
     @NonNull
+    @Deprecated
     public static List<FeedItem> getQueue() {
-        return getQueue(1); // Default queue has ID 1 (PodDBAdapter.KEY_QUEUE_ID_DEFAULT)
+        // TODO: Replace this with:
+        // long activeQueueId = QueuePreferences.getActiveQueueId();
+        // return getQueue(activeQueueId);
+
+        // Temporary placeholder - this will break if queue ID 1 doesn't exist
+        Log.w(TAG, "getQueue() called without queue ID - using queue_id=1 as temporary fallback. " +
+                   "This should be updated to use active queue from QueuePreferences (Phase 4)");
+        return getQueue(1);
     }
 
     /**
