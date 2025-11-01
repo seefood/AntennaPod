@@ -3,6 +3,7 @@ package de.danoeh.antennapod.ui.common;
 import android.app.Application;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
@@ -15,6 +16,8 @@ import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import de.danoeh.antennapod.event.QueueEvent;
 import de.danoeh.antennapod.model.feed.QueueMetadata;
@@ -37,6 +40,11 @@ public class QueueViewModel extends AndroidViewModel {
     private final MutableLiveData<QueueMetadata> currentQueueLiveData = new MutableLiveData<>();
     private final MutableLiveData<String> errorMessageLiveData = new MutableLiveData<>();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r);
+        t.setName("QueueViewModel-DB");
+        return t;
+    });
 
     public QueueViewModel(@NonNull Application application) {
         super(application);
@@ -148,11 +156,12 @@ public class QueueViewModel extends AndroidViewModel {
             return;
         }
 
-        // Submit task to handle Future result
-        Thread backgroundThread = new Thread(() -> {
+        executor.submit(() -> {
             try {
+                Log.d(TAG, "Creating queue: " + name);
                 Long queueId = DBWriter.createQueue(name, color).get();
                 postToMainThread(() -> {
+                    Log.d(TAG, "Queue created with ID: " + queueId);
                     // Auto-switch to newly created queue
                     if (queueId != null) {
                         switchActiveQueue(queueId);
@@ -160,12 +169,12 @@ public class QueueViewModel extends AndroidViewModel {
                     loadQueueData();
                 });
             } catch (Exception e) {
+                Log.e(TAG, "Failed to create queue", e);
                 postToMainThread(() -> {
-                    errorMessageLiveData.setValue("Failed to create queue: " + e.getMessage());
+                    errorMessageLiveData.setValue("Unable to create queue. Please try again.");
                 });
             }
         });
-        backgroundThread.start();
     }
 
     /**
@@ -183,10 +192,12 @@ public class QueueViewModel extends AndroidViewModel {
             return;
         }
 
-        Thread backgroundThread = new Thread(() -> {
+        executor.submit(() -> {
             try {
+                Log.d(TAG, "Renaming queue " + queueId + " to: " + newName);
                 DBWriter.renameQueue(queueId, newName).get();
                 postToMainThread(() -> {
+                    Log.d(TAG, "Queue renamed successfully");
                     // Update currentQueue if it was the one being renamed
                     if (queueId == getCurrentQueueId()) {
                         QueueMetadata updated = DBReader.getQueueMetadataById(queueId);
@@ -195,12 +206,12 @@ public class QueueViewModel extends AndroidViewModel {
                     loadQueueData();
                 });
             } catch (Exception e) {
+                Log.e(TAG, "Failed to rename queue", e);
                 postToMainThread(() -> {
-                    errorMessageLiveData.setValue("Failed to rename queue: " + e.getMessage());
+                    errorMessageLiveData.setValue("Unable to rename queue. Please try again.");
                 });
             }
         });
-        backgroundThread.start();
     }
 
     /**
@@ -212,10 +223,12 @@ public class QueueViewModel extends AndroidViewModel {
      * @param color New RGB color value
      */
     public void changeQueueColor(long queueId, @ColorInt int color) {
-        Thread backgroundThread = new Thread(() -> {
+        executor.submit(() -> {
             try {
+                Log.d(TAG, "Changing color for queue " + queueId);
                 DBWriter.changeQueueColor(queueId, color).get();
                 postToMainThread(() -> {
+                    Log.d(TAG, "Queue color changed successfully");
                     // Update currentQueue if it was the one being changed
                     if (queueId == getCurrentQueueId()) {
                         QueueMetadata updated = DBReader.getQueueMetadataById(queueId);
@@ -224,12 +237,12 @@ public class QueueViewModel extends AndroidViewModel {
                     loadQueueData();
                 });
             } catch (Exception e) {
+                Log.e(TAG, "Failed to change queue color", e);
                 postToMainThread(() -> {
-                    errorMessageLiveData.setValue("Failed to change queue color: " + e.getMessage());
+                    errorMessageLiveData.setValue("Unable to change queue color. Please try again.");
                 });
             }
         });
-        backgroundThread.start();
     }
 
     /**
@@ -249,10 +262,12 @@ public class QueueViewModel extends AndroidViewModel {
 
         boolean isCurrentQueue = (queueId == getCurrentQueueId());
 
-        Thread backgroundThread = new Thread(() -> {
+        executor.submit(() -> {
             try {
+                Log.d(TAG, "Deleting queue " + queueId);
                 DBWriter.deleteQueue(queueId).get();
                 postToMainThread(() -> {
+                    Log.d(TAG, "Queue deleted successfully");
                     // If we deleted the current queue, switch to another
                     if (isCurrentQueue) {
                         List<QueueMetadata> remaining = DBReader.getAllQueues();
@@ -263,12 +278,12 @@ public class QueueViewModel extends AndroidViewModel {
                     loadQueueData();
                 });
             } catch (Exception e) {
+                Log.e(TAG, "Failed to delete queue", e);
                 postToMainThread(() -> {
-                    errorMessageLiveData.setValue("Failed to delete queue: " + e.getMessage());
+                    errorMessageLiveData.setValue("Unable to delete queue. Please try again.");
                 });
             }
         });
-        backgroundThread.start();
     }
 
     /**
@@ -294,5 +309,6 @@ public class QueueViewModel extends AndroidViewModel {
     protected void onCleared() {
         super.onCleared();
         EventBus.getDefault().unregister(this);
+        executor.shutdown();
     }
 }
