@@ -78,6 +78,9 @@ import de.danoeh.antennapod.ui.screen.rating.RatingDialogManager;
 import de.danoeh.antennapod.ui.screen.subscriptions.SubscriptionFragment;
 import de.danoeh.antennapod.ui.view.BottomSheetBackPressedCallback;
 import de.danoeh.antennapod.ui.view.LockableBottomSheetBehavior;
+import de.danoeh.antennapod.ui.common.QueueSwitchBottomSheet;
+import androidx.lifecycle.ViewModelProvider;
+import de.danoeh.antennapod.ui.common.QueueViewModel;
 import org.apache.commons.lang3.ArrayUtils;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -133,6 +136,19 @@ public class MainActivity extends CastEnabledActivity {
                 sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
                 if (itemId == R.id.bottom_navigation_settings) {
                     startActivity(new Intent(MainActivity.this, PreferenceActivity.class));
+                    return;
+                }
+                // Handle queue navigation with bottom sheet for queue switching
+                if (itemId == R.id.bottom_navigation_queue) {
+                    QueueSwitchBottomSheet queueSheet = new QueueSwitchBottomSheet();
+                    queueSheet.setOnQueueEditListener(queueId -> {
+                        // Phase 5: Show queue edit dialog
+                        // For now, just close the sheet
+                        queueSheet.dismiss();
+                    });
+                    queueSheet.show(getSupportFragmentManager(), "queue_switch");
+                    // Load the QueueFragment to show the episodes of the current queue
+                    loadFragment(QueueFragment.TAG, null);
                     return;
                 }
                 loadFragment(NavigationNames.getBottomNavigationFragmentTag(itemId), null);
@@ -774,7 +790,7 @@ public class MainActivity extends CastEnabledActivity {
                 break;
         }
     }
-  
+
     //Hardware keyboard support
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
