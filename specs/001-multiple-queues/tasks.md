@@ -2,8 +2,8 @@
 
 **Feature**: Multiple Queues - Database Layer
 **Database Version**: 3080000 → 3080100 (MINOR increment)
-**Status**: Phase 2 - Ready for Implementation
-**Related Docs**: [spec.md](./spec.md) | [data-model.md](./data-model.md) | [plan.md](./plan.md) | [quickstart.md](./quickstart.md)
+**Status**: Phase 2 Complete - Domain Models Created
+**Related Docs**: [spec.md](./spec.md) | [data-model.md](./data-model.md) | [plan.md](./plan.md) | [quickstart.md](./quickstart.md) | [code-review-phase1.md](./code-review-phase1.md)
 
 ## Overview
 
@@ -35,25 +35,27 @@ This feature has ONE logical unit (database schema change) with no independent u
 
 ### Tasks
 
-- [ ] T001 Add database version constants in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/PodDBAdapter.java`
-  - Add `DB_VERSION_OLD = 3080000` constant
-  - Add `DB_VERSION_NEW = 3080100` constant
-  - Document reason for version bump in comment
+- [x] T001 Add database version constants in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/PodDBAdapter.java`
+  - ✅ Add `VERSION = 3080100` constant
+  - ✅ Add `VERSION_OLD = 3080000` constant
+  - ✅ Document reason for version bump in comment (MAJOR*1000000 + MINOR*100 + PATCH scheme)
 
-- [ ] T002 Add table name and SQL string constants in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/PodDBAdapter.java`
-  - Add `TABLE_NAME_QUEUE_METADATA = "QueueMetadata"` constant
-  - Add `CREATE_TABLE_QUEUE_METADATA` SQL string with full DDL from contracts/001-create-queue-metadata-table.sql
-  - Add column name constants (QUEUE_METADATA_ID, QUEUE_METADATA_NAME, QUEUE_METADATA_COLOR, etc.)
+- [x] T002 Add table name and SQL string constants in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/PodDBAdapter.java`
+  - ✅ Add `TABLE_NAME_QUEUE_METADATA = "QueueMetadata"` constant
+  - ✅ Add `CREATE_TABLE_QUEUE_METADATA` SQL string with full DDL
+  - ✅ Add column name constants (QUEUE_METADATA_ID, QUEUE_METADATA_NAME, QUEUE_METADATA_COLOR, QUEUE_METADATA_CREATED_AT, QUEUE_METADATA_SORT_ORDER, QUEUE_METADATA_CURRENTLY_PLAYING_FEEDMEDIA_ID, QUEUE_METADATA_CURRENTLY_PLAYING_FEED_ID, KEY_QUEUE_ID)
 
-- [ ] T003 Enable foreign keys in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/PodDBAdapter.java`
-  - Override `onConfigure(SQLiteDatabase db)` method
-  - Call `db.setForeignKeyConstraintsEnabled(true)` (Android API 16+)
-  - Add JavaDoc explaining why foreign keys are needed
+- [x] T003 Enable foreign keys in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/PodDBAdapter.java`
+  - ✅ Override `onConfigure(SQLiteDatabase db)` method in PodDbHelper
+  - ✅ Call `db.setForeignKeyConstraintsEnabled(true)` (Android API 16+)
+  - ✅ Add JavaDoc explaining why foreign keys are needed (CASCADE DELETE behavior)
 
-- [ ] T004 Create `DBUpgrader.java` migration method stub in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBUpgrader.java`
-  - Create `private static void migrateToVersion3080100(SQLiteDatabase db)` method
-  - Add case statement in `onUpgrade()` for versions <= 3080000 and < 3080100
-  - Add logging: `Log.d("DBUpgrader", "Upgrading to version 3080100: Multiple Queues")`
+- [x] T004 Create `DBUpgrader.java` migration method in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBUpgrader.java`
+  - ✅ Create `private static void migrateToVersion3080100(SQLiteDatabase db)` method with 7-step implementation
+  - ✅ Add case statement in `onUpgrade()` for `oldVersion < 3080100`
+  - ✅ Add logging at each step
+  - ✅ Implement full migration: CREATE TABLE, CREATE indexes, ALTER TABLE, INSERT default queue
+  - ✅ Add comprehensive error handling and exception propagation
 
 ---
 
@@ -63,19 +65,20 @@ This feature has ONE logical unit (database schema change) with no independent u
 
 ### Tasks
 
-- [ ] T005 Create `QueueMetadata.java` domain object in `model/src/main/java/de/danoeh/antennapod/model/feed/QueueMetadata.java`
-  - Fields: id (long), name (String), color (int), createdAt (long), sortOrder (int), currentlyPlayingFeedMediaId (long), currentlyPlayingFeedId (long)
-  - Add constructor with all fields
-  - Add getters and setters for mutable fields (name, color, sortOrder, currentlyPlayingFeedMediaId, currentlyPlayingFeedId)
-  - Add `static final long NO_MEDIA_PLAYING = -1` constant
-  - Add JavaDoc for each field explaining constraints
-  - Implement `equals(Object)` and `hashCode()` based on id field only
+- [x] T005 Create `QueueMetadata.java` domain object in `model/src/main/java/de/danoeh/antennapod/model/feed/QueueMetadata.java`
+  - ✅ Fields: id (long), name (String), color (int), createdAt (long), sortOrder (int), currentlyPlayingFeedMediaId (long), currentlyPlayingFeedId (long)
+  - ✅ Add constructor with all fields (2 overloads)
+  - ✅ Add getters and setters for mutable fields (name, color, sortOrder, currentlyPlayingFeedMediaId, currentlyPlayingFeedId)
+  - ✅ Add `static final long NO_MEDIA_PLAYING = -1` constant
+  - ✅ Add JavaDoc for each field explaining constraints
+  - ✅ Implement `equals(Object)` and `hashCode()` based on id field only
+  - ✅ Add helper methods: `isEpisodePlaying()`, `clearCurrentlyPlaying()`
 
-- [ ] T006 Create `QueueMetadataMapper.java` in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/mapper/QueueMetadataMapper.java`
-  - Create static method `QueueMetadata fromCursor(Cursor cursor)` following existing mapper patterns
-  - Extract all 7 columns from cursor and populate QueueMetadata object
-  - Add cursor column index mappings
-  - Follow same pattern as FeedItemMapper.java
+- [x] T006 Create `QueueMetadataCursor.java` in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/mapper/QueueMetadataCursor.java`
+  - ✅ Extends CursorWrapper following existing mapper pattern (FeedCursor, FeedMediaCursor)
+  - ✅ Extract all 7 columns from cursor and populate QueueMetadata object via `getQueueMetadata()`
+  - ✅ Add cursor column index mappings in constructor
+  - ✅ Follows same CursorWrapper pattern as existing mappers
 
 ---
 
