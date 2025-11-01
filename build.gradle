@@ -14,6 +14,7 @@ project.ext {
     appcompatVersion = "1.7.1"
     coreVersion = "1.16.0"
     fragmentVersion = "1.8.9"
+    lifecycleVersion = "2.8.4"
     mediaVersion = "1.6.0"
     media3Version = "1.1.1"
     paletteVersion = "1.0.0"

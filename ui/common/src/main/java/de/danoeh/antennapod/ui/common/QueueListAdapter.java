@@ -11,7 +11,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.List;
 
-import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.model.feed.QueueMetadata;
 
 /**
