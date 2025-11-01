@@ -201,24 +201,14 @@ public final class DBReader {
     }
 
     /**
-     * Loads a list of the FeedItems in the queue. If the FeedItems of the queue are not used directly, consider using
-     * {@link #getQueueIDList()} instead.
+     * Loads a list of the FeedItems in the default queue. If the FeedItems of the queue are not used directly,
+     * consider using {@link #getQueueIDList()} instead.
      *
      * @return A list of FeedItems sorted by the same order as the queue.
      */
     @NonNull
     public static List<FeedItem> getQueue() {
-        Log.d(TAG, "getQueue() called");
-
-        PodDBAdapter adapter = PodDBAdapter.getInstance();
-        adapter.open();
-        try (FeedItemCursor cursor = new FeedItemCursor(adapter.getQueueCursor())) {
-            List<FeedItem> items = extractItemlistFromCursor(cursor);
-            loadAdditionalFeedItemListData(items);
-            return items;
-        } finally {
-            adapter.close();
-        }
+        return getQueue(1); // Default queue has ID 1 (PodDBAdapter.KEY_QUEUE_ID_DEFAULT)
     }
 
     /**
@@ -316,14 +306,8 @@ public final class DBReader {
         Log.d(TAG, "countQueueItems() called with queueId=" + queueId);
         PodDBAdapter adapter = PodDBAdapter.getInstance();
         adapter.open();
-        try (Cursor cursor = adapter.getQueueCursor()) {
-            int count = 0;
-            while (cursor.moveToNext()) {
-                if (cursor.getLong(cursor.getColumnIndexOrThrow(PodDBAdapter.KEY_QUEUE_ID)) == queueId) {
-                    count++;
-                }
-            }
-            return count;
+        try (Cursor cursor = adapter.getQueueItemsCursor(queueId)) {
+            return cursor.getCount();
         } finally {
             adapter.close();
         }
