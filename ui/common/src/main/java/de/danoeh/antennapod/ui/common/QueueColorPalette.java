@@ -1,61 +1,40 @@
 package de.danoeh.antennapod.ui.common;
 
-import android.content.Context;
-
 import androidx.annotation.ColorInt;
-
-import de.danoeh.antennapod.R;
 
 /**
  * Queue color palette utility.
  *
  * Provides a predefined set of 12 colors that match the AntennaPod theme for queue identification.
  * Colors are designed to be visually distinct and accessible.
+ *
+ * Colors are defined as hex values and can be used directly without resource loading,
+ * ensuring compatibility with API level 21+.
  */
 public class QueueColorPalette {
-    private static final int[] COLORS = new int[12];
-    private static boolean initialized = false;
-
-    /**
-     * Initialize the color palette from Android resources.
-     * Must be called once with application context before using any palette methods.
-     *
-     * @param context Android context for accessing resources
-     */
-    public static void initialize(Context context) {
-        if (initialized) {
-            return;
-        }
-
-        // Load 12 theme-matched colors from resources
-        // Colors are defined in res/values/colors.xml with keys:
-        // queue_color_1, queue_color_2, ..., queue_color_12
-        COLORS[0] = context.getColor(R.color.queue_color_1);
-        COLORS[1] = context.getColor(R.color.queue_color_2);
-        COLORS[2] = context.getColor(R.color.queue_color_3);
-        COLORS[3] = context.getColor(R.color.queue_color_4);
-        COLORS[4] = context.getColor(R.color.queue_color_5);
-        COLORS[5] = context.getColor(R.color.queue_color_6);
-        COLORS[6] = context.getColor(R.color.queue_color_7);
-        COLORS[7] = context.getColor(R.color.queue_color_8);
-        COLORS[8] = context.getColor(R.color.queue_color_9);
-        COLORS[9] = context.getColor(R.color.queue_color_10);
-        COLORS[10] = context.getColor(R.color.queue_color_11);
-        COLORS[11] = context.getColor(R.color.queue_color_12);
-
-        initialized = true;
-    }
+    // 12 theme-matched colors for queue identification
+    // These match the palette in res/values/colors.xml (queue_color_1 through queue_color_12)
+    private static final int[] COLORS = {
+        0xFFFF6B6B,  // queue_color_1: Red
+        0xFFFF8C42,  // queue_color_2: Orange
+        0xFFFFD93D,  // queue_color_3: Yellow
+        0xFF6BCF7F,  // queue_color_4: Green
+        0xFF4ECDC4,  // queue_color_5: Teal
+        0xFF45B7D1,  // queue_color_6: Cyan
+        0xFF5C63A3,  // queue_color_7: Purple
+        0xFF9C27B0,  // queue_color_8: Magenta
+        0xFFE91E63,  // queue_color_9: Pink
+        0xFFFF6F00,  // queue_color_10: Deep Orange
+        0xFF1976D2,  // queue_color_11: Blue
+        0xFF00897B   // queue_color_12: Teal
+    };
 
     /**
      * Get the color palette as an array.
      *
      * @return Array of 12 @ColorInt values
-     * @throws IllegalStateException if palette has not been initialized
      */
     public static int[] getColors() {
-        if (!initialized) {
-            throw new IllegalStateException("QueueColorPalette must be initialized with Context first");
-        }
         return COLORS.clone();
     }
 
@@ -64,14 +43,10 @@ public class QueueColorPalette {
      *
      * @param index Color index (0-11)
      * @return RGB color value
-     * @throws IllegalStateException if palette has not been initialized
      * @throws IndexOutOfBoundsException if index is out of range
      */
     @ColorInt
     public static int getColor(int index) {
-        if (!initialized) {
-            throw new IllegalStateException("QueueColorPalette must be initialized with Context first");
-        }
         if (index < 0 || index >= COLORS.length) {
             throw new IndexOutOfBoundsException("Color index must be between 0 and " + (COLORS.length - 1));
         }
@@ -109,10 +84,6 @@ public class QueueColorPalette {
      * @return Index of the closest color in the palette (0-11)
      */
     public static int findClosestColorIndex(@ColorInt int color) {
-        if (!initialized) {
-            throw new IllegalStateException("QueueColorPalette must be initialized with Context first");
-        }
-
         int closestIndex = 0;
         long minDistance = Long.MAX_VALUE;
 
@@ -143,9 +114,9 @@ public class QueueColorPalette {
         int g2 = (color2 >> 8) & 0xFF;
         int b2 = color2 & 0xFF;
 
-        long rDist = (long) (r1 - r2);
-        long gDist = (long) (g1 - g2);
-        long bDist = (long) (b1 - b2);
+        long rDist = r1 - r2;
+        long gDist = g1 - g2;
+        long bDist = b1 - b2;
 
         return rDist * rDist + gDist * gDist + bDist * bDist;
     }
