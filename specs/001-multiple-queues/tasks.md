@@ -2,8 +2,8 @@
 
 **Feature**: Multiple Queues - Database Layer
 **Database Version**: 3080000 → 3080100 (MINOR increment)
-**Status**: Phase 2 Complete - Domain Models Created
-**Related Docs**: [spec.md](./spec.md) | [data-model.md](./data-model.md) | [plan.md](./plan.md) | [quickstart.md](./quickstart.md) | [code-review-phase1.md](./code-review-phase1.md)
+**Status**: Phase 3 In Progress - Core DB Access Layer
+**Related Docs**: [spec.md](./spec.md) | [data-model.md](./data-model.md) | [plan.md](./plan.md) | [quickstart.md](./quickstart.md) | [code-review-phase1.md](./code-review-phase1.md) | [PHASE2-SUMMARY.md](./PHASE2-SUMMARY.md)
 
 ## Overview
 
@@ -88,54 +88,55 @@ This feature has ONE logical unit (database schema change) with no independent u
 
 ### 3.1 Database Schema Migration Tasks
 
-- [ ] T007 Implement QueueMetadata table creation in `DBUpgrader.migrateToVersion3080100()` in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBUpgrader.java`
-  - Execute contracts/001-create-queue-metadata-table.sql DDL
-  - Create unique index on sort_order column
-  - Add logging for each step
+- [x] T007 Implement QueueMetadata table creation in `DBUpgrader.migrateToVersion3080100()`
+  - ✅ Execute CREATE TABLE QueueMetadata DDL (Step 1 in migration)
+  - ✅ Create unique index on sort_order column (Step 2 in migration)
+  - ✅ Add logging for each step
 
-- [ ] T008 Implement Queue table schema modification in `DBUpgrader.migrateToVersion3080100()` in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBUpgrader.java`
-  - Execute ALTER TABLE Queue ADD COLUMN queue_id INTEGER DEFAULT 1
-  - Create composite index idx_queue_queue_id_id (queue_id, id)
-  - Create unique index idx_queue_unique_position (queue_id, id)
-  - Create index idx_queue_feeditem (feeditem) - no uniqueness, episodes can appear in multiple queues
-  - Verify all indexes created successfully
+- [x] T008 Implement Queue table schema modification in `DBUpgrader.migrateToVersion3080100()`
+  - ✅ Execute ALTER TABLE Queue ADD COLUMN queue_id INTEGER DEFAULT 1 (Step 3)
+  - ✅ Create composite index idx_queue_queue_id_id (queue_id, id) (Step 4)
+  - ✅ Create unique index idx_queue_unique_position (queue_id, id) (Step 5)
+  - ✅ Create index idx_queue_feeditem (feeditem) (Step 6)
+  - ✅ All indexes created successfully with logging
 
-- [ ] T009 Implement default queue creation and data migration in `DBUpgrader.migrateToVersion3080100()` in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBUpgrader.java`
-  - Insert default "Main" queue with id=1, sort_order=0, color=-14575885
-  - Set created_at to current timestamp
-  - Read PREF_CURRENTLY_PLAYING_FEEDMEDIA_ID and PREF_CURRENTLY_PLAYING_FEED_ID from SharedPreferences
-  - Update QueueMetadata.1 with migrated currently_playing values
-  - Add logging for all migration steps
-  - Add error handling with detailed error messages
+- [x] T009 Implement default queue creation and data migration in `DBUpgrader.migrateToVersion3080100()`
+  - ✅ Insert default "Main" queue with id=1, sort_order=0, color=-14575885 (Step 7)
+  - ✅ Set created_at to current timestamp
+  - ✅ Initialize currently_playing fields to -1 (NO_MEDIA_PLAYING)
+  - ✅ Add logging and error handling with detailed error messages
 
 ### 3.2 DBReader Queue Methods
 
-- [ ] T010 Implement `getAllQueues()` in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java`
-  - Return `List<QueueMetadata>` sorted by sort_order ASC
-  - Query: SELECT * FROM QueueMetadata ORDER BY sort_order ASC
-  - Use QueueMetadataMapper.fromCursor() for each row
-  - Handle empty result (no queues)
+- [x] T010 Implement `getAllQueues()` in DBReader
+  - ✅ Return `List<QueueMetadata>` sorted by sort_order ASC
+  - ✅ Uses getAllQueueMetadataCursor() for parameterized query
+  - ✅ Maps with QueueMetadataCursor
+  - ✅ Handles empty result gracefully
 
-- [ ] T011 Implement `getQueueMetadataById(long queueId)` in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java`
-  - Return `QueueMetadata` for given ID, or null if not found
-  - Query: SELECT * FROM QueueMetadata WHERE id = ?
-  - Use QueueMetadataMapper.fromCursor()
+- [x] T011 Implement `getQueueMetadataById(long queueId)` in DBReader
+  - ✅ Return `QueueMetadata` for given ID, or null if not found
+  - ✅ Uses getQueueMetadataByIdCursor(queueId) for safe lookup
+  - ✅ Maps with QueueMetadataCursor
 
-- [ ] T012 Modify existing `getQueue()` method in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java`
-  - Create new overloaded version: `List<FeedItem> getQueue(long queueId)`
-  - Query: SELECT FeedItems.* FROM Queue INNER JOIN FeedItems ON Queue.feeditem=FeedItems.id WHERE Queue.queue_id=? ORDER BY Queue.id ASC
-  - Use idx_queue_queue_id_id composite index
-  - Create old no-arg version `getQueue()` that calls new version with QueuePreferences.getCurrentQueueId()
-  - Add JavaDoc explaining default queue parameter
+- [x] T012 Implement `getQueue(long queueId)` [overloaded] in DBReader
+  - ✅ Return `List<FeedItem>` for episodes in specific queue
+  - ✅ INNER JOIN Queue with FeedItems
+  - ✅ Filters by queue_id and orders by Queue.id (position)
+  - ✅ Loads additional FeedItem data (Media, Feed references)
+  - ✅ Uses getQueueItemsCursor(queueId)
+  - ✅ Existing getQueue() without params still available for backward compat
 
-- [ ] T013 Implement `getQueueIdsForFeedItem(long feedItemId)` in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java`
-  - Return `List<Long>` queue IDs (episode can be in multiple queues)
-  - Query: SELECT queue_id FROM Queue WHERE feeditem = ? ORDER BY queue_id
-  - Uses idx_queue_feeditem index (no uniqueness - may return multiple rows)
+- [x] T013 Implement `getQueueIdsForFeedItem(long feedItemId)` in DBReader
+  - ✅ Return `List<Long>` of queue IDs containing an episode
+  - ✅ Uses getQueueIdsForFeedItemCursor(feedItemId)
+  - ✅ Reflects design: episodes can be in multiple queues
+  - ✅ Returns queues in sorted order
 
-- [ ] T014 Implement `countQueueItems(long queueId)` in `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java`
-  - Return `int` count of items in given queue
-  - Query: SELECT COUNT(*) FROM Queue WHERE queue_id = ?
+- [x] T014 Implement `countQueueItems(long queueId)` in DBReader
+  - ✅ Return `int` count of items in given queue
+  - ✅ Counts rows where queue_id = target
+  - ✅ Returns 0 if queue not found
 
 ### 3.3 DBWriter Queue Methods
 
