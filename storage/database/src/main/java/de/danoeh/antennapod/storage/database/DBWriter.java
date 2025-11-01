@@ -49,6 +49,7 @@ import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.model.feed.FeedPreferences;
+import de.danoeh.antennapod.model.feed.QueueMetadata;
 import de.danoeh.antennapod.model.feed.SortOrder;
 import de.danoeh.antennapod.model.playback.Playable;
 import de.danoeh.antennapod.net.sync.serviceinterface.EpisodeAction;
@@ -1003,6 +1004,194 @@ public class DBWriter {
         } else {
             Log.w(TAG, "removeFeedWithDownloadUrl: Could not find feed with url: " + downloadUrl);
         }
+    }
+
+    // ============ Multiple Queues Support (T015-T023) ============
+
+    /**
+     * Creates a new queue with the given name and color.
+     * T015: createQueue(String name, int color)
+     *
+     * @param name User-defined queue name (cannot be null or empty)
+     * @param color RGB color value for UI
+     * @return Future with the new queue ID
+     */
+    public static Future<Long> createQueue(@NonNull final String name, final int color) {
+        return dbExec.submit(() -> {
+            if (name == null || name.trim().isEmpty()) {
+                throw new IllegalArgumentException("Queue name cannot be null or empty");
+            }
+
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                // Get next sort_order
+                int sortOrder = 0;
+                try (Cursor cursor = adapter.getAllQueueMetadataCursor()) {
+                    if (cursor.moveToLast()) {
+                        sortOrder = cursor.getInt(cursor.getColumnIndexOrThrow(PodDBAdapter.QUEUE_METADATA_SORT_ORDER)) + 1;
+                    }
+                }
+
+                // Insert new queue
+                android.content.ContentValues values = new android.content.ContentValues();
+                values.put(PodDBAdapter.QUEUE_METADATA_NAME, name);
+                values.put(PodDBAdapter.QUEUE_METADATA_COLOR, color);
+                values.put(PodDBAdapter.QUEUE_METADATA_CREATED_AT, System.currentTimeMillis());
+                values.put(PodDBAdapter.QUEUE_METADATA_SORT_ORDER, sortOrder);
+                values.put(PodDBAdapter.QUEUE_METADATA_CURRENTLY_PLAYING_FEEDMEDIA_ID, QueueMetadata.NO_MEDIA_PLAYING);
+                values.put(PodDBAdapter.QUEUE_METADATA_CURRENTLY_PLAYING_FEED_ID, QueueMetadata.NO_MEDIA_PLAYING);
+
+                long queueId = adapter.insertQueue(values);
+
+                // Post event - note: currently using SET_QUEUE for all queue changes
+                // TODO: Enhance QueueEvent to support QUEUE_CREATED, QUEUE_RENAMED, etc.
+                EventBus.getDefault().postSticky(QueueEvent.setQueue(new ArrayList<>()));
+                return queueId;
+            } finally {
+                adapter.close();
+            }
+        });
+    }
+
+    /**
+     * Renames a queue.
+     * T016: renameQueue(long queueId, String newName)
+     *
+     * @param queueId The ID of the queue to rename
+     * @param newName The new name (cannot be null or empty)
+     * @return Future<Void>
+     */
+    public static Future<Void> renameQueue(final long queueId, @NonNull final String newName) {
+        return dbExec.submit(() -> {
+            if (newName == null || newName.trim().isEmpty()) {
+                throw new IllegalArgumentException("Queue name cannot be null or empty");
+            }
+
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                android.content.ContentValues values = new android.content.ContentValues();
+                values.put(PodDBAdapter.QUEUE_METADATA_NAME, newName);
+                adapter.updateQueueMetadata(queueId, values);
+
+                EventBus.getDefault().postSticky(QueueEvent.setQueue(new ArrayList<>()));
+            } finally {
+                adapter.close();
+            }
+            return null;
+        });
+    }
+
+    /**
+     * Changes a queue's color.
+     * T017: changeQueueColor(long queueId, int color)
+     *
+     * @param queueId The ID of the queue
+     * @param color RGB color value
+     * @return Future<Void>
+     */
+    public static Future<Void> changeQueueColor(final long queueId, final int color) {
+        return dbExec.submit(() -> {
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                android.content.ContentValues values = new android.content.ContentValues();
+                values.put(PodDBAdapter.QUEUE_METADATA_COLOR, color);
+                adapter.updateQueueMetadata(queueId, values);
+
+                EventBus.getDefault().postSticky(QueueEvent.setQueue(new ArrayList<>()));
+            } finally {
+                adapter.close();
+            }
+            return null;
+        });
+    }
+
+    /**
+     * Deletes a queue.
+     * T018: deleteQueue(long queueId)
+     * Last queue cannot be deleted.
+     *
+     * @param queueId The ID of the queue to delete
+     * @return Future<Void>
+     */
+    public static Future<Void> deleteQueue(final long queueId) {
+        return dbExec.submit(() -> {
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                // Check if this is the last queue
+                List<QueueMetadata> allQueues = DBReader.getAllQueues();
+                if (allQueues.size() <= 1) {
+                    throw new IllegalStateException("Cannot delete the last queue");
+                }
+
+                // Delete all items in this queue
+                adapter.deleteQueueItems(queueId);
+
+                // Delete queue metadata
+                adapter.deleteQueueMetadata(queueId);
+
+                EventBus.getDefault().postSticky(QueueEvent.cleared());
+            } finally {
+                adapter.close();
+            }
+            return null;
+        });
+    }
+
+    /**
+     * Reorders queues.
+     * T019: reorderQueues(List<Long> queueIds)
+     *
+     * @param queueIds List of queue IDs in the new order
+     * @return Future<Void>
+     */
+    public static Future<Void> reorderQueues(@NonNull final List<Long> queueIds) {
+        return dbExec.submit(() -> {
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                for (int i = 0; i < queueIds.size(); i++) {
+                    android.content.ContentValues values = new android.content.ContentValues();
+                    values.put(PodDBAdapter.QUEUE_METADATA_SORT_ORDER, i);
+                    adapter.updateQueueMetadata(queueIds.get(i), values);
+                }
+
+                EventBus.getDefault().postSticky(QueueEvent.setQueue(new ArrayList<>()));
+            } finally {
+                adapter.close();
+            }
+            return null;
+        });
+    }
+
+    /**
+     * Sets the currently playing episode for a queue.
+     * T023: setCurrentlyPlaying(long queueId, long feedMediaId, long feedId)
+     *
+     * @param queueId The queue ID
+     * @param feedMediaId FeedMedia ID of currently playing episode, or -1 for none
+     * @param feedId Feed ID of currently playing episode, or -1 for none
+     * @return Future<Void>
+     */
+    public static Future<Void> setCurrentlyPlaying(final long queueId, final long feedMediaId, final long feedId) {
+        return dbExec.submit(() -> {
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                android.content.ContentValues values = new android.content.ContentValues();
+                values.put(PodDBAdapter.QUEUE_METADATA_CURRENTLY_PLAYING_FEEDMEDIA_ID, feedMediaId);
+                values.put(PodDBAdapter.QUEUE_METADATA_CURRENTLY_PLAYING_FEED_ID, feedId);
+                adapter.updateQueueMetadata(queueId, values);
+
+                EventBus.getDefault().postSticky(QueueEvent.setQueue(new ArrayList<>()));
+            } finally {
+                adapter.close();
+            }
+            return null;
+        });
     }
 
     /**

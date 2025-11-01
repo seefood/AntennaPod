@@ -1127,6 +1127,46 @@ public class PodDBAdapter {
                 null, null, KEY_QUEUE_ID + " ASC");
     }
 
+    /**
+     * Insert new queue metadata (for multiple queues feature).
+     * @param values ContentValues with queue metadata
+     * @return Inserted queue ID, or -1 on error
+     */
+    public long insertQueue(ContentValues values) {
+        return db.insert(TABLE_NAME_QUEUE_METADATA, null, values);
+    }
+
+    /**
+     * Update queue metadata (for multiple queues feature).
+     * @param queueId Queue ID to update
+     * @param values ContentValues with fields to update
+     * @return Number of rows affected
+     */
+    public int updateQueueMetadata(long queueId, ContentValues values) {
+        return db.update(TABLE_NAME_QUEUE_METADATA, values,
+                QUEUE_METADATA_ID + " = ?", new String[]{String.valueOf(queueId)});
+    }
+
+    /**
+     * Delete all queue items in a queue (for multiple queues feature).
+     * @param queueId Queue ID whose items to delete
+     * @return Number of rows affected
+     */
+    public int deleteQueueItems(long queueId) {
+        return db.delete(TABLE_NAME_QUEUE, KEY_QUEUE_ID + " = ?",
+                new String[]{String.valueOf(queueId)});
+    }
+
+    /**
+     * Delete queue metadata (for multiple queues feature).
+     * @param queueId Queue ID to delete
+     * @return Number of rows affected
+     */
+    public int deleteQueueMetadata(long queueId) {
+        return db.delete(TABLE_NAME_QUEUE_METADATA, QUEUE_METADATA_ID + " = ?",
+                new String[]{String.valueOf(queueId)});
+    }
+
     public Cursor getNextInQueue(final FeedItem item) {
         final String query = "SELECT " + KEYS_FEED_ITEM_WITHOUT_DESCRIPTION + ", " + KEYS_FEED_MEDIA
                 + " FROM " + TABLE_NAME_QUEUE
