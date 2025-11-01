@@ -181,19 +181,22 @@ public final class DBReader {
     }
 
     /**
-     * Loads the IDs of the FeedItems in the queue. This method should be preferred over
+     * Loads the IDs of the FeedItems in the active queue. This method should be preferred over
      * {@link #getQueue()} if the FeedItems of the queue are not needed.
      *
-     * @return A list of IDs sorted by the same order as the queue.
+     * The active queue ID is retrieved from {@link UserPreferences#getCurrentQueueId()}.
+     *
+     * @return A list of IDs sorted by the same order as the active queue.
      */
     public static LongList getQueueIDList() {
-        Log.d(TAG, "getQueueIDList() called");
+        long activeQueueId = UserPreferences.getCurrentQueueId();
+        Log.d(TAG, "getQueueIDList() called - using active queue ID: " + activeQueueId);
         PodDBAdapter adapter = PodDBAdapter.getInstance();
         adapter.open();
-        try (Cursor cursor = adapter.getQueueIDCursor()) {
+        try (Cursor cursor = adapter.getQueueItemsCursor(activeQueueId)) {
             LongList queueIds = new LongList(cursor.getCount());
             while (cursor.moveToNext()) {
-                queueIds.add(cursor.getLong(0));
+                queueIds.add(cursor.getLong(cursor.getColumnIndexOrThrow(PodDBAdapter.KEY_FEEDITEM)));
             }
             return queueIds;
         } finally {
