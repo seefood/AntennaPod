@@ -3,8 +3,10 @@ package de.danoeh.antennapod.storage.database;
 import android.content.Context;
 import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.model.feed.FeedItem;
+import de.danoeh.antennapod.model.feed.FeedItemFilter;
 import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.model.feed.QueueMetadata;
+import de.danoeh.antennapod.model.feed.SortOrder;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import org.junit.Before;
 import org.junit.Test;
@@ -71,7 +73,7 @@ public class QueuePerformanceTest {
 
     @Test
     public void testGetQueuePerformance() throws Exception {
-        List<FeedItem> items = DBReader.getFeedItemList(feed);
+        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
         for (int i = 0; i < 10; i++) {
             DBWriter.addQueueItem(context, items.get(i)).get();
         }
@@ -88,7 +90,7 @@ public class QueuePerformanceTest {
 
     @Test
     public void testAddQueueItemPerformance() throws Exception {
-        List<FeedItem> items = DBReader.getFeedItemList(feed);
+        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
 
         long startTime = System.currentTimeMillis();
         DBWriter.addQueueItem(context, items.get(0)).get();
@@ -101,7 +103,7 @@ public class QueuePerformanceTest {
 
     @Test
     public void testBulkAddQueueItemsPerformance() throws Exception {
-        List<FeedItem> items = DBReader.getFeedItemList(feed);
+        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
 
         long startTime = System.currentTimeMillis();
         for (int i = 0; i < 20; i++) {
@@ -116,7 +118,7 @@ public class QueuePerformanceTest {
 
     @Test
     public void testCountQueueItemsPerformance() throws Exception {
-        List<FeedItem> items = DBReader.getFeedItemList(feed);
+        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
         for (int i = 0; i < 10; i++) {
             DBWriter.addQueueItem(context, items.get(i)).get();
         }
@@ -151,11 +153,9 @@ public class QueuePerformanceTest {
 
     // Helper methods
     private Feed createFeed(long feedId, String title) {
-        Feed feed = new Feed();
-        feed.setDownloadUrl("http://example.com/feed" + feedId);
-        feed.setTitle(title);
+        Feed feed = new Feed("http://example.com/feed" + feedId, title, null);
         feed.setLink("http://example.com");
-        feed.setDescription("Test Description");
+        feed.setItems(new ArrayList<>());
         return feed;
     }
 
@@ -165,11 +165,8 @@ public class QueuePerformanceTest {
         item.setItemIdentifier(identifier);
         item.setTitle(title);
         item.setLink("http://example.com/" + identifier);
-        item.setPubDate(System.currentTimeMillis());
 
-        FeedMedia media = new FeedMedia();
-        media.setItem(item);
-        media.setDownloadUrl("http://example.com/media/" + identifier);
+        FeedMedia media = new FeedMedia(item, "http://example.com/media/" + identifier, 0, "audio/mpeg");
         item.setMedia(media);
 
         return item;

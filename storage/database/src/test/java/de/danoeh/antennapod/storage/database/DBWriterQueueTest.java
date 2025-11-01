@@ -3,8 +3,10 @@ package de.danoeh.antennapod.storage.database;
 import android.content.Context;
 import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.model.feed.FeedItem;
+import de.danoeh.antennapod.model.feed.FeedItemFilter;
 import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.model.feed.QueueMetadata;
+import de.danoeh.antennapod.model.feed.SortOrder;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import org.junit.Before;
 import org.junit.Test;
@@ -14,6 +16,7 @@ import org.robolectric.RuntimeEnvironment;
 
 import androidx.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -125,7 +128,7 @@ public class DBWriterQueueTest {
     public void testDeleteQueue_DeletesItems() throws Exception {
         long queueId = DBWriter.createQueue("Queue with Items", 0xFF0000).get();
 
-        List<FeedItem> items = DBReader.getFeedItemList(feed);
+        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
         for (int i = 0; i < 2; i++) {
             DBWriter.addQueueItem(context, items.get(i)).get();
         }
@@ -157,7 +160,7 @@ public class DBWriterQueueTest {
     @Test
     public void testSetCurrentlyPlaying_Success() throws Exception {
         long queueId = DBWriter.createQueue("Test Queue", 0xFF0000).get();
-        List<FeedItem> items = DBReader.getFeedItemList(feed);
+        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
         FeedItem item = items.get(0);
         FeedMedia media = item.getMedia();
 
@@ -171,7 +174,7 @@ public class DBWriterQueueTest {
     @Test
     public void testSetCurrentlyPlaying_ClearByUsingNoMedia() throws Exception {
         long queueId = DBWriter.createQueue("Test Queue", 0xFF0000).get();
-        List<FeedItem> items = DBReader.getFeedItemList(feed);
+        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
         FeedItem item = items.get(0);
 
         // Set playing
@@ -188,7 +191,7 @@ public class DBWriterQueueTest {
     @Test
     public void testAddQueueItem_AddsToActiveQueue() throws Exception {
         UserPreferences.setCurrentQueueId(1);
-        List<FeedItem> items = DBReader.getFeedItemList(feed);
+        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
 
         DBWriter.addQueueItem(context, items.get(0)).get();
 
@@ -206,11 +209,9 @@ public class DBWriterQueueTest {
     }
 
     private Feed createFeed(long feedId, String title) {
-        Feed feed = new Feed();
-        feed.setDownloadUrl("http://example.com/feed" + feedId);
-        feed.setTitle(title);
+        Feed feed = new Feed("http://example.com/feed" + feedId, title, null);
         feed.setLink("http://example.com");
-        feed.setDescription("Test Description");
+        feed.setItems(new ArrayList<>());
         return feed;
     }
 
@@ -220,11 +221,8 @@ public class DBWriterQueueTest {
         item.setItemIdentifier(identifier);
         item.setTitle(title);
         item.setLink("http://example.com/" + identifier);
-        item.setPubDate(System.currentTimeMillis());
 
-        FeedMedia media = new FeedMedia();
-        media.setItem(item);
-        media.setDownloadUrl("http://example.com/media/" + identifier);
+        FeedMedia media = new FeedMedia(item, "http://example.com/media/" + identifier, 0, "audio/mpeg");
         item.setMedia(media);
 
         return item;

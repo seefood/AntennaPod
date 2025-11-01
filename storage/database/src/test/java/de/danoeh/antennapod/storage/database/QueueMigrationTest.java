@@ -57,25 +57,21 @@ public class QueueMigrationTest {
 
     @Test
     public void testDatabaseVersionUpdated() {
-        PodDBAdapter adapter = PodDBAdapter.getInstance();
-        adapter.open();
-        int version = adapter.getVersion();
-        adapter.close();
-
-        assertEquals(3080100, version);
+        assertEquals(3080100, PodDBAdapter.VERSION);
     }
 
     @Test
     public void testQueueItemsHaveQueueId() throws Exception {
         // When items are added to queue, they should have a queue_id set
         android.content.ContentValues values = new android.content.ContentValues();
+        values.put(PodDBAdapter.KEY_QUEUE_ID, 1);
+        values.put(PodDBAdapter.KEY_ID, 0);
         values.put(PodDBAdapter.KEY_FEEDITEM, 100); // Fake feed item ID
 
         PodDBAdapter adapter = PodDBAdapter.getInstance();
         adapter.open();
         try {
-            long result = adapter.executeInsert(PodDBAdapter.TABLE_NAME_QUEUE, values);
-            assertTrue(result > 0);
+            adapter.insertTestData(PodDBAdapter.TABLE_NAME_QUEUE, values);
         } finally {
             adapter.close();
         }

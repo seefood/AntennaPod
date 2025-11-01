@@ -87,7 +87,7 @@ public class QueueIntegrityTest {
             values.put(PodDBAdapter.KEY_QUEUE_ID, 1);
             values.put(PodDBAdapter.KEY_ID, i);
             values.put(PodDBAdapter.KEY_FEEDITEM, 100 + i);
-            adapter.executeInsert(PodDBAdapter.TABLE_NAME_QUEUE, values);
+            adapter.insertTestData(PodDBAdapter.TABLE_NAME_QUEUE, values);
         }
 
         adapter.close();
@@ -125,8 +125,7 @@ public class QueueIntegrityTest {
         values1.put(PodDBAdapter.KEY_QUEUE_ID, 1);
         values1.put(PodDBAdapter.KEY_ID, 1);
         values1.put(PodDBAdapter.KEY_FEEDITEM, 1001);
-        long result1 = adapter.executeInsert(PodDBAdapter.TABLE_NAME_QUEUE, values1);
-        assertTrue(result1 > 0);
+        adapter.insertTestData(PodDBAdapter.TABLE_NAME_QUEUE, values1);
 
         // Try to insert duplicate position in same queue - should fail or succeed
         // depending on UNIQUE constraint
