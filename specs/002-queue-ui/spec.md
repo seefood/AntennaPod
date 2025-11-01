@@ -101,12 +101,14 @@ Users need to organize episodes across multiple queues by copying episodes to ad
 **Acceptance Scenarios**:
 
 1. **Given** user has episodes in a queue, **When** user drags an episode left or right, **Then** action menu appears including "Copy to queue" and "Move to queue" options
-2. **Given** "Copy to queue" is selected, **When** user selects a destination queue from dialog, **Then** episode is added to destination queue without being removed from current queue
-3. **Given** "Move to queue" is selected, **When** user selects a destination queue from dialog, **Then** episode is removed from current queue and added to destination queue
-4. **Given** user cancels the queue selector dialog, **When** dialog closes, **Then** no changes are made to episode queue assignments
-5. **Given** episode is copied to multiple queues, **When** user removes that episode from one queue, **Then** episode remains in other queues where it exists
-6. **Given** episode is 100% played in one queue, **When** user switches to another queue containing the same episode, **Then** system skips that episode and selects next unplayed episode
-7. **Given** queue becomes active and last-played episode is fully played, **When** system finds unplayed episode in queue, **Then** that episode is selected and displayed in paused state
+2. **Given** "Copy to queue" is selected, **When** queue selector dialog opens, **Then** only queues that do NOT contain the episode are shown
+3. **Given** "Copy to queue" action completes, **When** user selects a destination queue, **Then** episode is added to destination queue without being removed from current queue
+4. **Given** "Move to queue" is selected, **When** queue selector dialog opens, **Then** only queues that do NOT contain the episode are shown (preventing duplicate)
+5. **Given** "Move to queue" action completes, **When** user selects a destination queue, **Then** episode is removed from current queue and added to selected queue
+6. **Given** user cancels the queue selector dialog, **When** dialog closes, **Then** no changes are made to episode queue assignments
+7. **Given** episode is copied to multiple queues, **When** user removes that episode from one queue, **Then** episode remains in other queues where it exists
+8. **Given** episode is 100% played in one queue, **When** user switches to another queue containing the same episode, **Then** system skips that episode and selects next unplayed episode
+9. **Given** queue becomes active and last-played episode is fully played, **When** system finds unplayed episode in queue, **Then** that episode is selected and displayed in paused state
 
 ### Edge Cases
 
@@ -150,9 +152,9 @@ Users need to organize episodes across multiple queues by copying episodes to ad
 - **FR-021**: Selected color in color picker MUST be indicated with a visual tick mark
 - **FR-022**: Queue edit dialog MUST display "Delete queue" button only when more than one queue exists
 - **FR-023**: System MUST add "Copy to queue" and "Move to queue" as configurable drag-action options for queue items
-- **FR-024**: When user invokes "Copy to queue" or "Move to queue" action on a queue item, system MUST display queue selector dialog
+- **FR-024**: When user invokes "Copy to queue" or "Move to queue" action on a queue item, system MUST display queue selector dialog showing only queues that do NOT already contain the episode
 - **FR-025**: "Copy to queue" action MUST add episode to selected queue without removing it from current queue
-- **FR-026**: "Move to queue" action MUST remove episode from current queue and add it to selected queue
+- **FR-026**: "Move to queue" action MUST remove episode from current queue and add it to selected queue (only selectable if destination queue does not contain episode)
 - **FR-027**: When user removes/deletes an episode from a queue, removal MUST only affect that specific queue; episode remains in other queues where it exists
 - **FR-028**: Episode playback position (last play location and completion status) MUST be stored at episode level and shared across all queues
 - **FR-029**: When queue becomes active, system MUST check if the last-played episode has been marked as 100% played (by any queue)
@@ -231,6 +233,8 @@ Users need to organize episodes across multiple queues by copying episodes to ad
 
 - Q: When an episode appears in multiple queues (via copy-to-queue) and user removes/deletes it, what happens? → A: Episodes are logically independent within each queue. Removing an episode from one queue only removes it from that queue; it remains in other queues. However, playback position (last play location) is saved at the episode level (shared across all queues). When a queue becomes active, system checks if the "last played" episode has been marked as 100% played (on any queue). If fully played, that episode is skipped and next unplayed episode is selected. This check continues through the queue until an unplayed episode is found, then displays it in paused state. If queue runs out of unplayed episodes, playback stops and waits for user action (future versions may make this configurable).
 
+- Q: When user invokes Copy/Move to queue actions, what queues should the selector dialog show? → A: Prevent duplicates strictly. For "Copy to queue": show only queues that do NOT already contain the episode. For "Move to queue": show only queues that do NOT already contain the episode. This prevents duplicate episodes in the same queue and simplifies the user workflow (no need to check if episode already exists in a queue).
+
 ## Assumptions
 
 - Queue switching during playback uses pause-load-restore pattern as confirmed by user
@@ -248,3 +252,5 @@ Users need to organize episodes across multiple queues by copying episodes to ad
 - Playback position and completion status are episode-level attributes, shared globally across all queues
 - When queue runs out of unplayed episodes, system stops playback (paused state, awaits user action); future versions may make this configurable
 - Circular navigation: when reaching end of queue while searching for unplayed episodes, system wraps to beginning of queue
+- Copy/Move to queue dialogs only show queues that do NOT already contain the episode (prevents duplicates in same queue)
+- Both "Copy to queue" and "Move to queue" enforce the no-duplicate rule in queue selector dialog
