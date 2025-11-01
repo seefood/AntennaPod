@@ -7,6 +7,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.List;
@@ -83,18 +84,58 @@ public class QueueListAdapter extends RecyclerView.Adapter<QueueListAdapter.Queu
      * @param currentQueueId ID of the current queue
      */
     public void setCurrentQueueId(long currentQueueId) {
-        this.currentQueueId = currentQueueId;
-        notifyDataSetChanged();
+        if (this.currentQueueId != currentQueueId) {
+            this.currentQueueId = currentQueueId;
+            // Only notify if we have items (avoid unnecessary refreshes with empty list)
+            if (queueList != null && !queueList.isEmpty()) {
+                notifyDataSetChanged();
+            }
+        }
     }
 
     /**
-     * Update the queue list.
+     * Update the queue list with efficient diffing.
+     * Uses DiffUtil to compute differences and only update changed items.
      *
      * @param newQueueList New list of QueueMetadata objects
      */
     public void updateQueueList(List<QueueMetadata> newQueueList) {
-        this.queueList = newQueueList;
-        notifyDataSetChanged();
+        final List<QueueMetadata> finalNewQueueList = newQueueList != null ?
+                newQueueList : java.util.Collections.emptyList();
+
+        // Use DiffUtil for efficient updates instead of notifyDataSetChanged()
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+            @Override
+            public int getOldListSize() {
+                return queueList != null ? queueList.size() : 0;
+            }
+
+            @Override
+            public int getNewListSize() {
+                return finalNewQueueList.size();
+            }
+
+            @Override
+            public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+                QueueMetadata oldQueue = queueList != null ? queueList.get(oldItemPosition) : null;
+                QueueMetadata newQueue = finalNewQueueList.get(newItemPosition);
+                return oldQueue != null && oldQueue.getId() == newQueue.getId();
+            }
+
+            @Override
+            public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+                QueueMetadata oldQueue = queueList != null ? queueList.get(oldItemPosition) : null;
+                QueueMetadata newQueue = finalNewQueueList.get(newItemPosition);
+                if (oldQueue == null) {
+                    return false;
+                }
+                return oldQueue.getName().equals(newQueue.getName()) &&
+                       oldQueue.getColor() == newQueue.getColor();
+            }
+        });
+
+        this.queueList = finalNewQueueList;
+        diffResult.dispatchUpdatesTo(this);
     }
 
     @NonNull

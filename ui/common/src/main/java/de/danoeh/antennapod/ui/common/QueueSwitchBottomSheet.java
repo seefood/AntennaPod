@@ -126,24 +126,28 @@ public class QueueSwitchBottomSheet extends BottomSheetDialogFragment {
     @Override
     public void onStart() {
         super.onStart();
+        // Register for queue events to detect external queue changes
         EventBus.getDefault().register(this);
     }
 
     @Override
     public void onStop() {
         super.onStop();
+        // Unregister to prevent memory leaks when fragment is not visible
         EventBus.getDefault().unregister(this);
     }
 
     /**
      * Subscribe to queue events for updates.
      * Called when any queue operation occurs (create, delete, etc.).
+     * This ensures the UI reflects changes made from other parts of the app.
      *
      * @param event QueueEvent posted by database layer
      */
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onQueueEvent(QueueEvent event) {
-        // Any queue operation triggers a refresh via ViewModel
-        // ViewModel handles data loading and LiveData updates
+        // Queue operation occurred - ViewModel will handle the data refresh
+        // and observers will update the UI automatically via LiveData
+        // This subscription ensures we're ready to receive events during onStart/onStop
     }
 }
