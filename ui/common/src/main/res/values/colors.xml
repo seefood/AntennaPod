@@ -21,9 +21,26 @@
 
     <color name="accent_light">#0078C2</color>
     <color name="accent_dark">#3D8BFF</color>
-    
+
     <color name="gradient_000">#364ff3</color>
     <color name="gradient_025">#2E6FF6</color>
     <color name="gradient_075">#1EB0FC</color>
     <color name="gradient_100">#16d0ff</color>
+
+    <!-- Queue color palette (12 theme-matched colors) -->
+    <color name="queue_color_1">#FF6B6B</color>
+    <color name="queue_color_2">#FF8C42</color>
+    <color name="queue_color_3">#FFD93D</color>
+    <color name="queue_color_4">#6BCF7F</color>
+    <color name="queue_color_5">#4ECDC4</color>
+    <color name="queue_color_6">#45B7D1</color>
+    <color name="queue_color_7">#5C63A3</color>
+    <color name="queue_color_8">#9C27B0</color>
+    <color name="queue_color_9">#E91E63</color>
+    <color name="queue_color_10">#FF6F00</color>
+    <color name="queue_color_11">#1976D2</color>
+    <color name="queue_color_12">#00897B</color>
+
+    <!-- Selected item background for queue list -->
+    <color name="selected_item_background">#33999999</color>
 </resources>
