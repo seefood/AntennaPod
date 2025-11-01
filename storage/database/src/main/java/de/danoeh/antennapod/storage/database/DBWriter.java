@@ -1194,6 +1194,31 @@ public class DBWriter {
         });
     }
 
+    // ============ Backward Compatibility (T020-T022, T042) ============
+
+    /**
+     * Add queue item at specific position (overloaded for multi-queue).
+     * T042: addQueueItemAt(long itemId, int index, long queueId)
+     *
+     * Preserves existing behavior: insert episode at specific position within queue.
+     * NOTE: This is an overload of existing addQueueItemAt(Context, long, int) method.
+     * For Phase 3, implementation deferred to Phase 4 when QueuePreferences available.
+     *
+     * @param context Application context
+     * @param itemId Feed item ID to add
+     * @param index Position to insert at (0-indexed)
+     * @param queueId Target queue ID
+     * @return Future<Void>
+     */
+    // TODO T042: Implement addQueueItemAt with queueId parameter
+    // Implementation strategy:
+    // 1. Get current queue items: SELECT * FROM Queue WHERE queue_id = ? ORDER BY id ASC
+    // 2. If index > max_id, just append (no shift needed)
+    // 3. Otherwise, shift positions for all items at position >= index (increment id by 1)
+    // 4. Insert new item at target position
+    // 5. Update QueueMetadata.currently_playing_feedmedia_id if first item
+    // 6. Post QueueEvent
+
     /**
      * Submit to the DB thread only if caller is not already on the DB thread. Otherwise,
      * just execute synchronously
