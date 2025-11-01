@@ -1080,6 +1080,53 @@ public class PodDBAdapter {
         return db.query(TABLE_NAME_QUEUE, new String[]{KEY_FEEDITEM}, null, null, null, null, KEY_ID + " ASC", null);
     }
 
+    /**
+     * Returns cursor over all QueueMetadata rows sorted by sort_order ASC (for multiple queues feature).
+     * @return Cursor positioned before first row
+     */
+    public Cursor getAllQueueMetadataCursor() {
+        return db.query(TABLE_NAME_QUEUE_METADATA, null, null, null, null, null,
+                QUEUE_METADATA_SORT_ORDER + " ASC", null);
+    }
+
+    /**
+     * Returns cursor for a specific queue's metadata (for multiple queues feature).
+     * @param queueId The queue ID to retrieve
+     * @return Cursor positioned before first row (or empty if not found)
+     */
+    public Cursor getQueueMetadataByIdCursor(long queueId) {
+        return db.query(TABLE_NAME_QUEUE_METADATA, null, QUEUE_METADATA_ID + " = ?",
+                new String[]{String.valueOf(queueId)}, null, null, null);
+    }
+
+    /**
+     * Returns cursor for queue items in a specific queue (for multiple queues feature).
+     * @param queueId The queue ID to retrieve items from
+     * @return Cursor with FeedItem columns from Queue WHERE queue_id = ?
+     */
+    public Cursor getQueueItemsCursor(long queueId) {
+        final String query = "SELECT " + KEYS_FEED_ITEM_WITHOUT_DESCRIPTION + ", " + KEYS_FEED_MEDIA
+                + " FROM " + TABLE_NAME_QUEUE
+                + " INNER JOIN " + TABLE_NAME_FEED_ITEMS
+                + " ON " + SELECT_KEY_ITEM_ID + " = " + TABLE_NAME_QUEUE + "." + KEY_FEEDITEM
+                + JOIN_FEED_ITEM_AND_MEDIA
+                + " WHERE " + TABLE_NAME_QUEUE + "." + KEY_QUEUE_ID + " = " + queueId
+                + " ORDER BY " + TABLE_NAME_QUEUE + "." + KEY_ID;
+        return db.rawQuery(query, null);
+    }
+
+    /**
+     * Returns queue IDs for a specific feed item (for multiple queues feature).
+     * An episode can appear in multiple queues.
+     * @param feedItemId The feed item ID
+     * @return Cursor with queue_id values
+     */
+    public Cursor getQueueIdsForFeedItemCursor(long feedItemId) {
+        return db.query(TABLE_NAME_QUEUE, new String[]{KEY_QUEUE_ID},
+                KEY_FEEDITEM + " = ?", new String[]{String.valueOf(feedItemId)},
+                null, null, KEY_QUEUE_ID + " ASC");
+    }
+
     public Cursor getNextInQueue(final FeedItem item) {
         final String query = "SELECT " + KEYS_FEED_ITEM_WITHOUT_DESCRIPTION + ", " + KEYS_FEED_MEDIA
                 + " FROM " + TABLE_NAME_QUEUE

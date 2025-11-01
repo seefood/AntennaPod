@@ -22,6 +22,7 @@ import de.danoeh.antennapod.model.feed.FeedItemFilter;
 import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.model.feed.FeedOrder;
 import de.danoeh.antennapod.model.feed.FeedPreferences;
+import de.danoeh.antennapod.model.feed.QueueMetadata;
 import de.danoeh.antennapod.model.feed.SortOrder;
 import de.danoeh.antennapod.model.feed.SubscriptionsFilter;
 import de.danoeh.antennapod.model.download.DownloadResult;
@@ -29,6 +30,7 @@ import de.danoeh.antennapod.storage.database.mapper.ChapterCursor;
 import de.danoeh.antennapod.storage.database.mapper.DownloadResultCursor;
 import de.danoeh.antennapod.storage.database.mapper.FeedCursor;
 import de.danoeh.antennapod.storage.database.mapper.FeedItemCursor;
+import de.danoeh.antennapod.storage.database.mapper.QueueMetadataCursor;
 
 /**
  * Provides methods for reading data from the AntennaPod database.
@@ -214,6 +216,114 @@ public final class DBReader {
             List<FeedItem> items = extractItemlistFromCursor(cursor);
             loadAdditionalFeedItemListData(items);
             return items;
+        } finally {
+            adapter.close();
+        }
+    }
+
+    /**
+     * Loads all queues sorted by display order.
+     *
+     * @return A list of QueueMetadata objects sorted by sort_order ASC
+     */
+    @NonNull
+    public static List<QueueMetadata> getAllQueues() {
+        Log.d(TAG, "getAllQueues() called");
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try (QueueMetadataCursor cursor = new QueueMetadataCursor(adapter.getAllQueueMetadataCursor())) {
+            List<QueueMetadata> queues = new ArrayList<>(cursor.getCount());
+            while (cursor.moveToNext()) {
+                queues.add(cursor.getQueueMetadata());
+            }
+            return queues;
+        } finally {
+            adapter.close();
+        }
+    }
+
+    /**
+     * Loads metadata for a specific queue.
+     *
+     * @param queueId The ID of the queue to load
+     * @return QueueMetadata for the given ID, or null if not found
+     */
+    @Nullable
+    public static QueueMetadata getQueueMetadataById(long queueId) {
+        Log.d(TAG, "getQueueMetadataById() called with queueId=" + queueId);
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try (QueueMetadataCursor cursor = new QueueMetadataCursor(adapter.getQueueMetadataByIdCursor(queueId))) {
+            if (cursor.moveToFirst()) {
+                return cursor.getQueueMetadata();
+            }
+            return null;
+        } finally {
+            adapter.close();
+        }
+    }
+
+    /**
+     * Loads a list of FeedItems in a specific queue.
+     *
+     * @param queueId The ID of the queue to load items from
+     * @return A list of FeedItems sorted by queue position (Queue.id ASC)
+     */
+    @NonNull
+    public static List<FeedItem> getQueue(long queueId) {
+        Log.d(TAG, "getQueue() called with queueId=" + queueId);
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try (FeedItemCursor cursor = new FeedItemCursor(adapter.getQueueItemsCursor(queueId))) {
+            List<FeedItem> items = extractItemlistFromCursor(cursor);
+            loadAdditionalFeedItemListData(items);
+            return items;
+        } finally {
+            adapter.close();
+        }
+    }
+
+    /**
+     * Gets the queue IDs for a specific feed item.
+     * An episode can appear in multiple queues simultaneously.
+     *
+     * @param feedItemId The ID of the feed item
+     * @return A list of queue IDs containing this feed item
+     */
+    @NonNull
+    public static List<Long> getQueueIdsForFeedItem(long feedItemId) {
+        Log.d(TAG, "getQueueIdsForFeedItem() called with feedItemId=" + feedItemId);
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try (Cursor cursor = adapter.getQueueIdsForFeedItemCursor(feedItemId)) {
+            List<Long> queueIds = new ArrayList<>(cursor.getCount());
+            while (cursor.moveToNext()) {
+                queueIds.add(cursor.getLong(0));
+            }
+            return queueIds;
+        } finally {
+            adapter.close();
+        }
+    }
+
+    /**
+     * Counts the number of items in a specific queue.
+     *
+     * @param queueId The ID of the queue
+     * @return The number of items in the queue
+     */
+    public static int countQueueItems(long queueId) {
+        Log.d(TAG, "countQueueItems() called with queueId=" + queueId);
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try (Cursor cursor = adapter.getQueueCursor()) {
+            int count = 0;
+            while (cursor.moveToNext()) {
+                if (cursor.getLong(cursor.getColumnIndexOrThrow(PodDBAdapter.KEY_QUEUE_ID)) == queueId) {
+                    count++;
+                }
+            }
+            return count;
         } finally {
             adapter.close();
         }
