@@ -107,8 +107,10 @@ public class QueueListAdapter extends RecyclerView.Adapter<QueueListAdapter.Queu
 
     @Override
     public void onBindViewHolder(@NonNull QueueViewHolder holder, int position) {
-        QueueMetadata queue = queueList.get(position);
-        holder.bind(queue, currentQueueId, listener, editListener);
+        if (queueList != null && position >= 0 && position < queueList.size()) {
+            QueueMetadata queue = queueList.get(position);
+            holder.bind(queue, currentQueueId, listener, editListener);
+        }
     }
 
     @Override

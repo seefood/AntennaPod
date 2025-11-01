@@ -82,11 +82,9 @@ public class QueueSwitchBottomSheet extends BottomSheetDialogFragment {
         queueListView = view.findViewById(R.id.queue_list);
         createQueueButton = view.findViewById(R.id.queue_create_button);
 
-        // Setup RecyclerView
+        // Setup RecyclerView with empty list initially (will be populated by observer)
         queueListView.setLayoutManager(new LinearLayoutManager(requireContext()));
-        queueListAdapter = new QueueListAdapter(queueViewModel.getQueueListLiveData().getValue() != null
-                ? queueViewModel.getQueueListLiveData().getValue()
-                : java.util.Collections.emptyList());
+        queueListAdapter = new QueueListAdapter(java.util.Collections.emptyList());
         queueListView.setAdapter(queueListAdapter);
 
         // Setup queue selection callback
@@ -110,14 +108,18 @@ public class QueueSwitchBottomSheet extends BottomSheetDialogFragment {
             }
         });
 
-        // Observe queue list changes
+        // Observe queue list changes - adapter will be updated when data loads
         queueViewModel.getQueueListLiveData().observe(getViewLifecycleOwner(), queueList -> {
-            queueListAdapter.updateQueueList(queueList);
+            if (queueList != null) {
+                queueListAdapter.updateQueueList(queueList);
+            }
         });
 
-        // Observe current queue changes
+        // Observe current queue changes to highlight active queue
         queueViewModel.getCurrentQueueIdLiveData().observe(getViewLifecycleOwner(), currentQueueId -> {
-            queueListAdapter.setCurrentQueueId(currentQueueId);
+            if (currentQueueId != null) {
+                queueListAdapter.setCurrentQueueId(currentQueueId);
+            }
         });
     }
 

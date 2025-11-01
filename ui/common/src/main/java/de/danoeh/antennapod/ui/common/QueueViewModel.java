@@ -134,11 +134,19 @@ public class QueueViewModel extends AndroidViewModel {
         UserPreferences.setCurrentQueueId(queueId);
         currentQueueIdLiveData.setValue(queueId);
 
-        QueueMetadata queue = DBReader.getQueueMetadataById(queueId);
-        currentQueueLiveData.setValue(queue);
-
-        // Post event for other UI components to update
-        EventBus.getDefault().post(QueueEvent.queueSwitched(queueId));
+        // Fetch queue metadata on background thread to avoid blocking UI
+        executor.submit(() -> {
+            try {
+                QueueMetadata queue = DBReader.getQueueMetadataById(queueId);
+                postToMainThread(() -> {
+                    currentQueueLiveData.setValue(queue);
+                    // Post event for other UI components to update
+                    EventBus.getDefault().post(QueueEvent.queueSwitched(queueId));
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to load queue metadata for ID: " + queueId, e);
+            }
+        });
     }
 
     /**
