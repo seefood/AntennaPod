@@ -1044,9 +1044,8 @@ public class DBWriter {
 
                 long queueId = adapter.insertQueue(values);
 
-                // Post event - note: currently using SET_QUEUE for all queue changes
-                // TODO: Enhance QueueEvent to support QUEUE_CREATED, QUEUE_RENAMED, etc.
-                EventBus.getDefault().postSticky(QueueEvent.setQueue(new ArrayList<>()));
+                // Post queue creation event (T026 - Phase 4)
+                EventBus.getDefault().post(QueueEvent.queueCreated(queueId));
                 return queueId;
             } finally {
                 adapter.close();
@@ -1075,7 +1074,8 @@ public class DBWriter {
                 values.put(PodDBAdapter.QUEUE_METADATA_NAME, newName);
                 adapter.updateQueueMetadata(queueId, values);
 
-                EventBus.getDefault().postSticky(QueueEvent.setQueue(new ArrayList<>()));
+                // Post queue renamed event (T026 - Phase 4)
+                EventBus.getDefault().post(QueueEvent.queueRenamed(queueId));
             } finally {
                 adapter.close();
             }
@@ -1100,7 +1100,8 @@ public class DBWriter {
                 values.put(PodDBAdapter.QUEUE_METADATA_COLOR, color);
                 adapter.updateQueueMetadata(queueId, values);
 
-                EventBus.getDefault().postSticky(QueueEvent.setQueue(new ArrayList<>()));
+                // Post queue color changed event (T026 - Phase 4)
+                EventBus.getDefault().post(QueueEvent.queueColorChanged(queueId));
             } finally {
                 adapter.close();
             }
@@ -1133,7 +1134,8 @@ public class DBWriter {
                 // Delete queue metadata
                 adapter.deleteQueueMetadata(queueId);
 
-                EventBus.getDefault().postSticky(QueueEvent.cleared());
+                // Post queue deleted event (T026 - Phase 4)
+                EventBus.getDefault().post(QueueEvent.queueDeleted(queueId));
             } finally {
                 adapter.close();
             }
@@ -1159,7 +1161,8 @@ public class DBWriter {
                     adapter.updateQueueMetadata(queueIds.get(i), values);
                 }
 
-                EventBus.getDefault().postSticky(QueueEvent.setQueue(new ArrayList<>()));
+                // Post queues reordered event (T026 - Phase 4)
+                EventBus.getDefault().post(QueueEvent.queuesReordered(queueIds));
             } finally {
                 adapter.close();
             }
@@ -1186,7 +1189,8 @@ public class DBWriter {
                 values.put(PodDBAdapter.QUEUE_METADATA_CURRENTLY_PLAYING_FEED_ID, feedId);
                 adapter.updateQueueMetadata(queueId, values);
 
-                EventBus.getDefault().postSticky(QueueEvent.setQueue(new ArrayList<>()));
+                // Post currently playing updated event (T026 - Phase 4)
+                EventBus.getDefault().post(QueueEvent.currentlyPlayingUpdated(queueId));
             } finally {
                 adapter.close();
             }
