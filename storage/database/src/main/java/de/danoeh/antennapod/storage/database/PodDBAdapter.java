@@ -1643,40 +1643,56 @@ public class PodDBAdapter {
 
         @Override
         public void onCreate(final SQLiteDatabase db) {
+            // Create core tables: feeds, items, and media
             db.execSQL(CREATE_TABLE_FEEDS);
             db.execSQL(CREATE_TABLE_FEED_ITEMS);
             db.execSQL(CREATE_TABLE_FEED_MEDIA);
             db.execSQL(CREATE_TABLE_DOWNLOAD_LOG);
+
+            // Create queue and queue metadata tables (v3080100: multiple queues support)
             db.execSQL(CREATE_TABLE_QUEUE);
             db.execSQL(CREATE_TABLE_QUEUE_METADATA);
+
+            // Create other tables
             db.execSQL(CREATE_TABLE_SIMPLECHAPTERS);
             db.execSQL(CREATE_TABLE_FAVORITES);
 
+            // Create indexes for efficient queries
             db.execSQL(CREATE_INDEX_FEEDITEMS_FEED);
             db.execSQL(CREATE_INDEX_FEEDITEMS_PUBDATE);
             db.execSQL(CREATE_INDEX_FEEDITEMS_READ);
             db.execSQL(CREATE_INDEX_FEEDMEDIA_FEEDITEM);
             db.execSQL(CREATE_INDEX_QUEUE_FEEDITEM);
-            // Queue metadata and multiple queues support
+
+            // Queue metadata and multiple queues support indexes (v3080100+)
+            // UNIQUE constraint on sort_order ensures each queue has unique ordering
             db.execSQL("CREATE UNIQUE INDEX idx_queue_metadata_sort_order ON " +
                     TABLE_NAME_QUEUE_METADATA + "(" + QUEUE_METADATA_SORT_ORDER + ")");
+
+            // Indexes for queue item lookups: (queue_id, position)
             db.execSQL("CREATE INDEX idx_queue_queue_id_id ON " +
                     TABLE_NAME_QUEUE + "(" + KEY_QUEUE_ID + ", " + KEY_ID + ")");
+
+            // UNIQUE constraint to prevent duplicate items at same position in queue
             db.execSQL("CREATE UNIQUE INDEX idx_queue_unique_position ON " +
                     TABLE_NAME_QUEUE + "(" + KEY_QUEUE_ID + ", " + KEY_ID + ")");
+
+            // Index for feed item lookups
             db.execSQL("CREATE INDEX idx_queue_feeditem ON " +
                     TABLE_NAME_QUEUE + "(" + KEY_FEEDITEM + ")");
+
             db.execSQL(CREATE_INDEX_SIMPLECHAPTERS_FEEDITEM);
 
-            // Initialize the default queue for fresh installs
+            // Initialize the default queue for fresh installs (v3080100+)
+            // This ensures there's always at least one queue available
             ContentValues initialQueue = new ContentValues();
-            initialQueue.put(QUEUE_METADATA_ID, 1L);
-            initialQueue.put(QUEUE_METADATA_NAME, "Main");
-            initialQueue.put(QUEUE_METADATA_COLOR, -14575885);
-            initialQueue.put(QUEUE_METADATA_SORT_ORDER, 0);
+            initialQueue.put(QUEUE_METADATA_ID, 1L);           // Main queue ID
+            initialQueue.put(QUEUE_METADATA_NAME, "Main");     // Display name
+            initialQueue.put(QUEUE_METADATA_COLOR, -14575885); // Default color
+            initialQueue.put(QUEUE_METADATA_SORT_ORDER, 0);    // First in display order
             initialQueue.put(QUEUE_METADATA_CREATED_AT, System.currentTimeMillis());
-            initialQueue.put(QUEUE_METADATA_CURRENTLY_PLAYING_FEEDMEDIA_ID, -1L);
-            initialQueue.put(QUEUE_METADATA_CURRENTLY_PLAYING_FEED_ID, -1L);
+            initialQueue.put(QUEUE_METADATA_CURRENTLY_PLAYING_FEEDMEDIA_ID, -1L); // No media playing
+            initialQueue.put(QUEUE_METADATA_CURRENTLY_PLAYING_FEED_ID, -1L);      // No feed playing
             db.insert(TABLE_NAME_QUEUE_METADATA, null, initialQueue);
         }
 

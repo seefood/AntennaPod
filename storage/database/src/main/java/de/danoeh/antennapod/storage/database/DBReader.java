@@ -186,8 +186,9 @@ public final class DBReader {
      *
      * The active queue ID is retrieved from {@link UserPreferences#getCurrentQueueId()}.
      *
-     * @return A list of IDs sorted by the same order as the active queue.
+     * @return A LongList of feed item IDs sorted by queue position
      */
+    @NonNull
     public static LongList getQueueIDList() {
         long activeQueueId = UserPreferences.getCurrentQueueId();
         Log.d(TAG, "getQueueIDList() called - using active queue ID: " + activeQueueId);
