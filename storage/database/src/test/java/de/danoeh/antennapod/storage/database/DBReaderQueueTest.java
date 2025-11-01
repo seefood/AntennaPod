@@ -24,7 +24,7 @@ import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for DBReader queue methods (T029 - Phase 5).
- * Verifies getAllQueues, getQueueMetadataById, getQueue, getQueueIdsForFeedItem, countQueueItems.
+ * Verifies getAllQueues, getQueueMetadataById, getQueue, countQueueItems.
  */
 @RunWith(RobolectricTestRunner.class)
 public class DBReaderQueueTest {
@@ -136,32 +136,6 @@ public class DBReaderQueueTest {
 
         List<FeedItem> queueItems = DBReader.getQueue();
         assertEquals(2, queueItems.size());
-    }
-
-    @Test
-    public void testGetQueueIdsForFeedItem_Exists() throws Exception {
-        List<FeedItem> feedItems = DBReader.getFeedItemList(feed1, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
-        FeedItem item = feedItems.get(0);
-
-        DBWriter.addQueueItem(context, item).get();
-
-        List<Long> queueIds = DBReader.getQueueIdsForFeedItem(item.getId());
-        assertEquals(1, queueIds.size());
-        assertEquals(1, (long) queueIds.get(0));
-    }
-
-    @Test
-    public void testGetQueueIdsForFeedItem_MultipleQueues() throws Exception {
-        List<FeedItem> feedItems1 = DBReader.getFeedItemList(feed1, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
-        FeedItem item = feedItems1.get(0);
-
-        // Create second queue and add item to both
-        long queue2Id = DBWriter.createQueue("Queue 2", 0xFF0000).get();
-        DBWriter.addQueueItem(context, item).get();
-
-        // For now, items are only in active queue
-        List<Long> queueIds = DBReader.getQueueIdsForFeedItem(item.getId());
-        assertEquals(1, queueIds.size());
     }
 
     @Test
