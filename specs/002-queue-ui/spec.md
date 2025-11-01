@@ -1,6 +1,6 @@
 # Feature Specification: Queue UI for Multiple Queues
 
-**Feature Branch**: `002-queue-ui`
+**Feature Branch**: `queue-ui/001-specification`
 **Created**: 2025-11-01
 **Status**: Draft
 **Input**: UI for the multiple queue feature with queue switching, creation, editing, and deletion in bottom navigation
@@ -56,24 +56,26 @@ Users need to create additional queues to organize episodes by category, mood, o
 
 ### User Story 3 - Edit Queue Properties (Priority: P2)
 
-Users need to customize queue appearance with colors and optionally reorder queues to match their mental model of importance or usage frequency.
+Users need to customize queue appearance with colors and optionally reorder queues to match their mental model of importance or usage frequency. Color selection uses a visual palette with 12 theme-matched colors, and names can include emoji for additional personalization.
 
 **Why this priority**: Customization improves usability by helping users visually distinguish queues at a glance, reducing cognitive load. Less critical than switching/creating but important for usability.
 
-**Independent Test**: Can be fully tested by editing queue name, color, and order; verifying changes persist and are reflected in UI.
+**Independent Test**: Can be fully tested by editing queue name, color, and order; verifying changes persist and are reflected in title bar gradient and throughout the app.
 
 **Acceptance Scenarios**:
 
-1. **Given** user has a queue, **When** user taps edit/settings on that queue, **Then** edit dialog opens showing current name and color
-2. **Given** edit dialog is open, **When** user changes queue name or color and confirms, **Then** changes are persisted and UI updates immediately
-3. **Given** multiple queues exist, **When** user reorders queues in queue list, **Then** new order is persisted and reflected in bottom navigation
-4. **Given** queue has been renamed, **When** user views all queues, **Then** new name appears everywhere queue is displayed
+1. **Given** user has a queue, **When** user taps edit/settings on that queue, **Then** edit dialog opens showing current name and color with tick mark on selected color
+2. **Given** edit dialog is open with 12-color palette visible, **When** user taps a different color, **Then** tick mark moves to new color and dialog updates preview
+3. **Given** edit dialog is open, **When** user changes queue name (including adding emoji) and confirms, **Then** name change persists and displays in queue list
+4. **Given** queue name is changed, **When** user navigates to any main pane, **Then** new queue name is visible and title bar shows updated gradient using queue's color
+5. **Given** multiple queues exist, **When** user reorders queues in queue list, **Then** new order is persisted and reflected in queue selection pane
+6. **Given** queue color is changed, **When** user switches to that queue or views its entry in list, **Then** new color appears immediately in gradient and queue item display
 
 ---
 
 ### User Story 4 - Delete Queues with Safeguards (Priority: P2)
 
-Users need to remove queues they no longer need, with appropriate safeguards to prevent accidental data loss.
+Users need to remove queues they no longer need, with appropriate safeguards to prevent accidental data loss. The delete button is only visible when multiple queues exist, preventing accidental deletion of the last queue.
 
 **Why this priority**: Cleanup capability is important for long-term usability but less critical than core queue management. Safeguards are essential to prevent user frustration.
 
@@ -81,10 +83,28 @@ Users need to remove queues they no longer need, with appropriate safeguards to 
 
 **Acceptance Scenarios**:
 
-1. **Given** user has a queue with episodes, **When** user initiates delete action, **Then** confirmation dialog appears warning about data loss
-2. **Given** confirmation dialog shows queue will be deleted, **When** user confirms deletion, **Then** queue is removed from system and active queue defaults to another available queue
-3. **Given** only one queue remains, **When** user attempts to delete it, **Then** delete action is disabled with explanation that at least one queue must exist
-4. **Given** queue is deleted, **When** user navigates to any screen, **Then** deleted queue no longer appears in queue switcher
+1. **Given** user has a queue with episodes, **When** user opens edit dialog for that queue, **Then** "Delete queue" button is visible (assuming multiple queues exist)
+2. **Given** "Delete queue" button is tapped, **When** user confirms deletion, **Then** queue is removed from system and active queue switches to another available queue
+3. **Given** only one queue remains, **When** user opens edit dialog, **Then** "Delete queue" button is hidden and delete action is not available
+4. **Given** queue is deleted, **When** user navigates to any screen, **Then** deleted queue no longer appears in queue selector and title bar gradient reflects active queue
+
+---
+
+### User Story 5 - Copy and Move Episodes Between Queues (Priority: P3)
+
+Users need to organize episodes across multiple queues by copying episodes to additional queues or moving them between queues. This is accessed via drag actions on queue items.
+
+**Why this priority**: Episode organization across queues enhances workflow flexibility but is less critical than core queue switching/creation. Complements existing drag-action system.
+
+**Independent Test**: Can be fully tested by dragging queue items left/right, selecting "Copy to queue" or "Move to queue", choosing destination queue, and verifying episode appears in correct queue(s).
+
+**Acceptance Scenarios**:
+
+1. **Given** user has episodes in a queue, **When** user drags an episode left or right, **Then** action menu appears including "Copy to queue" and "Move to queue" options
+2. **Given** "Copy to queue" is selected, **When** user selects a destination queue from dialog, **Then** episode is added to destination queue without being removed from current queue
+3. **Given** "Move to queue" is selected, **When** user selects a destination queue from dialog, **Then** episode is removed from current queue and added to destination queue
+4. **Given** user cancels the queue selector dialog, **When** dialog closes, **Then** no changes are made to episode queue assignments
+5. **Given** episode is copied to multiple queues, **When** user views that episode's details, **Then** it shows queues where episode appears
 
 ### Edge Cases
 
@@ -118,6 +138,17 @@ Users need to remove queues they no longer need, with appropriate safeguards to 
 - **FR-013**: When a queue is deleted, system MUST switch active queue to another available queue
 - **FR-014**: System MUST display empty state when user switches to a queue with no episodes
 - **FR-015**: System MUST support at least 20 queues per user account without UI degradation
+- **FR-016**: Queue button MUST be customizable and added to bottom navigation bar with bookshelf icon (three books of different sizes)
+- **FR-017**: System MUST display queue's assigned color as a gradient background on title bar (queue color fading to default theme background) in all main panes
+- **FR-018**: Title bar gradient MUST be visible in Play screen, Queue pane, Inbox pane, Episodes pane, and Queue selection/management pane
+- **FR-019**: Queue creation dialog MUST accept alphanumeric characters and emoji in queue name field
+- **FR-020**: Queue color picker MUST display 12 colors matching the app theme palette
+- **FR-021**: Selected color in color picker MUST be indicated with a visual tick mark
+- **FR-022**: Queue edit dialog MUST display "Delete queue" button only when more than one queue exists
+- **FR-023**: System MUST add "Copy to queue" and "Move to queue" as configurable drag-action options for queue items
+- **FR-024**: When user invokes "Copy to queue" or "Move to queue" action on a queue item, system MUST display queue selector dialog
+- **FR-025**: "Copy to queue" action MUST add episode to selected queue without removing it from current queue
+- **FR-026**: "Move to queue" action MUST remove episode from current queue and add it to selected queue
 
 ### Key Entities *(include if feature involves data)*
 
@@ -141,11 +172,54 @@ Users need to remove queues they no longer need, with appropriate safeguards to 
 - **SC-006**: Users successfully complete queue management tasks on first attempt 90% of the time (measured through analytics and user testing)
 - **SC-007**: No data loss when user deletes non-active queue (episodes remain in system, only queue metadata is removed)
 
+## UI Design Specifications
+
+### Bottom Navigation Bar
+- **Queue Button**: Add customizable button to bottom navigation bar alongside existing tabs (Play, Queue, Inbox, Episodes)
+- **Icon**: Bookshelf with three books of different sizes (visual indicator of queue organization)
+- **Color Indicator**: Active queue's color shown as gradient background on top pane (title area), transitioning from queue color at top to default theme background color
+- **Behavior**: Tapping queue button opens queue selector/management pane
+
+### Title Bar Gradient
+- **Implementation**: Apply to all main panes (Play screen, Queue, Inbox, Episodes panes) AND new Queue selection/management pane
+- **Visual**: Gradient background on title (top element) using active queue's color fading to default theme background
+- **Purpose**: Persistent visual indicator of active queue throughout the app
+
+### Queue Selection/Management Pane
+- **Access**: Via queue button in bottom navigation bar
+- **Display**: Shows all available queues in a list
+- **Selection**: Tapping a queue in list switches active queue (triggers pause-load-restore if playing)
+- **Queue List Item**: Shows queue name and associated color
+
+### Queue Creation Dialog
+- **Trigger**: "Create new queue" button in queue selection pane
+- **Name Input**: Text field supporting alphanumeric characters and emoji
+- **Color Picker**: Visual palette of 12 colors matching app theme palette
+- **Color Selection**: Tapped color is indicated with a tick mark
+- **Confirm Action**: Creates new queue, persists it, sets as active queue
+
+### Queue Editing Dialog
+- **Trigger**: Long-press or edit action on queue in list
+- **Name Input**: Text field with current name, supporting alphanumeric and emoji characters
+- **Color Picker**: Palette of 12 theme-matched colors with tick mark showing current selection
+- **Delete Button**: Visible only when more than one queue exists (prevents deletion of last queue)
+- **Confirm Actions**: Name and color changes persist immediately; delete removes queue and switches to another available queue
+
+### Queue Item Drag Actions
+- **Existing Feature**: Queue items can be dragged left or right to trigger configurable functions
+- **New Options**: Add "Copy to queue" and "Move to queue" to drag action options
+- **Queue Selector Dialog**: When either action is invoked, a queue selector dialog appears
+- **Copy to queue**: Adds episode to selected queue (does not remove from current queue)
+- **Move to queue**: Removes episode from current queue and adds to selected queue
+
 ## Assumptions
 
 - Queue switching during playback uses pause-load-restore pattern as confirmed by user
-- Bottom navigation is appropriate location for queue management controls
-- Visual distinction via color is sufficient; icons/images are not required
-- Maximum 20 queues per user is acceptable limit
-- Queue names can be up to 256 characters
+- Bottom navigation bar accepts custom button integration
+- Color palette: 12 theme-matched colors (will be defined during design phase)
+- Queue names support alphanumeric characters + emoji (no length limit specified, recommend 256 chars max)
+- Active queue color uses gradient: queue color → default theme background
+- Gradient applied consistently across all main panes for visual cohesion
 - At least one queue must always exist (cannot delete all queues)
+- Theme palette colors are accessible via theme system
+- Drag-to-action feature already exists; "Copy to queue" and "Move to queue" are new options to that existing system
