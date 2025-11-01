@@ -355,6 +355,66 @@ class DBUpgrader {
             db.execSQL("DELETE FROM " + PodDBAdapter.TABLE_NAME_FAVORITES + " WHERE " + PodDBAdapter.KEY_FEEDITEM
                     + " NOT IN (SELECT " + PodDBAdapter.KEY_ID + " FROM " + PodDBAdapter.TABLE_NAME_FEED_ITEMS + ")");
         }
+        if (oldVersion < 3080100) {
+            Log.d("DBUpgrader", "Upgrading to version 3080100: Multiple Queues support");
+            migrateToVersion3080100(db);
+        }
+    }
+
+    /**
+     * Migration to version 3080100: Add support for multiple named queues
+     * Creates QueueMetadata table and adds queue_id column to Queue table
+     */
+    private static void migrateToVersion3080100(final SQLiteDatabase db) {
+        Log.d("DBUpgrader", "Starting migration to version 3080100: Multiple Queues");
+
+        try {
+            // Step 1: Create QueueMetadata table
+            Log.d("DBUpgrader", "Creating QueueMetadata table...");
+            db.execSQL(PodDBAdapter.CREATE_TABLE_QUEUE_METADATA);
+
+            // Step 2: Create unique index on sort_order
+            Log.d("DBUpgrader", "Creating unique index on QueueMetadata.sort_order...");
+            db.execSQL("CREATE UNIQUE INDEX idx_queue_metadata_sort_order ON "
+                    + PodDBAdapter.TABLE_NAME_QUEUE_METADATA + "(" + PodDBAdapter.QUEUE_METADATA_SORT_ORDER + ")");
+
+            // Step 3: Add queue_id column to Queue table with virtual DEFAULT
+            Log.d("DBUpgrader", "Adding queue_id column to Queue table...");
+            db.execSQL("ALTER TABLE " + PodDBAdapter.TABLE_NAME_QUEUE
+                    + " ADD COLUMN " + PodDBAdapter.KEY_QUEUE_ID + " INTEGER DEFAULT 1");
+
+            // Step 4: Create composite index for primary query pattern
+            Log.d("DBUpgrader", "Creating composite index on Queue(queue_id, id)...");
+            db.execSQL("CREATE INDEX idx_queue_queue_id_id ON "
+                    + PodDBAdapter.TABLE_NAME_QUEUE + "(" + PodDBAdapter.KEY_QUEUE_ID + ", " + PodDBAdapter.KEY_ID + ")");
+
+            // Step 5: Create unique constraint on (queue_id, id)
+            Log.d("DBUpgrader", "Creating unique constraint on Queue(queue_id, id)...");
+            db.execSQL("CREATE UNIQUE INDEX idx_queue_unique_position ON "
+                    + PodDBAdapter.TABLE_NAME_QUEUE + "(" + PodDBAdapter.KEY_QUEUE_ID + ", " + PodDBAdapter.KEY_ID + ")");
+
+            // Step 6: Create index on feeditem
+            Log.d("DBUpgrader", "Creating index on Queue.feeditem...");
+            db.execSQL("CREATE INDEX idx_queue_feeditem ON "
+                    + PodDBAdapter.TABLE_NAME_QUEUE + "(" + PodDBAdapter.KEY_FEEDITEM + ")");
+
+            // Step 7: Create default "Main" queue in QueueMetadata
+            Log.d("DBUpgrader", "Inserting default Main queue into QueueMetadata...");
+            ContentValues queueValues = new ContentValues();
+            queueValues.put(PodDBAdapter.QUEUE_METADATA_ID, 1);
+            queueValues.put(PodDBAdapter.QUEUE_METADATA_NAME, "Main");
+            queueValues.put(PodDBAdapter.QUEUE_METADATA_COLOR, -14575885); // Dark gray
+            queueValues.put(PodDBAdapter.QUEUE_METADATA_CREATED_AT, System.currentTimeMillis());
+            queueValues.put(PodDBAdapter.QUEUE_METADATA_SORT_ORDER, 0);
+            queueValues.put(PodDBAdapter.QUEUE_METADATA_CURRENTLY_PLAYING_FEEDMEDIA_ID, -1);
+            queueValues.put(PodDBAdapter.QUEUE_METADATA_CURRENTLY_PLAYING_FEED_ID, -1);
+            db.insert(PodDBAdapter.TABLE_NAME_QUEUE_METADATA, null, queueValues);
+
+            Log.d("DBUpgrader", "Migration to version 3080100 completed successfully");
+        } catch (Exception e) {
+            Log.e("DBUpgrader", "Error during migration to version 3080100", e);
+            throw e;
+        }
     }
 
 }

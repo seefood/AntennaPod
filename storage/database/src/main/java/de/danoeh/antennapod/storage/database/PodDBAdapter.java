@@ -52,7 +52,12 @@ public class PodDBAdapter {
 
     private static final String TAG = "PodDBAdapter";
     public static final String DATABASE_NAME = "Antennapod.db";
-    public static final int VERSION = 3080000;
+
+    // Database versioning: MAJOR*1000000 + MINOR*100 + PATCH
+    // Version 3080000: Initial single-queue schema
+    // Version 3080100: Add multiple queues support (MINOR increment)
+    public static final int VERSION = 3080100;
+    private static final int VERSION_OLD = 3080000;
 
     /**
      * Maximum number of arguments for IN-operator.
@@ -133,8 +138,21 @@ public class PodDBAdapter {
     public static final String TABLE_NAME_FEED_MEDIA = "FeedMedia";
     public static final String TABLE_NAME_DOWNLOAD_LOG = "DownloadLog";
     public static final String TABLE_NAME_QUEUE = "Queue";
+    public static final String TABLE_NAME_QUEUE_METADATA = "QueueMetadata";
     public static final String TABLE_NAME_SIMPLECHAPTERS = "SimpleChapters";
     public static final String TABLE_NAME_FAVORITES = "Favorites";
+
+    // QueueMetadata columns
+    public static final String QUEUE_METADATA_ID = "id";
+    public static final String QUEUE_METADATA_NAME = "name";
+    public static final String QUEUE_METADATA_COLOR = "color";
+    public static final String QUEUE_METADATA_CREATED_AT = "created_at";
+    public static final String QUEUE_METADATA_SORT_ORDER = "sort_order";
+    public static final String QUEUE_METADATA_CURRENTLY_PLAYING_FEEDMEDIA_ID = "currently_playing_feedmedia_id";
+    public static final String QUEUE_METADATA_CURRENTLY_PLAYING_FEED_ID = "currently_playing_feed_id";
+
+    // Queue table columns (new in v3080100)
+    public static final String KEY_QUEUE_ID = "queue_id";
 
     // SQL Statements for creating new tables
     private static final String TABLE_PRIMARY_KEY = KEY_ID
@@ -213,6 +231,17 @@ public class PodDBAdapter {
     private static final String CREATE_TABLE_QUEUE = "CREATE TABLE "
             + TABLE_NAME_QUEUE + "(" + KEY_ID + " INTEGER PRIMARY KEY,"
             + KEY_FEEDITEM + " INTEGER," + KEY_FEED + " INTEGER)";
+
+    // QueueMetadata table created in v3080100
+    static final String CREATE_TABLE_QUEUE_METADATA = "CREATE TABLE "
+            + TABLE_NAME_QUEUE_METADATA + " ("
+            + QUEUE_METADATA_ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
+            + QUEUE_METADATA_NAME + " TEXT NOT NULL,"
+            + QUEUE_METADATA_COLOR + " INTEGER NOT NULL,"
+            + QUEUE_METADATA_CREATED_AT + " INTEGER NOT NULL,"
+            + QUEUE_METADATA_SORT_ORDER + " INTEGER NOT NULL,"
+            + QUEUE_METADATA_CURRENTLY_PLAYING_FEEDMEDIA_ID + " INTEGER DEFAULT -1,"
+            + QUEUE_METADATA_CURRENTLY_PLAYING_FEED_ID + " INTEGER DEFAULT -1)";
 
     private static final String CREATE_TABLE_SIMPLECHAPTERS = "CREATE TABLE "
             + TABLE_NAME_SIMPLECHAPTERS + " (" + TABLE_PRIMARY_KEY + KEY_TITLE
@@ -1512,6 +1541,15 @@ public class PodDBAdapter {
          */
         public PodDBHelper(final Context context, final String name, final CursorFactory factory) {
             super(context, name, factory, VERSION, new PodDbErrorHandler());
+        }
+
+        @Override
+        public void onConfigure(final SQLiteDatabase db) {
+            super.onConfigure(db);
+            // Enable foreign key enforcement (Android API 16+)
+            // Required for CASCADE DELETE behavior in QueueMetadata → Queue relationship
+            db.setForeignKeyConstraintsEnabled(true);
+            Log.d(TAG, "Foreign key constraints enabled");
         }
 
         @Override
