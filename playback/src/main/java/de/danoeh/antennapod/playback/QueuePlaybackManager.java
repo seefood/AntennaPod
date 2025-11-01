@@ -19,8 +19,12 @@ import de.danoeh.antennapod.storage.database.DBWriter;
  * 2. Switch queue: Changes active queue in UserPreferences
  * 3. Restore queue position: Loads the queue's last playing episode and position
  *
- * Also handles auto-skip logic: When a queue becomes active, if the last-playing
- * episode is 100% complete, auto-skip to the next unplayed episode.
+ * MVP (Phase 1-2): Supports pause-load-restore with safe fallback (pause if queue empty).
+ * Phase 3+: Will add auto-skip logic for 100% complete episodes (requires DBReader extension).
+ *
+ * NOTE: This class provides the interface for queue-aware playback integration.
+ * Actual PlaybackController implementation details will be resolved during Phase 3
+ * integration when the full playback service API is available.
  */
 public class QueuePlaybackManager {
     private static final String TAG = "QueuePlaybackManager";
@@ -101,11 +105,8 @@ public class QueuePlaybackManager {
         // Check if queue has a saved playing episode
         if (!queue.isEpisodePlaying()) {
             Log.d(TAG, "Queue has no saved playback position");
-            // Load first unplayed episode from queue
-            FeedItem firstEpisode = findFirstUnplayedEpisode(queueId);
-            if (firstEpisode != null && firstEpisode.getMedia() != null) {
-                playbackController.loadMedia(firstEpisode.getMedia());
-            }
+            // MVP: Just stop playback. Auto-skip logic is Phase 3+ feature.
+            playbackController.pause();
             return;
         }
 
@@ -120,15 +121,10 @@ public class QueuePlaybackManager {
 
         // Check if episode is 100% complete
         if (isEpisodeComplete(media)) {
-            // Auto-skip to next unplayed episode
-            Log.d(TAG, "Episode is complete, auto-skipping");
-            FeedItem nextEpisode = findFirstUnplayedEpisode(queueId);
-            if (nextEpisode != null && nextEpisode.getMedia() != null) {
-                playbackController.loadMedia(nextEpisode.getMedia());
-            } else {
-                Log.d(TAG, "No unplayed episodes remaining");
-                playbackController.pause();
-            }
+            // MVP: Don't auto-skip, just pause playback.
+            // Phase 3+ feature: Auto-skip to next unplayed episode (requires DBReader extension)
+            Log.d(TAG, "Episode is complete, pausing playback");
+            playbackController.pause();
             return;
         }
 
@@ -157,24 +153,4 @@ public class QueuePlaybackManager {
         return false;
     }
 
-    /**
-     * Find the first unplayed episode in a queue.
-     *
-     * Searches through the queue in order and returns the first episode
-     * that is not 100% complete.
-     *
-     * NOTE: This method requires DBReader extension to fetch queue episodes with status.
-     * Currently returns null as placeholder - must be implemented before use.
-     *
-     * @param queueId ID of the queue to search
-     * @return First unplayed FeedItem or null if all episodes are played or not implemented
-     */
-    @androidx.annotation.Nullable
-    private FeedItem findFirstUnplayedEpisode(long queueId) {
-        // TODO: Implement with DBReader support for getting queue episodes with completion status
-        // This requires a new DBReader method: getUnplayedQueueItems(queueId)
-        // Currently this is a placeholder that logs a warning
-        Log.w(TAG, "findFirstUnplayedEpisode() not yet implemented - returning null");
-        return null;
-    }
 }
