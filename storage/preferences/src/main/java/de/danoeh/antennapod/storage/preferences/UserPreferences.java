@@ -66,6 +66,7 @@ public abstract class UserPreferences {
 
     public static final String PREF_QUEUE_KEEP_SORTED = "prefQueueKeepSorted";
     public static final String PREF_QUEUE_KEEP_SORTED_ORDER = "prefQueueKeepSortedOrder";
+    private static final String PREF_CURRENT_QUEUE_ID = "prefCurrentQueueId";
     public static final String PREF_NEW_EPISODES_ACTION = "prefNewEpisodesAction";
     private static final String PREF_DOWNLOADS_SORTED_ORDER = "prefDownloadSortedOrder";
     private static final String PREF_INBOX_SORTED_ORDER = "prefInboxSortedOrder";
@@ -816,6 +817,26 @@ public abstract class UserPreferences {
             return;
         }
         prefs.edit().putString(PREF_QUEUE_KEEP_SORTED_ORDER, sortOrder.name()).apply();
+    }
+
+    /**
+     * Returns the ID of the currently active queue.
+     * The active queue is the queue currently displayed to the user.
+     *
+     * @return The queue ID of the active queue (defaults to 1 if not set)
+     */
+    public static long getCurrentQueueId() {
+        return prefs.getLong(PREF_CURRENT_QUEUE_ID, 1);
+    }
+
+    /**
+     * Sets the ID of the currently active queue.
+     * The active queue is the queue currently displayed to the user.
+     *
+     * @param queueId The queue ID to set as active
+     */
+    public static void setCurrentQueueId(long queueId) {
+        prefs.edit().putLong(PREF_CURRENT_QUEUE_ID, queueId).apply();
     }
 
     public static FeedPreferences.NewEpisodesAction getNewEpisodesAction() {
