@@ -1,6 +1,8 @@
 package de.danoeh.antennapod.ui.common;
 
 import android.app.Application;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
@@ -34,11 +36,22 @@ public class QueueViewModel extends AndroidViewModel {
     private final MutableLiveData<Long> currentQueueIdLiveData = new MutableLiveData<>();
     private final MutableLiveData<QueueMetadata> currentQueueLiveData = new MutableLiveData<>();
     private final MutableLiveData<String> errorMessageLiveData = new MutableLiveData<>();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     public QueueViewModel(@NonNull Application application) {
         super(application);
         EventBus.getDefault().register(this);
         loadQueueData();
+    }
+
+    /**
+     * Post a runnable to the main thread.
+     * Used to ensure UI updates happen on main thread after database operations.
+     *
+     * @param runnable Code to run on main thread
+     */
+    private void postToMainThread(Runnable runnable) {
+        mainHandler.post(runnable);
     }
 
     /**
@@ -136,16 +149,18 @@ public class QueueViewModel extends AndroidViewModel {
         }
 
         DBWriter.createQueue(name, color).whenComplete((queueId, exception) -> {
-            if (exception != null) {
-                errorMessageLiveData.setValue("Failed to create queue: " + exception.getMessage());
-                return;
-            }
+            postToMainThread(() -> {
+                if (exception != null) {
+                    errorMessageLiveData.setValue("Failed to create queue: " + exception.getMessage());
+                    return;
+                }
 
-            if (queueId != null) {
-                // Auto-switch to newly created queue
-                switchActiveQueue(queueId);
-                loadQueueData();
-            }
+                if (queueId != null) {
+                    // Auto-switch to newly created queue
+                    switchActiveQueue(queueId);
+                    loadQueueData();
+                }
+            });
         });
     }
 
@@ -165,18 +180,20 @@ public class QueueViewModel extends AndroidViewModel {
         }
 
         DBWriter.renameQueue(queueId, newName).whenComplete((result, exception) -> {
-            if (exception != null) {
-                errorMessageLiveData.setValue("Failed to rename queue: " + exception.getMessage());
-                return;
-            }
+            postToMainThread(() -> {
+                if (exception != null) {
+                    errorMessageLiveData.setValue("Failed to rename queue: " + exception.getMessage());
+                    return;
+                }
 
-            // Update currentQueue if it was the one being renamed
-            if (queueId == getCurrentQueueId()) {
-                QueueMetadata updated = DBReader.getQueue(queueId);
-                currentQueueLiveData.setValue(updated);
-            }
+                // Update currentQueue if it was the one being renamed
+                if (queueId == getCurrentQueueId()) {
+                    QueueMetadata updated = DBReader.getQueue(queueId);
+                    currentQueueLiveData.setValue(updated);
+                }
 
-            loadQueueData();
+                loadQueueData();
+            });
         });
     }
 
@@ -190,18 +207,20 @@ public class QueueViewModel extends AndroidViewModel {
      */
     public void changeQueueColor(long queueId, @ColorInt int color) {
         DBWriter.changeQueueColor(queueId, color).whenComplete((result, exception) -> {
-            if (exception != null) {
-                errorMessageLiveData.setValue("Failed to change queue color: " + exception.getMessage());
-                return;
-            }
+            postToMainThread(() -> {
+                if (exception != null) {
+                    errorMessageLiveData.setValue("Failed to change queue color: " + exception.getMessage());
+                    return;
+                }
 
-            // Update currentQueue if it was the one being changed
-            if (queueId == getCurrentQueueId()) {
-                QueueMetadata updated = DBReader.getQueue(queueId);
-                currentQueueLiveData.setValue(updated);
-            }
+                // Update currentQueue if it was the one being changed
+                if (queueId == getCurrentQueueId()) {
+                    QueueMetadata updated = DBReader.getQueue(queueId);
+                    currentQueueLiveData.setValue(updated);
+                }
 
-            loadQueueData();
+                loadQueueData();
+            });
         });
     }
 
@@ -223,20 +242,22 @@ public class QueueViewModel extends AndroidViewModel {
         boolean isCurrentQueue = (queueId == getCurrentQueueId());
 
         DBWriter.deleteQueue(queueId).whenComplete((result, exception) -> {
-            if (exception != null) {
-                errorMessageLiveData.setValue("Failed to delete queue: " + exception.getMessage());
-                return;
-            }
-
-            // If we deleted the current queue, switch to another
-            if (isCurrentQueue) {
-                List<QueueMetadata> remaining = DBReader.getAllQueues();
-                if (remaining != null && !remaining.isEmpty()) {
-                    switchActiveQueue(remaining.get(0).getId());
+            postToMainThread(() -> {
+                if (exception != null) {
+                    errorMessageLiveData.setValue("Failed to delete queue: " + exception.getMessage());
+                    return;
                 }
-            }
 
-            loadQueueData();
+                // If we deleted the current queue, switch to another
+                if (isCurrentQueue) {
+                    List<QueueMetadata> remaining = DBReader.getAllQueues();
+                    if (remaining != null && !remaining.isEmpty()) {
+                        switchActiveQueue(remaining.get(0).getId());
+                    }
+                }
+
+                loadQueueData();
+            });
         });
     }
 

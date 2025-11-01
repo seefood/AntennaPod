@@ -163,13 +163,18 @@ public class QueuePlaybackManager {
      * Searches through the queue in order and returns the first episode
      * that is not 100% complete.
      *
+     * NOTE: This method requires DBReader extension to fetch queue episodes with status.
+     * Currently returns null as placeholder - must be implemented before use.
+     *
      * @param queueId ID of the queue to search
-     * @return First unplayed FeedItem or null if all episodes are played
+     * @return First unplayed FeedItem or null if all episodes are played or not implemented
      */
-    @NonNull
+    @androidx.annotation.Nullable
     private FeedItem findFirstUnplayedEpisode(long queueId) {
-        // This would need DBReader support for getting queue episodes with completion status
-        // For now, return null - to be implemented with DBReader extension
+        // TODO: Implement with DBReader support for getting queue episodes with completion status
+        // This requires a new DBReader method: getUnplayedQueueItems(queueId)
+        // Currently this is a placeholder that logs a warning
+        Log.w(TAG, "findFirstUnplayedEpisode() not yet implemented - returning null");
         return null;
     }
 }
