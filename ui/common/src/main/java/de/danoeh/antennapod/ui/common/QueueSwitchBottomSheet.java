@@ -102,10 +102,11 @@ public class QueueSwitchBottomSheet extends BottomSheetDialogFragment {
 
         // Setup create queue button
         createQueueButton.setOnClickListener(v -> {
-            if (editListener != null) {
-                // Pass special value -1 to indicate create mode (not editing existing queue)
-                editListener.onEditQueueRequested(-1);
-            }
+            // Show queue creation dialog
+            QueueDialogManager.showCreateQueueDialog(requireContext(), (name, color) -> {
+                // Create the queue via ViewModel
+                queueViewModel.createQueue(name, color);
+            });
         });
 
         // Observe queue list changes - adapter will be updated when data loads

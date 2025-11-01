@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <!-- Queue Name Input -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/queue_name_input_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        app:counterEnabled="true"
+        app:counterMaxLength="100">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/queue_name_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/queue_name_hint"
+            android:inputType="text"
+            android:maxLength="100" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Color Picker Label -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:text="@string/queue_color_label"
+        android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+    <!-- Color Grid -->
+    <GridLayout
+        android:id="@+id/queue_color_grid"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:columnCount="4"
+        android:rowCount="3" />
+
+</LinearLayout>

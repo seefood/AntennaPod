@@ -363,7 +363,9 @@
     <string name="queue_delete_title">Delete Queue</string>
     <string name="queue_name_hint">Queue Name</string>
     <string name="queue_name_empty_error">Queue name cannot be empty</string>
+    <string name="queue_name_cannot_be_empty">Queue name cannot be empty</string>
     <string name="queue_color_label">Queue Color</string>
+    <string name="queue_create_button">Create</string>
     <string name="queue_select_color">Select a color</string>
     <string name="queue_select_destination">Select Destination Queue</string>
     <string name="queue_already_contains">Already in this queue</string>
