@@ -39,6 +39,7 @@ import de.danoeh.antennapod.model.download.DownloadResult;
 import de.danoeh.antennapod.model.feed.SortOrder;
 import de.danoeh.antennapod.storage.database.mapper.FeedItemFilterQuery;
 import de.danoeh.antennapod.storage.database.mapper.FeedItemSortQuery;
+import de.danoeh.antennapod.storage.preferences.UserPreferences;
 
 import org.apache.commons.io.FileUtils;
 
@@ -903,15 +904,28 @@ public class PodDBAdapter {
     }
 
     public void setQueue(List<FeedItem> queue) {
+        setQueue(queue, UserPreferences.getCurrentQueueId());
+    }
+
+    /**
+     * Sets the queue items for the specified queue ID.
+     * Deletes all existing items in that queue and replaces them with the provided list.
+     *
+     * @param queue List of FeedItem objects to set as the queue
+     * @param queueId The queue ID to update
+     */
+    public void setQueue(List<FeedItem> queue, long queueId) {
         ContentValues values = new ContentValues();
         try {
             db.beginTransactionNonExclusive();
-            db.delete(TABLE_NAME_QUEUE, null, null);
+            // Delete only items in the specified queue
+            db.delete(TABLE_NAME_QUEUE, KEY_QUEUE_ID + " = ?", new String[]{String.valueOf(queueId)});
             for (int i = 0; i < queue.size(); i++) {
                 FeedItem item = queue.get(i);
                 values.put(KEY_ID, i);
                 values.put(KEY_FEEDITEM, item.getId());
                 values.put(KEY_FEED, item.getFeed().getId());
+                values.put(KEY_QUEUE_ID, queueId);
                 db.insertWithOnConflict(TABLE_NAME_QUEUE, null, values, SQLiteDatabase.CONFLICT_REPLACE);
             }
             db.setTransactionSuccessful();
@@ -923,7 +937,16 @@ public class PodDBAdapter {
     }
 
     public void clearQueue() {
-        db.delete(TABLE_NAME_QUEUE, null, null);
+        clearQueue(UserPreferences.getCurrentQueueId());
+    }
+
+    /**
+     * Clears all items from the specified queue.
+     *
+     * @param queueId The queue ID to clear
+     */
+    public void clearQueue(long queueId) {
+        db.delete(TABLE_NAME_QUEUE, KEY_QUEUE_ID + " = ?", new String[]{String.valueOf(queueId)});
     }
 
     /**
