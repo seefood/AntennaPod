@@ -23,6 +23,7 @@ import de.danoeh.antennapod.event.QueueEvent;
 import de.danoeh.antennapod.model.feed.QueueMetadata;
 import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.storage.database.DBWriter;
+import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 
 /**
@@ -126,11 +127,26 @@ public class QueueViewModel extends AndroidViewModel {
 
     /**
      * Switch to a different queue.
+     * Saves the current playback state of the old queue, then switches to the new queue.
      * Updates UserPreferences and broadcasts QueueEvent.QUEUE_SWITCHED.
      *
      * @param queueId ID of queue to switch to
      */
     public void switchActiveQueue(long queueId) {
+        long currentQueueId = getCurrentQueueId();
+
+        // Save the current playback state for the old queue before switching
+        if (currentQueueId != queueId) {
+            long currentFeedMediaId = PlaybackPreferences.getCurrentlyPlayingFeedMediaId();
+            Log.d(TAG, "Saving playback state for queue " + currentQueueId + ": feedMediaId=" + currentFeedMediaId);
+            try {
+                DBWriter.updateQueuePlaybackState(currentQueueId, currentFeedMediaId).get();
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to save playback state for queue " + currentQueueId, e);
+            }
+        }
+
+        // Update the active queue preference
         UserPreferences.setCurrentQueueId(queueId);
         currentQueueIdLiveData.setValue(queueId);
 
@@ -310,6 +326,14 @@ public class QueueViewModel extends AndroidViewModel {
                 event.action == QueueEvent.Action.QUEUE_DELETED ||
                 event.action == QueueEvent.Action.QUEUE_SWITCHED) {
             loadQueueData();
+        } else if (event.action == QueueEvent.Action.CURRENTLY_PLAYING_UPDATED) {
+            // Update the metadata for the queue whose playback state changed
+            long currentQueueId = getCurrentQueueId();
+            if (event.queueId == currentQueueId) {
+                Log.d(TAG, "Updating currently playing for queue " + event.queueId);
+                QueueMetadata updated = DBReader.getQueueMetadataById(currentQueueId);
+                currentQueueLiveData.setValue(updated);
+            }
         }
     }
 

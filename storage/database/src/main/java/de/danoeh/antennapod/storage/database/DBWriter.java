@@ -1144,6 +1144,43 @@ public class DBWriter {
     }
 
     /**
+     * Updates the last playing episode for a queue.
+     * T018b: updateQueuePlaybackState(long queueId, long feedMediaId)
+     *
+     * Saves which episode was last playing in a queue. When switching to a different queue,
+     * PlaybackService can restore playback from the saved position.
+     *
+     * @param queueId The ID of the queue
+     * @param feedMediaId The ID of the FeedMedia that was last playing, or -1 for none
+     * @return Future<Void>
+     */
+    public static Future<Void> updateQueuePlaybackState(final long queueId, final long feedMediaId) {
+        return dbExec.submit(() -> {
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                android.content.ContentValues values = new android.content.ContentValues();
+                values.put(PodDBAdapter.QUEUE_METADATA_CURRENTLY_PLAYING_FEEDMEDIA_ID, feedMediaId);
+                if (feedMediaId >= 0) {
+                    // Also set the feed ID from the feed media
+                    FeedMedia media = DBReader.getFeedMedia(feedMediaId);
+                    if (media != null && media.getItem() != null) {
+                        values.put(PodDBAdapter.QUEUE_METADATA_CURRENTLY_PLAYING_FEED_ID,
+                                media.getItem().getFeed().getId());
+                    }
+                }
+                adapter.updateQueueMetadata(queueId, values);
+
+                // Post event for UI to update (T026 - Phase 4)
+                EventBus.getDefault().post(QueueEvent.currentlyPlayingUpdated(queueId));
+            } finally {
+                adapter.close();
+            }
+            return null;
+        });
+    }
+
+    /**
      * Reorders queues.
      * T019: reorderQueues(List<Long> queueIds)
      *
