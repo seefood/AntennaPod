@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import de.danoeh.antennapod.event.QueueEvent;
+import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.model.feed.QueueMetadata;
 import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.storage.database.DBWriter;
@@ -150,17 +151,30 @@ public class QueueViewModel extends AndroidViewModel {
         UserPreferences.setCurrentQueueId(queueId);
         currentQueueIdLiveData.setValue(queueId);
 
-        // Fetch queue metadata on background thread to avoid blocking UI
+        // Fetch queue metadata and restore playback state on background thread
         executor.submit(() -> {
             try {
                 QueueMetadata queue = DBReader.getQueueMetadataById(queueId);
+
+                // Restore the saved playback state for this queue
+                if (queue != null && queue.getCurrentlyPlayingFeedMediaId() >= 0) {
+                    long savedFeedMediaId = queue.getCurrentlyPlayingFeedMediaId();
+                    Log.d(TAG, "Restoring playback state for queue " + queueId + ": feedMediaId=" + savedFeedMediaId);
+                    FeedMedia media = DBReader.getFeedMedia(savedFeedMediaId);
+                    if (media != null) {
+                        // Update global PlaybackPreferences so PlaybackService picks it up
+                        PlaybackPreferences.writeMediaPlaying(media);
+                        Log.d(TAG, "Updated PlaybackPreferences to restore queue " + queueId);
+                    }
+                }
+
                 postToMainThread(() -> {
                     currentQueueLiveData.setValue(queue);
                     // Post event for other UI components to update
                     EventBus.getDefault().post(QueueEvent.queueSwitched(queueId));
                 });
             } catch (Exception e) {
-                Log.e(TAG, "Failed to load queue metadata for ID: " + queueId, e);
+                Log.e(TAG, "Failed to load queue metadata or restore playback for ID: " + queueId, e);
             }
         });
     }
