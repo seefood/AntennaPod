@@ -63,12 +63,14 @@ import de.danoeh.antennapod.ui.swipeactions.SwipeActions;
 import de.danoeh.antennapod.ui.episodeslist.FeedItemMenuHandler;
 import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedItemFilter;
+import de.danoeh.antennapod.model.feed.QueueMetadata;
 import de.danoeh.antennapod.model.feed.SortOrder;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import de.danoeh.antennapod.ui.view.EmptyViewHandler;
 import de.danoeh.antennapod.ui.episodeslist.EpisodeItemListRecyclerView;
 import de.danoeh.antennapod.ui.view.LiftOnScrollListener;
 import de.danoeh.antennapod.ui.episodeslist.EpisodeItemViewHolder;
+import de.danoeh.antennapod.ui.screen.queue.QueueManagementFragment;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.Disposable;
@@ -137,6 +139,17 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onEventMainThread(QueueEvent event) {
         Log.d(TAG, "onEventMainThread() called with: " + "event = [" + event + "]");
+
+        // Handle queue-level events that affect the entire queue
+        if (event.action == QueueEvent.Action.QUEUE_SWITCHED || event.action == QueueEvent.Action.QUEUE_RENAMED) {
+            updateQueueTitle();
+            // If queue was switched, reload all items
+            if (event.action == QueueEvent.Action.QUEUE_SWITCHED) {
+                loadItems();
+            }
+            return;
+        }
+
         if (queue == null) {
             return;
         } else if (recyclerAdapter == null) {
@@ -413,6 +426,14 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
         if (savedInstanceState != null) {
             displayUpArrow = savedInstanceState.getBoolean(KEY_UP_ARROW);
         }
+
+        // Set queue name as title and make it clickable to open queue management
+        // This must be set before setupToolbarToggle to ensure proper listener setup
+        updateQueueTitle();
+        toolbar.setOnClickListener(v -> {
+            ((MainActivity) getActivity()).loadChildFragment(new QueueManagementFragment());
+        });
+
         ((MainActivity) getActivity()).setupToolbarToggle(toolbar, displayUpArrow);
         toolbar.inflateMenu(R.menu.queue);
         refreshToolbarState();
@@ -553,6 +574,7 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
                                 prefs.getInt(SCROLL_POSITION_KEY, 0), prefs.getInt(SCROLL_OFFSET_KEY, 0));
                         recyclerView.restoreScrollPosition(scrollPosition);
                     }
+                    updateQueueTitle();
                     refreshInfoBar();
                 }, error -> Log.e(TAG, Log.getStackTraceString(error)));
     }
@@ -576,6 +598,19 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
         infoBar.setVisibility(View.VISIBLE);
         swipeActions.attachTo(recyclerView);
         refreshInfoBar();
+    }
+
+    private void updateQueueTitle() {
+        if (toolbar == null) {
+            return;
+        }
+        long currentQueueId = UserPreferences.getCurrentQueueId();
+        QueueMetadata queueMetadata = DBReader.getQueueMetadataById(currentQueueId);
+        if (queueMetadata != null) {
+            toolbar.setTitle(queueMetadata.getName());
+        } else {
+            toolbar.setTitle(R.string.queue_label);
+        }
     }
 
     public static class QueueSortDialog extends ItemSortDialog {
