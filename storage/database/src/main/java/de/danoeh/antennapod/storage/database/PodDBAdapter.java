@@ -922,11 +922,13 @@ public class PodDBAdapter {
             db.delete(TABLE_NAME_QUEUE, KEY_QUEUE_ID + " = ?", new String[]{String.valueOf(queueId)});
             for (int i = 0; i < queue.size(); i++) {
                 FeedItem item = queue.get(i);
-                values.put(KEY_ID, i);
+                // Don't manually set KEY_ID - let it auto-increment for each queue
+                // Using the position within the queue as a sort order reference via rawInsert
+                values.clear();
                 values.put(KEY_FEEDITEM, item.getId());
                 values.put(KEY_FEED, item.getFeed().getId());
                 values.put(KEY_QUEUE_ID, queueId);
-                db.insertWithOnConflict(TABLE_NAME_QUEUE, null, values, SQLiteDatabase.CONFLICT_REPLACE);
+                db.insert(TABLE_NAME_QUEUE, null, values);
             }
             db.setTransactionSuccessful();
         } catch (SQLException e) {
