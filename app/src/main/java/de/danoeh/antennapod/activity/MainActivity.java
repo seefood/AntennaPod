@@ -74,7 +74,6 @@ import de.danoeh.antennapod.ui.screen.home.HomeFragment;
 import de.danoeh.antennapod.ui.screen.playback.audio.AudioPlayerFragment;
 import de.danoeh.antennapod.ui.screen.preferences.PreferenceActivity;
 import de.danoeh.antennapod.ui.screen.queue.QueueFragment;
-import de.danoeh.antennapod.ui.screen.queue.QueueManagementFragment;
 import de.danoeh.antennapod.ui.screen.rating.RatingDialogManager;
 import de.danoeh.antennapod.ui.screen.subscriptions.SubscriptionFragment;
 import de.danoeh.antennapod.ui.view.BottomSheetBackPressedCallback;
@@ -134,11 +133,6 @@ public class MainActivity extends CastEnabledActivity {
                 sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
                 if (itemId == R.id.bottom_navigation_settings) {
                     startActivity(new Intent(MainActivity.this, PreferenceActivity.class));
-                    return;
-                }
-                // Handle queue navigation - show dedicated queue management screen
-                if (itemId == R.id.bottom_navigation_queue) {
-                    loadFragment(QueueManagementFragment.TAG, null);
                     return;
                 }
                 loadFragment(NavigationNames.getBottomNavigationFragmentTag(itemId), null);
