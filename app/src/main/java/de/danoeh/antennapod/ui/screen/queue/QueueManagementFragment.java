@@ -12,6 +12,7 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import de.danoeh.antennapod.R;
@@ -36,6 +37,7 @@ public class QueueManagementFragment extends Fragment {
     private QueueListAdapter queueListAdapter;
     private FloatingActionButton createQueueButton;
     private RecyclerView queueListView;
+    private MaterialToolbar toolbar;
 
     public QueueManagementFragment() {
         // Required empty public constructor
@@ -55,17 +57,29 @@ public class QueueManagementFragment extends Fragment {
         queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
 
         // Find views
+        toolbar = view.findViewById(R.id.toolbar);
         queueListView = view.findViewById(R.id.queue_list);
         createQueueButton = view.findViewById(R.id.queue_create_button);
+
+        // Setup toolbar with back navigation
+        toolbar.setNavigationOnClickListener(v -> {
+            getParentFragmentManager().popBackStack();
+        });
 
         // Setup RecyclerView with empty list initially (will be populated by observer)
         queueListView.setLayoutManager(new LinearLayoutManager(requireContext()));
         queueListAdapter = new QueueListAdapter(java.util.Collections.emptyList());
         queueListView.setAdapter(queueListAdapter);
 
-        // Setup queue selection callback
+        // Setup queue selection callback - switch queue and dismiss
         queueListAdapter.setOnQueueSelectedListener(queueId -> {
+            // switchActiveQueue handles all queue switching logic including:
+            // - Saving playback state for old queue
+            // - Restoring playback state for new queue
+            // - Posting QueueEvent.queueSwitched to notify other components
             queueViewModel.switchActiveQueue(queueId);
+            // Return to previous screen after selection
+            getParentFragmentManager().popBackStack();
         });
 
         // Setup queue edit callback

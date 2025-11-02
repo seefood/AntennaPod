@@ -358,6 +358,7 @@
 
     <!-- Queue operations -->
     <string name="queues">Queues</string>
+    <string name="queue_management_title">Queue Management</string>
     <string name="queue_creation_title">Create Queue</string>
     <string name="queue_edit_title">Edit Queue</string>
     <string name="queue_delete_title">Delete Queue</string>
