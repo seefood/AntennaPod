@@ -1,0 +1,99 @@
+package de.danoeh.antennapod.ui.screen.queue;
+
+import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
+import de.danoeh.antennapod.R;
+import de.danoeh.antennapod.ui.common.QueueDialogManager;
+import de.danoeh.antennapod.ui.common.QueueListAdapter;
+import de.danoeh.antennapod.ui.common.QueueViewModel;
+
+/**
+ * Fragment for managing queues.
+ *
+ * Displays a list of all queues with ability to:
+ * - Switch to a queue (tap queue name)
+ * - Create a new queue (tap + button)
+ * - Edit queue properties (Phase 5)
+ *
+ * This is a dedicated screen, not a dialog overlay.
+ */
+public class QueueManagementFragment extends Fragment {
+    public static final String TAG = "QueueManagementFragment";
+
+    private QueueViewModel queueViewModel;
+    private QueueListAdapter queueListAdapter;
+    private FloatingActionButton createQueueButton;
+    private RecyclerView queueListView;
+
+    public QueueManagementFragment() {
+        // Required empty public constructor
+    }
+
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+                             @Nullable Bundle savedInstanceState) {
+        return inflater.inflate(R.layout.fragment_queue_management, container, false);
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        // Initialize ViewModel
+        queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
+
+        // Find views
+        queueListView = view.findViewById(R.id.queue_list);
+        createQueueButton = view.findViewById(R.id.queue_create_button);
+
+        // Setup RecyclerView with empty list initially (will be populated by observer)
+        queueListView.setLayoutManager(new LinearLayoutManager(requireContext()));
+        queueListAdapter = new QueueListAdapter(java.util.Collections.emptyList());
+        queueListView.setAdapter(queueListAdapter);
+
+        // Setup queue selection callback
+        queueListAdapter.setOnQueueSelectedListener(queueId -> {
+            queueViewModel.switchActiveQueue(queueId);
+        });
+
+        // Setup queue edit callback
+        queueListAdapter.setOnQueueEditRequestListener(queueId -> {
+            if (queueId > 0) {
+                // Phase 5: Show queue edit dialog
+            }
+        });
+
+        // Setup create queue button
+        createQueueButton.setOnClickListener(v -> {
+            QueueDialogManager.showCreateQueueDialog(requireContext(), (name, color) -> {
+                queueViewModel.createQueue(name, color);
+            });
+        });
+
+        // Observe queue list changes - adapter will be updated when data loads
+        queueViewModel.getQueueListLiveData().observe(getViewLifecycleOwner(), queueList -> {
+            if (queueList != null) {
+                queueListAdapter.updateQueueList(queueList);
+            }
+        });
+
+        // Observe current queue changes to highlight active queue
+        queueViewModel.getCurrentQueueIdLiveData().observe(getViewLifecycleOwner(), currentQueueId -> {
+            if (currentQueueId != null) {
+                queueListAdapter.setCurrentQueueId(currentQueueId);
+            }
+        });
+    }
+}

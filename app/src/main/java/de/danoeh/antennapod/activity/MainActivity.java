@@ -74,11 +74,11 @@ import de.danoeh.antennapod.ui.screen.home.HomeFragment;
 import de.danoeh.antennapod.ui.screen.playback.audio.AudioPlayerFragment;
 import de.danoeh.antennapod.ui.screen.preferences.PreferenceActivity;
 import de.danoeh.antennapod.ui.screen.queue.QueueFragment;
+import de.danoeh.antennapod.ui.screen.queue.QueueManagementFragment;
 import de.danoeh.antennapod.ui.screen.rating.RatingDialogManager;
 import de.danoeh.antennapod.ui.screen.subscriptions.SubscriptionFragment;
 import de.danoeh.antennapod.ui.view.BottomSheetBackPressedCallback;
 import de.danoeh.antennapod.ui.view.LockableBottomSheetBehavior;
-import de.danoeh.antennapod.ui.common.QueueSwitchBottomSheet;
 import org.apache.commons.lang3.ArrayUtils;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -136,16 +136,9 @@ public class MainActivity extends CastEnabledActivity {
                     startActivity(new Intent(MainActivity.this, PreferenceActivity.class));
                     return;
                 }
-                // Handle queue navigation - show bottom sheet for switching between queues
+                // Handle queue navigation - show dedicated queue management screen
                 if (itemId == R.id.bottom_navigation_queue) {
-                    QueueSwitchBottomSheet queueSheet = new QueueSwitchBottomSheet();
-                    queueSheet.setOnQueueEditListener(queueId -> {
-                        // Phase 5: Implement queue edit dialog
-                        queueSheet.dismiss();
-                    });
-                    queueSheet.show(getSupportFragmentManager(), "queue_switch");
-                    // Load the QueueFragment to display the current queue's episodes
-                    loadFragment(QueueFragment.TAG, null);
+                    loadFragment(QueueManagementFragment.TAG, null);
                     return;
                 }
                 loadFragment(NavigationNames.getBottomNavigationFragmentTag(itemId), null);
