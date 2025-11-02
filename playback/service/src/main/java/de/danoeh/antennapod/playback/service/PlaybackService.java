@@ -55,6 +55,7 @@ import androidx.media.MediaBrowserServiceCompat;
 import androidx.media.utils.MediaConstants;
 
 import de.danoeh.antennapod.event.PlayerStatusEvent;
+import de.danoeh.antennapod.event.QueueEvent;
 import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationQueue;
 import de.danoeh.antennapod.playback.service.internal.ClockSleepTimer;
 import de.danoeh.antennapod.playback.service.internal.LocalPSMP;
@@ -1688,6 +1689,22 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                     feedPreferences.setFeedSkipEnding(event.getSkipEnding());
                 }
             }
+        }
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    @SuppressWarnings("unused")
+    public void onQueueSwitched(QueueEvent event) {
+        if (event.action == QueueEvent.Action.QUEUE_SWITCHED) {
+            Log.d(TAG, "Queue switched to: " + event.queueId);
+            // Pause current playback
+            if (mediaPlayer.getPlayerStatus() == PlayerStatus.PLAYING) {
+                mediaPlayer.pause(true, false);
+            }
+            // Load the new queue's saved playback state from preferences
+            // QueueViewModel has already updated PlaybackPreferences with the new queue's saved episode
+            Log.d(TAG, "Loading playable for new queue from preferences");
+            startPlayingFromPreferences();
         }
     }
 
