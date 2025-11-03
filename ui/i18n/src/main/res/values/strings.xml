@@ -359,18 +359,20 @@
     <!-- Queue operations -->
     <string name="queues">Queues</string>
     <string name="queue_management_title">Queue Management</string>
-    <string name="queue_creation_title">Create Queue</string>
+    <string name="queue_creation_title">Create New Queue</string>
     <string name="queue_edit_title">Edit Queue</string>
-    <string name="queue_delete_title">Delete Queue</string>
-    <string name="queue_name_hint">Queue Name</string>
-    <string name="queue_name_empty_error">Queue name cannot be empty</string>
-    <string name="queue_name_cannot_be_empty">Queue name cannot be empty</string>
-    <string name="queue_color_label">Queue Color</string>
+    <string name="queue_delete_title">Delete Queue?</string>
+    <string name="queue_name_label">Queue Name</string>
+    <string name="queue_name_hint">Enter queue name</string>
+    <string name="queue_empty_name_error">Queue name cannot be empty</string>
+    <string name="queue_color_label">Choose Color</string>
+    <string name="queue_color_picker_title">Pick Color</string>
     <string name="queue_create_button">Create</string>
+    <string name="queue_delete_message">Delete \"%s\"? Episodes will remain in library.</string>
+    <string name="queue_delete_confirm">Delete</string>
     <string name="queue_select_color">Select a color</string>
     <string name="queue_select_destination">Select Destination Queue</string>
     <string name="queue_already_contains">Already in this queue</string>
-    <string name="queue_delete_message">Delete this queue? Episodes will be removed from this queue only.</string>
     <string name="queue_cannot_delete_last">Cannot delete the last queue</string>
     <string name="copy_to_queue">Copy to Queue</string>
     <string name="move_to_queue">Move to Queue</string>
@@ -402,18 +404,6 @@
     <string name="size">Size</string>
     <string name="clear_queue_confirmation_msg">Please confirm that you want to remove ALL episodes from the queue.</string>
     <string name="time_left_label">Time left:\u0020</string>
-
-    <!-- Queue Management (Creation, Editing, Deletion) -->
-    <string name="queue_creation_title">Create New Queue</string>
-    <string name="queue_name_label">Queue Name</string>
-    <string name="queue_name_hint">Enter queue name</string>
-    <string name="queue_color_label">Choose Color</string>
-    <string name="queue_create_button">Create</string>
-    <string name="queue_delete_title">Delete Queue?</string>
-    <string name="queue_delete_message">Delete \"%s\"? Episodes will remain in library.</string>
-    <string name="queue_delete_confirm">Delete</string>
-    <string name="queue_color_picker_title">Pick Color</string>
-    <string name="queue_empty_name_error">Queue name cannot be empty</string>
 
     <!--  Variable Speed -->
     <string name="speed_presets">Presets</string>

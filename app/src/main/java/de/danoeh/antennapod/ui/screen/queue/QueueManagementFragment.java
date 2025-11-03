@@ -91,9 +91,18 @@ public class QueueManagementFragment extends Fragment {
 
         // Setup create queue button
         createQueueButton.setOnClickListener(v -> {
-            QueueDialogManager.showCreateQueueDialog(requireContext(), (name, color) -> {
-                queueViewModel.createQueue(name, color);
-            });
+            QueueDialogManager.showCreateQueueDialog(QueueManagementFragment.this,
+                    new QueueDialogManager.QueueNameColorCallback() {
+                        @Override
+                        public void onConfirm(String name, int color) {
+                            queueViewModel.createQueue(name, color);
+                        }
+
+                        @Override
+                        public void onCancel() {
+                            // Dialog was cancelled
+                        }
+                    });
         });
 
         // Observe queue list changes - adapter will be updated when data loads

@@ -193,7 +193,7 @@ public class QueueDialogManager {
         QueueColorAdapter colorAdapter = new QueueColorAdapter(context, colors, currentColor);
         colorGrid.setAdapter(colorAdapter);
 
-        AlertDialog dialog = new MaterialAlertDialogBuilder(context)
+        new MaterialAlertDialogBuilder(context)
                 .setTitle(title)
                 .setView(view)
                 .setNegativeButton(android.R.string.cancel, (dialogInterface, which) -> callback.onCancel())

@@ -18,7 +18,10 @@ import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
+import java.util.List;
+
 import de.danoeh.antennapod.event.QueueEvent;
+import de.danoeh.antennapod.model.feed.QueueMetadata;
 
 /**
  * Bottom sheet dialog for queue switching and management.
@@ -38,31 +41,8 @@ public class QueueSwitchBottomSheet extends BottomSheetDialogFragment {
     private FloatingActionButton createQueueButton;
     private RecyclerView queueListView;
 
-    /**
-     * Interface for queue edit request callbacks.
-     */
-    public interface OnQueueEditListener {
-        /**
-         * Called when user requests to edit a queue.
-         *
-         * @param queueId ID of the queue to edit
-         */
-        void onEditQueueRequested(long queueId);
-    }
-
-    private OnQueueEditListener editListener;
-
     public QueueSwitchBottomSheet() {
         // Required empty public constructor
-    }
-
-    /**
-     * Set callback for queue edit requests.
-     *
-     * @param listener OnQueueEditListener callback
-     */
-    public void setOnQueueEditListener(OnQueueEditListener listener) {
-        this.editListener = listener;
     }
 
     @Override
@@ -93,20 +73,27 @@ public class QueueSwitchBottomSheet extends BottomSheetDialogFragment {
             dismiss();
         });
 
-        // Setup queue edit callback
+        // Setup queue edit callback - show rename/delete menu
         queueListAdapter.setOnQueueEditRequestListener(queueId -> {
-            if (editListener != null) {
-                editListener.onEditQueueRequested(queueId);
-            }
+            handleQueueEdit(queueId);
         });
 
         // Setup create queue button
         createQueueButton.setOnClickListener(v -> {
             // Show queue creation dialog
-            QueueDialogManager.showCreateQueueDialog(requireContext(), (name, color) -> {
-                // Create the queue via ViewModel
-                queueViewModel.createQueue(name, color);
-            });
+            QueueDialogManager.showCreateQueueDialog(QueueSwitchBottomSheet.this,
+                    new QueueDialogManager.QueueNameColorCallback() {
+                        @Override
+                        public void onConfirm(String name, int color) {
+                            // Create the queue via ViewModel
+                            queueViewModel.createQueue(name, color);
+                        }
+
+                        @Override
+                        public void onCancel() {
+                            // Dialog was cancelled
+                        }
+                    });
         });
 
         // Observe queue list changes - adapter will be updated when data loads
@@ -122,6 +109,70 @@ public class QueueSwitchBottomSheet extends BottomSheetDialogFragment {
                 queueListAdapter.setCurrentQueueId(currentQueueId);
             }
         });
+    }
+
+    /**
+     * Handle queue edit requests by showing rename/delete dialogs.
+     *
+     * @param queueId ID of queue to edit
+     */
+    private void handleQueueEdit(long queueId) {
+        // Get queue from ViewModel to get current name and color
+        List<QueueMetadata> queueList = queueViewModel.getQueueListLiveData().getValue();
+        if (queueList == null) {
+            return;
+        }
+
+        QueueMetadata queue = null;
+        for (QueueMetadata q : queueList) {
+            if (q.getId() == queueId) {
+                queue = q;
+                break;
+            }
+        }
+
+        if (queue == null) {
+            return;
+        }
+
+        final QueueMetadata currentQueue = queue;
+
+        // Show rename dialog
+        QueueDialogManager.showRenameQueueDialog(QueueSwitchBottomSheet.this,
+                currentQueue.getName(),
+                currentQueue.getColor(),
+                new QueueDialogManager.QueueNameColorCallback() {
+                    @Override
+                    public void onConfirm(String name, int color) {
+                        // Update queue with new name and color
+                        if (!name.equals(currentQueue.getName())) {
+                            queueViewModel.renameQueue(queueId, name);
+                        }
+                        if (color != currentQueue.getColor()) {
+                            queueViewModel.changeQueueColor(queueId, color);
+                        }
+                    }
+
+                    @Override
+                    public void onCancel() {
+                        // Show delete confirmation
+                        QueueDialogManager.showDeleteQueueDialog(QueueSwitchBottomSheet.this,
+                                currentQueue.getName(),
+                                new QueueDialogManager.QueueDeleteCallback() {
+                                    @Override
+                                    public void onConfirmDelete() {
+                                        // Delete the queue
+                                        queueViewModel.deleteQueue(queueId);
+                                        dismiss();
+                                    }
+
+                                    @Override
+                                    public void onCancel() {
+                                        // User cancelled delete, do nothing
+                                    }
+                                });
+                    }
+                });
     }
 
     @Override
