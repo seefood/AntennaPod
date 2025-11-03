@@ -30,7 +30,7 @@ import de.danoeh.antennapod.storage.preferences.UserPreferences;
 /**
  * ViewModel for managing queue state and operations.
  *
- * Handles queue switching, creation, renaming, color changes, and deletion.
+ * <p>Handles queue switching, creation, renaming, color changes, and deletion.
  * Exposes queue data via LiveData for reactive UI updates.
  * All database operations are asynchronous via DBWriter (single-threaded executor).
  */
@@ -334,11 +334,11 @@ public class QueueViewModel extends AndroidViewModel {
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onQueueEvent(QueueEvent event) {
         // Reload queue data on any queue-related event
-        if (event.action == QueueEvent.Action.QUEUE_CREATED ||
-                event.action == QueueEvent.Action.QUEUE_RENAMED ||
-                event.action == QueueEvent.Action.QUEUE_COLOR_CHANGED ||
-                event.action == QueueEvent.Action.QUEUE_DELETED ||
-                event.action == QueueEvent.Action.QUEUE_SWITCHED) {
+        if (event.action == QueueEvent.Action.QUEUE_CREATED
+                || event.action == QueueEvent.Action.QUEUE_RENAMED
+                || event.action == QueueEvent.Action.QUEUE_COLOR_CHANGED
+                || event.action == QueueEvent.Action.QUEUE_DELETED
+                || event.action == QueueEvent.Action.QUEUE_SWITCHED) {
             loadQueueData();
         } else if (event.action == QueueEvent.Action.CURRENTLY_PLAYING_UPDATED) {
             // Update the metadata for the queue whose playback state changed

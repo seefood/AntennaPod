@@ -23,12 +23,12 @@ import de.danoeh.antennapod.event.QueueEvent;
 /**
  * Bottom sheet dialog for queue switching and management.
  *
- * Displays list of all available queues with ability to:
+ * <p>Displays list of all available queues with ability to:
  * - Switch to a queue (tap queue name)
  * - Edit queue properties (tap edit button)
  * - Create new queue (tap + button)
  *
- * Integrates with QueueViewModel to manage state and persist queue operations.
+ * <p>Integrates with QueueViewModel to manage state and persist queue operations.
  */
 public class QueueSwitchBottomSheet extends BottomSheetDialogFragment {
     private static final String TAG = "QueueSwitchBottomSheet";

@@ -184,7 +184,7 @@ public final class DBReader {
      * Loads the IDs of the FeedItems in the active queue. This method should be preferred over
      * {@link #getQueue()} if the FeedItems of the queue are not needed.
      *
-     * The active queue ID is retrieved from {@link UserPreferences#getCurrentQueueId()}.
+     * <p>The active queue ID is retrieved from {@link UserPreferences#getCurrentQueueId()}.
      *
      * @return A LongList of feed item IDs sorted by queue position
      */
@@ -209,7 +209,7 @@ public final class DBReader {
      * Loads a list of the FeedItems in the active queue. If the FeedItems of the queue are not used directly,
      * consider using {@link #getQueueIDList()} instead.
      *
-     * The active queue ID is retrieved from {@link UserPreferences#getCurrentQueueId()}.
+     * <p>The active queue ID is retrieved from {@link UserPreferences#getCurrentQueueId()}.
      *
      * @return A list of FeedItems sorted by the same order as the active queue.
      */

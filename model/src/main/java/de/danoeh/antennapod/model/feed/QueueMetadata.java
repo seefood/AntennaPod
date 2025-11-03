@@ -5,10 +5,10 @@ import androidx.annotation.ColorInt;
 /**
  * Represents metadata for a queue in the multiple queues feature.
  *
- * Each queue has a unique identifier, user-defined name, color for UI identification,
+ * <p>Each queue has a unique identifier, user-defined name, color for UI identification,
  * creation timestamp, display order, and tracking of currently playing episode(s).
  *
- * Stored in QueueMetadata table in the database.
+ * <p>Stored in QueueMetadata table in the database.
  */
 public class QueueMetadata {
 
@@ -230,21 +230,33 @@ public class QueueMetadata {
 
     @Override
     public String toString() {
-        return "QueueMetadata{" +
-                "id=" + id +
-                ", name='" + name + '\'' +
-                ", color=" + color +
-                ", createdAt=" + createdAt +
-                ", sortOrder=" + sortOrder +
-                ", currentlyPlayingFeedMediaId=" + currentlyPlayingFeedMediaId +
-                ", currentlyPlayingFeedId=" + currentlyPlayingFeedId +
-                '}';
+        return "QueueMetadata{"
+                + "id="
+                + id
+                + ", name='"
+                + name
+                + '\''
+                + ", color="
+                + color
+                + ", createdAt="
+                + createdAt
+                + ", sortOrder="
+                + sortOrder
+                + ", currentlyPlayingFeedMediaId="
+                + currentlyPlayingFeedMediaId
+                + ", currentlyPlayingFeedId="
+                + currentlyPlayingFeedId
+                + '}';
     }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof QueueMetadata)) return false;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof QueueMetadata)) {
+            return false;
+        }
 
         QueueMetadata that = (QueueMetadata) o;
         return id == that.id;

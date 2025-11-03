@@ -11,7 +11,6 @@ import android.widget.GridLayout;
 import android.widget.ImageView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.widget.AppCompatImageView;
-import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
@@ -19,17 +18,17 @@ import com.google.android.material.textfield.TextInputLayout;
 /**
  * Manages dialog UI for creating and editing queues.
  *
- * Provides factory methods for showing queue creation/edit dialogs with:
+ * <p>Provides factory methods for showing queue creation/edit dialogs with:
  * - Name input field (alphanumeric + emoji support)
  * - 12-color palette picker with visual selection indicator
  * - Validation and error handling
  *
- * Usage:
- * ```java
+ * <p>Usage:
+ * <pre>{@code
  * QueueDialogManager.showCreateQueueDialog(fragment, (name, color) -> {
  *     viewModel.createQueue(name, color);
  * });
- * ```
+ * }</pre>
  */
 public abstract class QueueDialogManager {
     private static final String TAG = "QueueDialogManager";
@@ -168,7 +167,9 @@ public abstract class QueueDialogManager {
             final MaterialAlertDialogBuilder finalBuilder = builder;
             nameInput.addTextChangedListener(new TextWatcher() {
                 @Override
-                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                    // Not needed
+                }
 
                 @Override
                 public void onTextChanged(CharSequence s, int start, int before, int count) {
@@ -177,7 +178,9 @@ public abstract class QueueDialogManager {
                 }
 
                 @Override
-                public void afterTextChanged(Editable s) {}
+                public void afterTextChanged(Editable s) {
+                    // Not needed
+                }
             });
         }
 

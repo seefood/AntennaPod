@@ -10,9 +10,23 @@ public class QueueEvent {
 
     public enum Action {
         // Item operations
-        ADDED, ADDED_ITEMS, SET_QUEUE, REMOVED, IRREVERSIBLE_REMOVED, CLEARED, DELETED_MEDIA, SORTED, MOVED,
+        ADDED,
+        ADDED_ITEMS,
+        SET_QUEUE,
+        REMOVED,
+        IRREVERSIBLE_REMOVED,
+        CLEARED,
+        DELETED_MEDIA,
+        SORTED,
+        MOVED,
         // Queue management operations
-        QUEUE_CREATED, QUEUE_RENAMED, QUEUE_COLOR_CHANGED, QUEUE_DELETED, QUEUES_REORDERED, QUEUE_SWITCHED, CURRENTLY_PLAYING_UPDATED
+        QUEUE_CREATED,
+        QUEUE_RENAMED,
+        QUEUE_COLOR_CHANGED,
+        QUEUE_DELETED,
+        QUEUES_REORDERED,
+        QUEUE_SWITCHED,
+        CURRENTLY_PLAYING_UPDATED
     }
 
     public final Action action;

@@ -10,7 +10,7 @@ import de.danoeh.antennapod.storage.database.PodDBAdapter;
 /**
  * Converts a {@link Cursor} to a {@link QueueMetadata} object.
  *
- * Maps database columns from the QueueMetadata table to the domain model.
+ * <p>Maps database columns from the QueueMetadata table to the domain model.
  * Follows the CursorWrapper pattern used throughout AntennaPod's database layer.
  */
 public class QueueMetadataCursor extends CursorWrapper {

@@ -5,10 +5,10 @@ import androidx.annotation.ColorInt;
 /**
  * Queue color palette utility.
  *
- * Provides a predefined set of 12 colors that match the AntennaPod theme for queue identification.
+ * <p>Provides a predefined set of 12 colors that match the AntennaPod theme for queue identification.
  * Colors are designed to be visually distinct and accessible.
  *
- * Colors are defined as hex values and can be used directly without resource loading,
+ * <p>Colors are defined as hex values and can be used directly without resource loading,
  * ensuring compatibility with API level 21+.
  */
 public class QueueColorPalette {
@@ -114,10 +114,10 @@ public class QueueColorPalette {
         int g2 = (color2 >> 8) & 0xFF;
         int b2 = color2 & 0xFF;
 
-        long rDist = r1 - r2;
-        long gDist = g1 - g2;
-        long bDist = b1 - b2;
+        long redDist = r1 - r2;
+        long greenDist = g1 - g2;
+        long blueDist = b1 - b2;
 
-        return rDist * rDist + gDist * gDist + bDist * bDist;
+        return redDist * redDist + greenDist * greenDist + blueDist * blueDist;
     }
 }

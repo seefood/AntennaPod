@@ -13,15 +13,15 @@ import de.danoeh.antennapod.storage.database.DBWriter;
 /**
  * Manages playback state for queue-aware playback.
  *
- * This class provides data management for queue playback state persistence.
+ * <p>This class provides data management for queue playback state persistence.
  * It coordinates with the database layer to save/restore playback position
  * when switching between queues.
  *
- * IMPORTANT: The actual playback integration (loading media, seeking, playback control)
+ * <p>IMPORTANT: The actual playback integration (loading media, seeking, playback control)
  * is implemented in PlaybackService and PlaybackController. This class handles the
  * data layer only.
  *
- * Phase 3 Integration: During Phase 3, PlaybackService will coordinate with this
+ * <p>Phase 3 Integration: During Phase 3, PlaybackService will coordinate with this
  * class to manage queue-aware playback transitions.
  */
 public class QueuePlaybackManager {
@@ -41,7 +41,7 @@ public class QueuePlaybackManager {
     /**
      * Save the current playback state for a queue.
      *
-     * Records the currently playing media and feed IDs to the QueueMetadata
+     * <p>Records the currently playing media and feed IDs to the QueueMetadata
      * so the playback position can be restored when the queue becomes active.
      *
      * @param queueId ID of the queue to save state for
@@ -58,7 +58,7 @@ public class QueuePlaybackManager {
     /**
      * Get the saved playback state for a queue.
      *
-     * Retrieves the QueueMetadata which contains information about the last
+     * <p>Retrieves the QueueMetadata which contains information about the last
      * playing episode and can be used to restore playback position.
      *
      * @param queueId ID of the queue

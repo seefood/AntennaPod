@@ -23,12 +23,12 @@ import de.danoeh.antennapod.ui.common.QueueViewModel;
 /**
  * Fragment for managing queues.
  *
- * Displays a list of all queues with ability to:
+ * <p>Displays a list of all queues with ability to:
  * - Switch to a queue (tap queue name)
  * - Create a new queue (tap + button)
  * - Edit queue properties (Phase 5)
  *
- * This is a dedicated screen, not a dialog overlay.
+ * <p>This is a dedicated screen, not a dialog overlay.
  */
 public class QueueManagementFragment extends Fragment {
     public static final String TAG = "QueueManagementFragment";

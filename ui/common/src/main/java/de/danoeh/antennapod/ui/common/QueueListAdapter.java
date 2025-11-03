@@ -17,7 +17,7 @@ import de.danoeh.antennapod.model.feed.QueueMetadata;
 /**
  * RecyclerView adapter for displaying queues in a list.
  *
- * Displays queue name and color swatch for each queue.
+ * <p>Displays queue name and color swatch for each queue.
  * Supports queue selection callbacks.
  */
 public class QueueListAdapter extends RecyclerView.Adapter<QueueListAdapter.QueueViewHolder> {
@@ -100,8 +100,8 @@ public class QueueListAdapter extends RecyclerView.Adapter<QueueListAdapter.Queu
      * @param newQueueList New list of QueueMetadata objects
      */
     public void updateQueueList(List<QueueMetadata> newQueueList) {
-        final List<QueueMetadata> finalNewQueueList = newQueueList != null ?
-                newQueueList : java.util.Collections.emptyList();
+        final List<QueueMetadata> finalNewQueueList = newQueueList != null
+                ? newQueueList : java.util.Collections.emptyList();
 
         // Use DiffUtil for efficient updates instead of notifyDataSetChanged()
         DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new DiffUtil.Callback() {
@@ -129,8 +129,8 @@ public class QueueListAdapter extends RecyclerView.Adapter<QueueListAdapter.Queu
                 if (oldQueue == null) {
                     return false;
                 }
-                return oldQueue.getName().equals(newQueue.getName()) &&
-                       oldQueue.getColor() == newQueue.getColor();
+                return oldQueue.getName().equals(newQueue.getName())
+                        && oldQueue.getColor() == newQueue.getColor();
             }
         });
 
