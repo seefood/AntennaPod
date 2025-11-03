@@ -164,7 +164,6 @@ public abstract class QueueDialogManager {
 
         // Disable positive button until name is entered
         if (nameInput != null) {
-            final MaterialAlertDialogBuilder finalBuilder = builder;
             nameInput.addTextChangedListener(new TextWatcher() {
                 @Override
                 public void beforeTextChanged(CharSequence s, int start, int count, int after) {
