@@ -1713,32 +1713,31 @@ public class PlaybackService extends MediaBrowserServiceCompat {
      * Used when switching between queues - just updates notification and media session state.
      * Does NOT add the episode to the queue (it's already in the queue).
      * Does NOT start playback (user should explicitly press play).
+     *
+     * This method executes synchronously on the main thread to avoid race conditions during
+     * queue switching. Single-row DB reads are fast enough for main thread execution.
      */
     private void loadQueuePlayableWithoutPlaying() {
         long feedMediaId = PlaybackPreferences.getCurrentlyPlayingFeedMediaId();
         if (feedMediaId < 0) {
-            Log.d(TAG, "No saved episode for this queue");
+            Log.d(TAG, "No saved episode for this queue - clearing playback state");
+            // Clear notification/media session since there's no episode to display
+            updateNotificationAndMediaSession(null);
             return;
         }
 
-        Disposable d = Observable.fromCallable(() -> DBReader.getFeedMedia(feedMediaId))
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        playable -> {
-                            if (playable != null) {
-                                // Just update UI state - don't load into player or start playing
-                                // The episode is already in the queue, user can press play when ready
-                                updateNotificationAndMediaSession(playable);
-                                Log.d(TAG, "Updated UI for queue episode: " + playable.getEpisodeTitle()
-                                        + " (not auto-playing)");
-                            }
-                        },
-                        error -> {
-                            Log.d(TAG, "Could not load playable from queue");
-                            error.printStackTrace();
-                        });
-        singleShotDisposables.add(d);
+        // Synchronous DB read (safe for single row) to avoid race conditions
+        FeedMedia playable = DBReader.getFeedMedia(feedMediaId);
+        if (playable != null) {
+            // Just update UI state - don't load into player or start playing
+            // The episode is already in the queue, user can press play when ready
+            updateNotificationAndMediaSession(playable);
+            Log.d(TAG, "Updated UI for queue episode: " + playable.getEpisodeTitle()
+                    + " (not auto-playing)");
+        } else {
+            Log.d(TAG, "Could not load playable from queue (media not found)");
+            updateNotificationAndMediaSession(null);
+        }
     }
 
     public static MediaType getCurrentMediaType() {

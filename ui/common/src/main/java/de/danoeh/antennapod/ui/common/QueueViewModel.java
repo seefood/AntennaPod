@@ -169,9 +169,12 @@ public class QueueViewModel extends AndroidViewModel {
                 postToMainThread(() -> {
                     // Update global PlaybackPreferences BEFORE posting event to avoid race condition
                     // This ensures QueueFragment reads the correct episode when QueueEvent arrives
+                    // If media is null (queue has no playback history), this clears the preferences
+                    PlaybackPreferences.writeMediaPlaying(media);
                     if (media != null) {
-                        PlaybackPreferences.writeMediaPlaying(media);
-                        Log.d(TAG, "Updated PlaybackPreferences to restore queue " + queueId);
+                        Log.d(TAG, "Updated PlaybackPreferences to restore queue " + queueId + " episode: " + media.getEpisodeTitle());
+                    } else {
+                        Log.d(TAG, "Cleared PlaybackPreferences for queue " + queueId + " (no playback history)");
                     }
 
                     currentQueueLiveData.setValue(queue);
