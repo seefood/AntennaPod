@@ -1697,55 +1697,39 @@ public class PlaybackService extends MediaBrowserServiceCompat {
     public void onQueueSwitched(QueueEvent event) {
         if (event.action == QueueEvent.Action.QUEUE_SWITCHED) {
             Log.d(TAG, "Queue switched to: " + event.queueId);
-            // Pause current playback but don't abandon audio focus yet
-            if (mediaPlayer.getPlayerStatus() == PlayerStatus.PLAYING) {
-                mediaPlayer.pause(true, false);
-            }
-            // Load the new queue's saved playback state WITHOUT auto-playing
+
             // QueueViewModel has already updated PlaybackPreferences with the new queue's saved episode
-            Log.d(TAG, "Loading playable for new queue from preferences (without auto-play)");
-            loadQueuePlayableWithoutPlaying();
-        }
-    }
+            long feedMediaId = PlaybackPreferences.getCurrentlyPlayingFeedMediaId();
+            if (feedMediaId < 0) {
+                Log.d(TAG, "No saved episode for this queue - stopping playback");
+                // Stop playback since new queue has no saved episode
+                mediaPlayer.pause(true, true);
+                PlaybackPreferences.writeNoMediaPlaying();
+                updateNotificationAndMediaSession(null);
+                IntentUtils.sendLocalBroadcast(getApplicationContext(), ACTION_PLAYER_STATUS_CHANGED);
+                EventBus.getDefault().post(new PlayerStatusEvent());
+                return;
+            }
 
-    /**
-     * Update UI to reflect the new queue's last played episode WITHOUT starting playback.
-     * Used when switching between queues - just updates notification and media session state.
-     * Does NOT add the episode to the queue (it's already in the queue).
-     * Does NOT start playback (user should explicitly press play).
-     *
-     * This method executes synchronously on the main thread to avoid race conditions during
-     * queue switching. Single-row DB reads are fast enough for main thread execution.
-     */
-    private void loadQueuePlayableWithoutPlaying() {
-        long feedMediaId = PlaybackPreferences.getCurrentlyPlayingFeedMediaId();
-        if (feedMediaId < 0) {
-            Log.d(TAG, "No saved episode for this queue - clearing playback state");
-            // Clear notification/media session since there's no episode to display
-            updateNotificationAndMediaSession(null);
-            // Notify PlaybackController and UI components about the state change
-            IntentUtils.sendLocalBroadcast(getApplicationContext(), ACTION_PLAYER_STATUS_CHANGED);
-            EventBus.getDefault().post(new PlayerStatusEvent());
-            return;
-        }
+            // Load the new queue's last played episode and start playing it
+            // This mimics what happens when user clicks play on an episode
+            Log.d(TAG, "Loading and playing episode for new queue: " + feedMediaId);
 
-        // Synchronous DB read (safe for single row) to avoid race conditions
-        FeedMedia playable = DBReader.getFeedMedia(feedMediaId);
-        if (playable != null) {
-            // Just update UI state - don't load into player or start playing
-            // The episode is already in the queue, user can press play when ready
-            updateNotificationAndMediaSession(playable);
-            Log.d(TAG, "Updated UI for queue episode: " + playable.getEpisodeTitle()
-                    + " (not auto-playing)");
-        } else {
-            Log.d(TAG, "Could not load playable from queue (media not found)");
-            updateNotificationAndMediaSession(null);
+            // Synchronous DB read (safe for single row) to avoid race conditions
+            FeedMedia playable = DBReader.getFeedMedia(feedMediaId);
+            if (playable != null) {
+                // Load media into player and start playing (same as clicking play on episode)
+                startPlaying(playable, false);
+                Log.d(TAG, "Started playing queue episode: " + playable.getEpisodeTitle());
+            } else {
+                Log.e(TAG, "Could not load playable from queue (media not found)");
+                mediaPlayer.pause(true, true);
+                PlaybackPreferences.writeNoMediaPlaying();
+                updateNotificationAndMediaSession(null);
+                IntentUtils.sendLocalBroadcast(getApplicationContext(), ACTION_PLAYER_STATUS_CHANGED);
+                EventBus.getDefault().post(new PlayerStatusEvent());
+            }
         }
-
-        // Notify PlaybackController and UI components (mini player, widgets) to refresh
-        // This ensures the mini player shows the correct episode for the new queue
-        IntentUtils.sendLocalBroadcast(getApplicationContext(), ACTION_PLAYER_STATUS_CHANGED);
-        EventBus.getDefault().post(new PlayerStatusEvent());
     }
 
     public static MediaType getCurrentMediaType() {
