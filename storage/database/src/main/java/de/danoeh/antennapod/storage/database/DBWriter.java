@@ -1014,7 +1014,7 @@ public class DBWriter {
      *
      * @param name User-defined queue name (cannot be null or empty)
      * @param color RGB color value for UI
-     * @return Future with the new queue ID
+     * @return {@code Future<Long>} with the new queue ID
      */
     public static Future<Long> createQueue(@NonNull final String name, final int color) {
         return dbExec.submit(() -> {
@@ -1059,7 +1059,7 @@ public class DBWriter {
      *
      * @param queueId The ID of the queue to rename
      * @param newName The new name (cannot be null or empty)
-     * @return Future<Void>
+     * @return {@code Future<Void>}
      */
     public static Future<Void> renameQueue(final long queueId, @NonNull final String newName) {
         return dbExec.submit(() -> {
@@ -1089,7 +1089,7 @@ public class DBWriter {
      *
      * @param queueId The ID of the queue
      * @param color RGB color value
-     * @return Future<Void>
+     * @return {@code Future<Void>}
      */
     public static Future<Void> changeQueueColor(final long queueId, final int color) {
         return dbExec.submit(() -> {
@@ -1115,7 +1115,7 @@ public class DBWriter {
      * Last queue cannot be deleted.
      *
      * @param queueId The ID of the queue to delete
-     * @return Future<Void>
+     * @return {@code Future<Void>}
      */
     public static Future<Void> deleteQueue(final long queueId) {
         return dbExec.submit(() -> {
@@ -1147,12 +1147,12 @@ public class DBWriter {
      * Updates the last playing episode for a queue.
      * T018b: updateQueuePlaybackState(long queueId, long feedMediaId)
      *
-     * Saves which episode was last playing in a queue. When switching to a different queue,
+     * <p>Saves which episode was last playing in a queue. When switching to a different queue,
      * PlaybackService can restore playback from the saved position.
      *
      * @param queueId The ID of the queue
      * @param feedMediaId The ID of the FeedMedia that was last playing, or -1 for none
-     * @return Future<Void>
+     * @return {@code Future<Void>}
      */
     public static Future<Void> updateQueuePlaybackState(final long queueId, final long feedMediaId) {
         return dbExec.submit(() -> {
@@ -1185,7 +1185,7 @@ public class DBWriter {
      * T019: reorderQueues(List<Long> queueIds)
      *
      * @param queueIds List of queue IDs in the new order
-     * @return Future<Void>
+     * @return {@code Future<Void>}
      */
     public static Future<Void> reorderQueues(@NonNull final List<Long> queueIds) {
         return dbExec.submit(() -> {
@@ -1214,7 +1214,7 @@ public class DBWriter {
      * @param queueId The queue ID
      * @param feedMediaId FeedMedia ID of currently playing episode, or -1 for none
      * @param feedId Feed ID of currently playing episode, or -1 for none
-     * @return Future<Void>
+     * @return {@code Future<Void>}
      */
     public static Future<Void> setCurrentlyPlaying(final long queueId, final long feedMediaId, final long feedId) {
         return dbExec.submit(() -> {
@@ -1249,7 +1249,7 @@ public class DBWriter {
      * @param itemId Feed item ID to add
      * @param index Position to insert at (0-indexed)
      * @param queueId Target queue ID
-     * @return Future<Void>
+     * @return {@code Future<Void>}
      */
     // TODO T042: Implement addQueueItemAt with queueId parameter
     // Implementation strategy:
