@@ -155,20 +155,25 @@ public class QueueViewModel extends AndroidViewModel {
         executor.submit(() -> {
             try {
                 QueueMetadata queue = DBReader.getQueueMetadataById(queueId);
+                final FeedMedia media;
 
                 // Restore the saved playback state for this queue
                 if (queue != null && queue.getCurrentlyPlayingFeedMediaId() >= 0) {
                     long savedFeedMediaId = queue.getCurrentlyPlayingFeedMediaId();
                     Log.d(TAG, "Restoring playback state for queue " + queueId + ": feedMediaId=" + savedFeedMediaId);
-                    FeedMedia media = DBReader.getFeedMedia(savedFeedMediaId);
-                    if (media != null) {
-                        // Update global PlaybackPreferences so PlaybackService picks it up
-                        PlaybackPreferences.writeMediaPlaying(media);
-                        Log.d(TAG, "Updated PlaybackPreferences to restore queue " + queueId);
-                    }
+                    media = DBReader.getFeedMedia(savedFeedMediaId);
+                } else {
+                    media = null;
                 }
 
                 postToMainThread(() -> {
+                    // Update global PlaybackPreferences BEFORE posting event to avoid race condition
+                    // This ensures QueueFragment reads the correct episode when QueueEvent arrives
+                    if (media != null) {
+                        PlaybackPreferences.writeMediaPlaying(media);
+                        Log.d(TAG, "Updated PlaybackPreferences to restore queue " + queueId);
+                    }
+
                     currentQueueLiveData.setValue(queue);
                     // Post event for other UI components to update
                     EventBus.getDefault().post(QueueEvent.queueSwitched(queueId));
