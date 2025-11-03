@@ -1697,15 +1697,48 @@ public class PlaybackService extends MediaBrowserServiceCompat {
     public void onQueueSwitched(QueueEvent event) {
         if (event.action == QueueEvent.Action.QUEUE_SWITCHED) {
             Log.d(TAG, "Queue switched to: " + event.queueId);
-            // Pause current playback
+            // Pause current playback but don't abandon audio focus yet
             if (mediaPlayer.getPlayerStatus() == PlayerStatus.PLAYING) {
                 mediaPlayer.pause(true, false);
             }
-            // Load the new queue's saved playback state from preferences
+            // Load the new queue's saved playback state WITHOUT auto-playing
             // QueueViewModel has already updated PlaybackPreferences with the new queue's saved episode
-            Log.d(TAG, "Loading playable for new queue from preferences");
-            startPlayingFromPreferences();
+            Log.d(TAG, "Loading playable for new queue from preferences (without auto-play)");
+            loadQueuePlayableWithoutPlaying();
         }
+    }
+
+    /**
+     * Update UI to reflect the new queue's last played episode WITHOUT starting playback.
+     * Used when switching between queues - just updates notification and media session state.
+     * Does NOT add the episode to the queue (it's already in the queue).
+     * Does NOT start playback (user should explicitly press play).
+     */
+    private void loadQueuePlayableWithoutPlaying() {
+        long feedMediaId = PlaybackPreferences.getCurrentlyPlayingFeedMediaId();
+        if (feedMediaId < 0) {
+            Log.d(TAG, "No saved episode for this queue");
+            return;
+        }
+
+        Disposable d = Observable.fromCallable(() -> DBReader.getFeedMedia(feedMediaId))
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        playable -> {
+                            if (playable != null) {
+                                // Just update UI state - don't load into player or start playing
+                                // The episode is already in the queue, user can press play when ready
+                                updateNotificationAndMediaSession(playable);
+                                Log.d(TAG, "Updated UI for queue episode: " + playable.getEpisodeTitle()
+                                        + " (not auto-playing)");
+                            }
+                        },
+                        error -> {
+                            Log.d(TAG, "Could not load playable from queue");
+                            error.printStackTrace();
+                        });
+        singleShotDisposables.add(d);
     }
 
     public static MediaType getCurrentMediaType() {
