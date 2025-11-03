@@ -119,7 +119,7 @@ public abstract class QueueDialogManager {
                 if (colors[i] == initialColor) {
                     colorButton.setImageResource(android.R.drawable.ic_menu_view);
                     colorButton.setImageTintList(ColorStateList.valueOf(
-                            Color.luminance(colors[i]) > 0.5 ? Color.BLACK : Color.WHITE
+                            isColorLight(colors[i]) ? Color.BLACK : Color.WHITE
                     ));
                 }
 
@@ -134,7 +134,7 @@ public abstract class QueueDialogManager {
                     // Mark selected button
                     colorButton.setImageResource(android.R.drawable.ic_menu_view);
                     colorButton.setImageTintList(ColorStateList.valueOf(
-                            Color.luminance(colors[colorIndex]) > 0.5 ? Color.BLACK : Color.WHITE
+                            isColorLight(colors[colorIndex]) ? Color.BLACK : Color.WHITE
                     ));
                     selectedColor[0] = colors[colorIndex];
                 });
@@ -184,5 +184,24 @@ public abstract class QueueDialogManager {
         }
 
         builder.show();
+    }
+
+    /**
+     * Check if a color is light or dark.
+     * Uses perceived brightness calculation compatible with API level 21+.
+     *
+     * @param color The color to check
+     * @return true if the color is light, false if dark
+     */
+    private static boolean isColorLight(int color) {
+        // Calculate perceived brightness using relative luminance formula
+        // Compatible with API 21+ (Color.luminance() requires API 24)
+        int red = Color.red(color);
+        int green = Color.green(color);
+        int blue = Color.blue(color);
+
+        // Perceived brightness calculation
+        double brightness = (red * 299 + green * 587 + blue * 114) / 1000.0;
+        return brightness > 128;
     }
 }

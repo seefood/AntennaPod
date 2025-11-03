@@ -7,6 +7,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -191,11 +192,11 @@ public class QueueListAdapter extends RecyclerView.Adapter<QueueListAdapter.Queu
 
             // Highlight current queue
             if (queue.getId() == currentQueueId) {
-                itemView.setBackgroundColor(itemView.getContext()
-                        .getColor(R.color.selected_item_background));
+                itemView.setBackgroundColor(ContextCompat.getColor(itemView.getContext(),
+                        R.color.selected_item_background));
             } else {
-                itemView.setBackgroundColor(itemView.getContext()
-                        .getColor(android.R.color.transparent));
+                itemView.setBackgroundColor(ContextCompat.getColor(itemView.getContext(),
+                        android.R.color.transparent));
             }
 
             // Handle queue selection
