@@ -403,6 +403,18 @@
     <string name="clear_queue_confirmation_msg">Please confirm that you want to remove ALL episodes from the queue.</string>
     <string name="time_left_label">Time left:\u0020</string>
 
+    <!-- Queue Management (Creation, Editing, Deletion) -->
+    <string name="queue_creation_title">Create New Queue</string>
+    <string name="queue_name_label">Queue Name</string>
+    <string name="queue_name_hint">Enter queue name</string>
+    <string name="queue_color_label">Choose Color</string>
+    <string name="queue_create_button">Create</string>
+    <string name="queue_delete_title">Delete Queue?</string>
+    <string name="queue_delete_message">Delete \"%s\"? Episodes will remain in library.</string>
+    <string name="queue_delete_confirm">Delete</string>
+    <string name="queue_color_picker_title">Pick Color</string>
+    <string name="queue_empty_name_error">Queue name cannot be empty</string>
+
     <!--  Variable Speed -->
     <string name="speed_presets">Presets</string>
     <string name="preset_already_exists">%1$.2fx is already saved as a preset.</string>
