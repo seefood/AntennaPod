@@ -1,6 +1,7 @@
 package de.danoeh.antennapod.storage.database;
 
 import android.app.backup.BackupManager;
+import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
@@ -459,9 +460,17 @@ public class DBWriter {
      */
     public static Future<?> clearQueue() {
         return runOnDbThread(() -> {
+            long currentQueueId = UserPreferences.getCurrentQueueId();
             PodDBAdapter adapter = PodDBAdapter.getInstance();
             adapter.open();
             adapter.clearQueue();
+
+            // Clear the currently_playing_feedmedia_id since queue is now empty
+            ContentValues values = new ContentValues();
+            values.put(PodDBAdapter.QUEUE_METADATA_CURRENTLY_PLAYING_FEEDMEDIA_ID, -1);
+            values.put(PodDBAdapter.QUEUE_METADATA_CURRENTLY_PLAYING_FEED_ID, -1);
+            adapter.updateQueueMetadata(currentQueueId, values);
+
             adapter.close();
 
             EventBus.getDefault().post(QueueEvent.cleared());
@@ -518,6 +527,17 @@ public class DBWriter {
         }
         if (queueModified) {
             adapter.setQueue(queue);
+
+            // If queue is now empty, clear the currently_playing_feedmedia_id in QueueMetadata
+            if (queue.isEmpty()) {
+                long currentQueueId = UserPreferences.getCurrentQueueId();
+                ContentValues values = new ContentValues();
+                values.put(PodDBAdapter.QUEUE_METADATA_CURRENTLY_PLAYING_FEEDMEDIA_ID, -1);
+                values.put(PodDBAdapter.QUEUE_METADATA_CURRENTLY_PLAYING_FEED_ID, -1);
+                adapter.updateQueueMetadata(currentQueueId, values);
+                Log.d(TAG, "Queue is now empty, cleared currently_playing_feedmedia_id");
+            }
+
             for (QueueEvent event : events) {
                 EventBus.getDefault().post(event);
             }
