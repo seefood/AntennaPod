@@ -1723,6 +1723,9 @@ public class PlaybackService extends MediaBrowserServiceCompat {
             Log.d(TAG, "No saved episode for this queue - clearing playback state");
             // Clear notification/media session since there's no episode to display
             updateNotificationAndMediaSession(null);
+            // Notify PlaybackController and UI components about the state change
+            IntentUtils.sendLocalBroadcast(getApplicationContext(), ACTION_PLAYER_STATUS_CHANGED);
+            EventBus.getDefault().post(new PlayerStatusEvent());
             return;
         }
 
@@ -1738,6 +1741,11 @@ public class PlaybackService extends MediaBrowserServiceCompat {
             Log.d(TAG, "Could not load playable from queue (media not found)");
             updateNotificationAndMediaSession(null);
         }
+
+        // Notify PlaybackController and UI components (mini player, widgets) to refresh
+        // This ensures the mini player shows the correct episode for the new queue
+        IntentUtils.sendLocalBroadcast(getApplicationContext(), ACTION_PLAYER_STATUS_CHANGED);
+        EventBus.getDefault().post(new PlayerStatusEvent());
     }
 
     public static MediaType getCurrentMediaType() {
