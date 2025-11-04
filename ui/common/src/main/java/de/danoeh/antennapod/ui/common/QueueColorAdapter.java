@@ -13,7 +13,7 @@ import androidx.core.graphics.ColorUtils;
 
 /**
  * Adapter for queue color picker grid.
- * Displays color circles with selection indicator (checkmark).
+ * Displays color squares with selection indicator (checkmark).
  */
 public class QueueColorAdapter extends BaseAdapter {
     private final Context context;
@@ -24,7 +24,7 @@ public class QueueColorAdapter extends BaseAdapter {
     public QueueColorAdapter(Context context, int[] colors, @ColorInt int currentColor) {
         this.context = context;
         this.colors = colors;
-        this.colorSize = (int) (56 * context.getResources().getDisplayMetrics().density);
+        this.colorSize = (int) (36 * context.getResources().getDisplayMetrics().density);
 
         // Find matching color
         if (currentColor != 0) {
@@ -59,7 +59,7 @@ public class QueueColorAdapter extends BaseAdapter {
             container = new FrameLayout(context);
             FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
                     colorSize, colorSize);
-            params.setMargins(8, 8, 8, 8);
+            params.setMargins(4, 4, 4, 4);
             container.setLayoutParams(params);
         } else {
             if (convertView instanceof FrameLayout) {
@@ -68,32 +68,32 @@ public class QueueColorAdapter extends BaseAdapter {
                 container = new FrameLayout(context);
                 FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
                         colorSize, colorSize);
-                params.setMargins(8, 8, 8, 8);
+                params.setMargins(4, 4, 4, 4);
                 container.setLayoutParams(params);
             }
         }
         container.removeAllViews();
 
-        // Create color circle
-        View colorCircle = new View(context);
-        FrameLayout.LayoutParams circleParams = new FrameLayout.LayoutParams(
-                colorSize - 16, colorSize - 16);
-        circleParams.setMargins(8, 8, 8, 8);
-        colorCircle.setLayoutParams(circleParams);
+        // Create color square
+        View colorSquare = new View(context);
+        FrameLayout.LayoutParams squareParams = new FrameLayout.LayoutParams(
+                colorSize - 8, colorSize - 8);
+        squareParams.setMargins(4, 4, 4, 4);
+        colorSquare.setLayoutParams(squareParams);
 
         GradientDrawable drawable = new GradientDrawable();
-        drawable.setShape(GradientDrawable.OVAL);
+        drawable.setShape(GradientDrawable.RECTANGLE);
         drawable.setColor(colors[position]);
-        colorCircle.setBackground(drawable);
+        colorSquare.setBackground(drawable);
 
-        container.addView(colorCircle);
+        container.addView(colorSquare);
 
         // Add checkmark if selected
         if (position == selectedPosition) {
             ImageView checkmark = new ImageView(context);
             FrameLayout.LayoutParams checkParams = new FrameLayout.LayoutParams(
-                    colorSize - 16, colorSize - 16);
-            checkParams.setMargins(8, 8, 8, 8);
+                    colorSize - 8, colorSize - 8);
+            checkParams.setMargins(4, 4, 4, 4);
             checkmark.setLayoutParams(checkParams);
             checkmark.setImageResource(R.drawable.ic_check_mark);
             checkmark.setScaleType(ImageView.ScaleType.CENTER);

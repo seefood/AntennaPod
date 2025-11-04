@@ -16,6 +16,7 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import de.danoeh.antennapod.R;
+import de.danoeh.antennapod.model.feed.QueueMetadata;
 import de.danoeh.antennapod.ui.common.QueueDialogManager;
 import de.danoeh.antennapod.ui.common.QueueListAdapter;
 import de.danoeh.antennapod.ui.common.QueueViewModel;
@@ -85,7 +86,39 @@ public class QueueManagementFragment extends Fragment {
         // Setup queue edit callback
         queueListAdapter.setOnQueueEditRequestListener(queueId -> {
             if (queueId > 0) {
-                // Phase 5: Show queue edit dialog
+                // Get queue metadata and show rename dialog
+                QueueMetadata currentQueue = queueViewModel.getCurrentQueue();
+                QueueMetadata queue = currentQueue;
+                if (queue == null || queue.getId() != queueId) {
+                    // Load queue metadata if not current queue
+                    queue = de.danoeh.antennapod.storage.database.DBReader
+                            .getQueueMetadataById(queueId);
+                }
+                final QueueMetadata finalQueue = queue;
+                if (finalQueue != null) {
+                    QueueDialogManager.showRenameQueueDialog(
+                            QueueManagementFragment.this,
+                            finalQueue.getName(),
+                            finalQueue.getColor(),
+                            new QueueDialogManager.QueueNameColorCallback() {
+                                @Override
+                                public void onConfirm(String newName, int newColor) {
+                                    // Update name if changed
+                                    if (!newName.equals(finalQueue.getName())) {
+                                        queueViewModel.renameQueue(queueId, newName);
+                                    }
+                                    // Update color if changed
+                                    if (newColor != finalQueue.getColor()) {
+                                        queueViewModel.changeQueueColor(queueId, newColor);
+                                    }
+                                }
+
+                                @Override
+                                public void onCancel() {
+                                    // Dialog cancelled - no action needed
+                                }
+                            });
+                }
             }
         });
 
