@@ -31,6 +31,10 @@ android {
     }
 
     packagingOptions {
+        jniLibs {
+            useLegacyPackaging false
+        }
+        pickFirsts += ['lib/arm64-v8a/libconscrypt_jni.so', 'lib/x86_64/libconscrypt_jni.so']
         resources {
             excludes += ["META-INF/LICENSE.txt",
                          "META-INF/NOTICE.txt",
