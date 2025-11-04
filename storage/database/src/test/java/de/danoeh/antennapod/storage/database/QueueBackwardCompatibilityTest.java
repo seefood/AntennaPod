@@ -49,7 +49,8 @@ public class QueueBackwardCompatibilityTest {
 
     @Test
     public void testGetQueue_NoArgReturnsActiveQueue() throws Exception {
-        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
+        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(),
+                SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
         DBWriter.addQueueItem(context, items.get(0)).get();
 
         // Old code calls getQueue() without parameters
@@ -59,12 +60,13 @@ public class QueueBackwardCompatibilityTest {
     }
 
     @Test
-    public void testGetQueueIDList_NoArgReturnsActiveQueue() throws Exception {
-        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
+    public void testGetQueueIdList_NoArgReturnsActiveQueue() throws Exception {
+        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(),
+                SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
         DBWriter.addQueueItem(context, items.get(0)).get();
         DBWriter.addQueueItem(context, items.get(1)).get();
 
-        // Old code calls getQueueIDList() without parameters
+        // Old code calls getQueueIdList() without parameters
         LongList queueIds = DBReader.getQueueIDList();
         assertNotNull(queueIds);
         assertEquals(2, queueIds.size());
@@ -72,7 +74,8 @@ public class QueueBackwardCompatibilityTest {
 
     @Test
     public void testAddQueueItemNoArg_UsesActiveQueue() throws Exception {
-        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
+        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(),
+                SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
 
         // Old code: addQueueItem(Context, FeedItem...)
         DBWriter.addQueueItem(context, items.get(0), items.get(1)).get();

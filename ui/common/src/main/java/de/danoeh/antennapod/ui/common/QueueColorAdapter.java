@@ -95,7 +95,7 @@ public class QueueColorAdapter extends BaseAdapter {
                     colorSize - 16, colorSize - 16);
             checkParams.setMargins(8, 8, 8, 8);
             checkmark.setLayoutParams(checkParams);
-            checkmark.setImageResource(android.R.drawable.ic_menu_view);
+            checkmark.setImageResource(R.drawable.ic_check_mark);
             checkmark.setScaleType(ImageView.ScaleType.CENTER);
 
             // Determine text color based on background brightness

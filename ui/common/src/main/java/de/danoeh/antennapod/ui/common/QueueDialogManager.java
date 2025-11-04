@@ -193,7 +193,7 @@ public class QueueDialogManager {
         QueueColorAdapter colorAdapter = new QueueColorAdapter(context, colors, currentColor);
         colorGrid.setAdapter(colorAdapter);
 
-        new MaterialAlertDialogBuilder(context)
+        MaterialAlertDialogBuilder dialogBuilder = new MaterialAlertDialogBuilder(context)
                 .setTitle(title)
                 .setView(view)
                 .setNegativeButton(android.R.string.cancel, (dialogInterface, which) -> callback.onCancel())
@@ -208,8 +208,20 @@ public class QueueDialogManager {
                     }
                     int selectedColor = colorAdapter.getSelectedColor();
                     callback.onConfirm(name, selectedColor);
-                })
-                .show();
+                });
+        AlertDialog dialog = dialogBuilder.show();
+
+        // Adjust dialog for keyboard and position it higher on screen
+        if (dialog != null && dialog.getWindow() != null) {
+            dialog.getWindow().setSoftInputMode(
+                    android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                    | android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
+            // Position dialog to start higher on screen (20% from top instead of centered)
+            android.view.WindowManager.LayoutParams params = dialog.getWindow().getAttributes();
+            params.gravity = android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL;
+            params.y = (int) (context.getResources().getDisplayMetrics().heightPixels * 0.05f);
+            dialog.getWindow().setAttributes(params);
+        }
 
         // Only allow confirm when name is non-empty
         colorGrid.setOnItemClickListener((parent, view1, position, id) -> {
@@ -243,6 +255,18 @@ public class QueueDialogManager {
                     callback.onColorSelected(selectedColor);
                 })
                 .show();
+
+        // Adjust dialog for keyboard and position it higher on screen
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setSoftInputMode(
+                    android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                    | android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
+            // Position dialog to start higher on screen
+            android.view.WindowManager.LayoutParams params = dialog.getWindow().getAttributes();
+            params.gravity = android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL;
+            params.y = (int) (context.getResources().getDisplayMetrics().heightPixels * 0.05f);
+            dialog.getWindow().setAttributes(params);
+        }
 
         colorGrid.setOnItemClickListener((parent, view1, position, id) -> {
             colorAdapter.setSelectedPosition(position);

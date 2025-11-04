@@ -20,14 +20,13 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for DBReader queue methods (T029 - Phase 5).
+ * Tests for queue reader functionality (T029 - Phase 5).
  * Verifies getAllQueues, getQueueMetadataById, getQueue, countQueueItems.
  */
 @RunWith(RobolectricTestRunner.class)
-public class DBReaderQueueTest {
+public class QueueReaderTest {
     private Context context;
     private Feed feed1;
     private Feed feed2;
@@ -70,7 +69,7 @@ public class DBReaderQueueTest {
     public void testGetAllQueues_MultipleQueues() throws Exception {
         // Create additional queues
         long queue2Id = DBWriter.createQueue("Queue 2", 0xFF0000).get();
-        long queue3Id = DBWriter.createQueue("Queue 3", 0x00FF00).get();
+        final long queue3Id = DBWriter.createQueue("Queue 3", 0x00FF00).get();
 
         List<QueueMetadata> queues = DBReader.getAllQueues();
         assertEquals(3, queues.size());
@@ -107,7 +106,8 @@ public class DBReaderQueueTest {
     @Test
     public void testGetQueue_WithQueueId() throws Exception {
         // Add items to queue
-        List<FeedItem> feedItems = DBReader.getFeedItemList(feed1, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
+        List<FeedItem> feedItems = DBReader.getFeedItemList(feed1, FeedItemFilter.unfiltered(),
+                SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
         for (int i = 0; i < 2; i++) {
             DBWriter.addQueueItem(context, feedItems.get(i)).get();
         }
@@ -126,7 +126,8 @@ public class DBReaderQueueTest {
     @Test
     public void testGetQueue_NoArg_UsesActiveQueue() throws Exception {
         // Add items to queue
-        List<FeedItem> feedItems = DBReader.getFeedItemList(feed1, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
+        List<FeedItem> feedItems = DBReader.getFeedItemList(feed1, FeedItemFilter.unfiltered(),
+                SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
         for (int i = 0; i < 2; i++) {
             DBWriter.addQueueItem(context, feedItems.get(i)).get();
         }
@@ -146,7 +147,8 @@ public class DBReaderQueueTest {
 
     @Test
     public void testCountQueueItems_WithItems() throws Exception {
-        List<FeedItem> feedItems = DBReader.getFeedItemList(feed1, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
+        List<FeedItem> feedItems = DBReader.getFeedItemList(feed1, FeedItemFilter.unfiltered(),
+                SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
         for (int i = 0; i < 3; i++) {
             DBWriter.addQueueItem(context, feedItems.get(i)).get();
         }
@@ -157,7 +159,8 @@ public class DBReaderQueueTest {
 
     @Test
     public void testCountQueueItems_MultipleQueues() throws Exception {
-        List<FeedItem> feedItems = DBReader.getFeedItemList(feed1, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
+        List<FeedItem> feedItems = DBReader.getFeedItemList(feed1, FeedItemFilter.unfiltered(),
+                SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
         for (int i = 0; i < 2; i++) {
             DBWriter.addQueueItem(context, feedItems.get(i)).get();
         }

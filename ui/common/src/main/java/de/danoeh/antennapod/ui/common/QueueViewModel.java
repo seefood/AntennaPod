@@ -172,9 +172,11 @@ public class QueueViewModel extends AndroidViewModel {
                     // If media is null (queue has no playback history), this clears the preferences
                     PlaybackPreferences.writeMediaPlaying(media);
                     if (media != null) {
-                        Log.d(TAG, "Updated PlaybackPreferences to restore queue " + queueId + " episode: " + media.getEpisodeTitle());
+                        Log.d(TAG, "Updated PlaybackPreferences to restore queue " + queueId
+                                + " episode: " + media.getEpisodeTitle());
                     } else {
-                        Log.d(TAG, "Cleared PlaybackPreferences for queue " + queueId + " (no playback history)");
+                        Log.d(TAG, "Cleared PlaybackPreferences for queue " + queueId
+                                + " (no playback history)");
                     }
 
                     currentQueueLiveData.setValue(queue);

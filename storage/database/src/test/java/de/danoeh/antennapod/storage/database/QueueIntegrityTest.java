@@ -9,7 +9,6 @@ import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 
-import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -153,13 +152,13 @@ public class QueueIntegrityTest {
         // For this test, we just verify deletion works
 
         List<QueueMetadata> before = DBReader.getAllQueues();
-        int count_before = before.size();
+        int countBefore = before.size();
 
         DBWriter.deleteQueue(queue2).get();
 
         List<QueueMetadata> after = DBReader.getAllQueues();
-        int count_after = after.size();
+        int countAfter = after.size();
 
-        assertEquals(count_before - 1, count_after);
+        assertEquals(countBefore - 1, countAfter);
     }
 }

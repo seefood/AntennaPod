@@ -26,10 +26,15 @@
   <!-- Edit button -->
   <ImageView
     android:id="@+id/queue_item_edit_button"
-    android:layout_width="24dp"
-    android:layout_height="24dp"
+    android:layout_width="40dp"
+    android:layout_height="40dp"
+    android:padding="8dp"
     android:contentDescription="@string/edit"
     android:scaleType="centerInside"
-    android:src="@drawable/ic_pencil" />
+    android:src="@drawable/ic_pencil"
+    android:clickable="true"
+    android:focusable="true"
+    android:duplicateParentState="false"
+    android:background="?attr/selectableItemBackground" />
 
 </LinearLayout>

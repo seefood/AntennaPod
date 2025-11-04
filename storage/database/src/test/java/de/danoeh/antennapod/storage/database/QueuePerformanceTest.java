@@ -73,7 +73,8 @@ public class QueuePerformanceTest {
 
     @Test
     public void testGetQueuePerformance() throws Exception {
-        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
+        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(),
+                SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
         for (int i = 0; i < 10; i++) {
             DBWriter.addQueueItem(context, items.get(i)).get();
         }
@@ -83,14 +84,16 @@ public class QueuePerformanceTest {
         long endTime = System.currentTimeMillis();
 
         long duration = endTime - startTime;
-        assertTrue("getQueue should complete within " + OPERATION_TIMEOUT_MS + "ms (took " + duration + "ms)",
+        assertTrue("getQueue should complete within " + OPERATION_TIMEOUT_MS
+                + "ms (took " + duration + "ms)",
                 duration < OPERATION_TIMEOUT_MS);
         assertEquals(10, queueItems.size());
     }
 
     @Test
     public void testAddQueueItemPerformance() throws Exception {
-        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
+        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(),
+                SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
 
         long startTime = System.currentTimeMillis();
         DBWriter.addQueueItem(context, items.get(0)).get();
@@ -103,7 +106,8 @@ public class QueuePerformanceTest {
 
     @Test
     public void testBulkAddQueueItemsPerformance() throws Exception {
-        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
+        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(),
+                SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
 
         long startTime = System.currentTimeMillis();
         for (int i = 0; i < 20; i++) {
@@ -112,13 +116,15 @@ public class QueuePerformanceTest {
         long endTime = System.currentTimeMillis();
 
         long duration = endTime - startTime;
-        assertTrue("Adding 20 items should complete within " + BULK_OPERATION_TIMEOUT_MS + "ms (took " + duration + "ms)",
+        assertTrue("Adding 20 items should complete within " + BULK_OPERATION_TIMEOUT_MS
+                + "ms (took " + duration + "ms)",
                 duration < BULK_OPERATION_TIMEOUT_MS);
     }
 
     @Test
     public void testCountQueueItemsPerformance() throws Exception {
-        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
+        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(),
+                SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
         for (int i = 0; i < 10; i++) {
             DBWriter.addQueueItem(context, items.get(i)).get();
         }

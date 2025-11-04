@@ -206,12 +206,18 @@ public class QueueListAdapter extends RecyclerView.Adapter<QueueListAdapter.Queu
                 }
             });
 
-            // Handle edit button
+            // Handle edit button - prevent click from bubbling to parent
             if (editButton != null) {
+                final long queueId = queue.getId();
                 editButton.setOnClickListener(v -> {
                     if (editListener != null) {
-                        editListener.onEditQueueRequested(queue.getId());
+                        editListener.onEditQueueRequested(queueId);
                     }
+                });
+                // Prevent click from propagating to itemView
+                editButton.setOnTouchListener((v, event) -> {
+                    // Always return false to allow normal click processing
+                    return false;
                 });
             }
         }

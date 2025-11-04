@@ -460,7 +460,7 @@ public class DBWriter {
      */
     public static Future<?> clearQueue() {
         return runOnDbThread(() -> {
-            long currentQueueId = UserPreferences.getCurrentQueueId();
+            final long currentQueueId = UserPreferences.getCurrentQueueId();
             PodDBAdapter adapter = PodDBAdapter.getInstance();
             adapter.open();
             adapter.clearQueue();
@@ -1202,7 +1202,7 @@ public class DBWriter {
 
     /**
      * Reorders queues.
-     * T019: reorderQueues(List<Long> queueIds)
+     * T019: reorderQueues(List&lt;Long&gt; queueIds)
      *
      * @param queueIds List of queue IDs in the new order
      * @return {@code Future<Void>}

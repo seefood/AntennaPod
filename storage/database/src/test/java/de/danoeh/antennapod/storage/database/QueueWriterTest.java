@@ -26,11 +26,11 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for DBWriter queue methods (T030 - Phase 5).
+ * Tests for queue writer functionality (T030 - Phase 5).
  * Verifies createQueue, renameQueue, changeQueueColor, deleteQueue, reorderQueues, setCurrentlyPlaying.
  */
 @RunWith(RobolectricTestRunner.class)
-public class DBWriterQueueTest {
+public class QueueWriterTest {
     private Context context;
     private Feed feed;
 
@@ -128,7 +128,8 @@ public class DBWriterQueueTest {
     public void testDeleteQueue_DeletesItems() throws Exception {
         long queueId = DBWriter.createQueue("Queue with Items", 0xFF0000).get();
 
-        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
+        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(),
+                SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
         for (int i = 0; i < 2; i++) {
             DBWriter.addQueueItem(context, items.get(i)).get();
         }
@@ -160,7 +161,8 @@ public class DBWriterQueueTest {
     @Test
     public void testSetCurrentlyPlaying_Success() throws Exception {
         long queueId = DBWriter.createQueue("Test Queue", 0xFF0000).get();
-        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
+        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(),
+                SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
         FeedItem item = items.get(0);
         FeedMedia media = item.getMedia();
 
@@ -174,7 +176,8 @@ public class DBWriterQueueTest {
     @Test
     public void testSetCurrentlyPlaying_ClearByUsingNoMedia() throws Exception {
         long queueId = DBWriter.createQueue("Test Queue", 0xFF0000).get();
-        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
+        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(),
+                SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
         FeedItem item = items.get(0);
 
         // Set playing
@@ -183,7 +186,8 @@ public class DBWriterQueueTest {
         assertFalse(queue1.isEpisodePlaying() == false); // Should be playing
 
         // Clear playing
-        DBWriter.setCurrentlyPlaying(queueId, QueueMetadata.NO_MEDIA_PLAYING, QueueMetadata.NO_MEDIA_PLAYING).get();
+        DBWriter.setCurrentlyPlaying(queueId, QueueMetadata.NO_MEDIA_PLAYING,
+                QueueMetadata.NO_MEDIA_PLAYING).get();
         QueueMetadata queue2 = DBReader.getQueueMetadataById(queueId);
         assertFalse(queue2.isEpisodePlaying());
     }
@@ -191,7 +195,8 @@ public class DBWriterQueueTest {
     @Test
     public void testAddQueueItem_AddsToActiveQueue() throws Exception {
         UserPreferences.setCurrentQueueId(1);
-        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(), SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
+        List<FeedItem> items = DBReader.getFeedItemList(feed, FeedItemFilter.unfiltered(),
+                SortOrder.EPISODE_TITLE_A_Z, 0, Integer.MAX_VALUE);
 
         DBWriter.addQueueItem(context, items.get(0)).get();
 
@@ -204,7 +209,9 @@ public class DBWriterQueueTest {
     @Nullable
     private QueueMetadata assertNull(QueueMetadata queue) {
         // Helper to match test expectations
-        if (queue == null) return null;
+        if (queue == null) {
+            return null;
+        }
         throw new AssertionError("Expected null but was " + queue);
     }
 
