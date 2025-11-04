@@ -166,11 +166,6 @@ This feature has ONE logical unit (database schema change) with no independent u
   - ✅ Deletes queue metadata
   - ✅ Posts event via EventBus
 
-- [x] T019 Implement `reorderQueues(List<Long> queueIds)` in DBWriter
-  - ✅ Return `Future<Void>`
-  - ✅ Updates sort_order for all queues in new order
-  - ✅ Posts event via EventBus
-
 - [x] T023 Implement `setCurrentlyPlaying(long queueId, long feedMediaId, long feedId)` in DBWriter
   - ✅ Return `Future<Void>`
   - ✅ Updates currently playing FeedMedia ID
@@ -230,7 +225,7 @@ This feature has ONE logical unit (database schema change) with no independent u
 ### 4.2 Event Handling
 
 - [ ] T026 Enhance `QueueEvent.java` in `event/src/main/java/de/danoeh/antennapod/event/QueueEvent.java`
-  - Add action types: QUEUE_CREATED, QUEUE_RENAMED, QUEUE_COLOR_CHANGED, QUEUE_DELETED, QUEUES_REORDERED, QUEUE_ITEM_MOVED, QUEUE_SWITCHED, CURRENTLY_PLAYING_UPDATED
+  - Add action types: QUEUE_CREATED, QUEUE_RENAMED, QUEUE_COLOR_CHANGED, QUEUE_DELETED, QUEUE_ITEM_MOVED, QUEUE_SWITCHED, CURRENTLY_PLAYING_UPDATED
   - Add queueId field (long)
   - Add action field (enum Action)
   - Update constructor to accept queueId and action
@@ -277,7 +272,6 @@ This feature has ONE logical unit (database schema change) with no independent u
   - Test `setQueueColor()` updates color correctly
   - Test `deleteQueue()` removes queue and items (with foreign key)
   - Test `deleteQueue()` rejects deletion of last queue
-  - Test `reorderQueues()` updates sort_order correctly
   - Test `addQueueItem()` adds item to correct queue
   - Test `removeQueueItem()` removes item and renumbers positions
   - Test `moveQueueItem()` moves item between queues
@@ -306,7 +300,6 @@ This feature has ONE logical unit (database schema change) with no independent u
 - [ ] T033 Create `QueuePerformanceTest.java` in `storage/database/src/test/java/de/danoeh/antennapod/storage/database/`
   - Test `getQueue(queueId)` with 1000 items completes in <100ms
   - Test `addQueueItem()` completes in <100ms
-  - Test `reorderQueues()` with 50 queues completes in <100ms
   - Test index usage (EXPLAIN QUERY PLAN validation)
 
 ---

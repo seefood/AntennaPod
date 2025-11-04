@@ -239,12 +239,66 @@ public void onEventMainThread(QueueEvent event) {
 2. On completion, post EventBus event
 3. UI subscribes to event and updates
 
-**Modifying Queue:**
+**Modifying Queue (Multiple Queues v3080100+):**
 - Never modify queue directly in SQLite
 - Use `DBWriter.addQueueItem()`, `DBWriter.removeQueueItem()`, etc.
 - Operations automatically trigger `QueueEvent`
 - Queue methods accept optional `queueId` parameter (defaults to current active queue)
-- Active queue: `QueuePreferences.getCurrentQueueId()` / `setCurrentQueueId()`
+- Active queue: `UserPreferences.getCurrentQueueId()` / `setCurrentQueueId()`
+
+**IMPORTANT - Queue Ordering Prohibition:**
+- **DO NOT** implement queue reordering functionality
+- **DO NOT** allow users to change queue display order
+- **Queue IDs are immutable** - never change from creation to deletion
+- The `sort_order` field in `QueueMetadata` is for internal use only
+- Queues display in creation order (by `sort_order` = creation sequence)
+- **No UI or API should exist for reordering queues**
+
+**Creating a Queue:**
+```java
+// Create queue and get its ID
+long queueId = DBWriter.createQueue("Work Podcasts", 0xFFFF6B6B).get();
+
+// Auto-switch to new queue
+UserPreferences.setCurrentQueueId(queueId);
+```
+
+**Switching Queues:**
+```java
+// Via ViewModel (recommended - handles playback state save/restore)
+QueueViewModel viewModel = new ViewModelProvider(activity).get(QueueViewModel.class);
+viewModel.switchActiveQueue(queueId);
+
+// Via preferences directly (if no playback state to manage)
+UserPreferences.setCurrentQueueId(queueId);
+```
+
+**Getting Queue Episodes:**
+```java
+// Get episodes from specific queue
+List<FeedItem> episodes = DBReader.getQueue(queueId);
+
+// Get episodes from current active queue
+long currentQueueId = UserPreferences.getCurrentQueueId();
+List<FeedItem> episodes = DBReader.getQueue(currentQueueId);
+// Or use no-arg version:
+List<FeedItem> episodes = DBReader.getQueue();
+```
+
+**Managing Queue Metadata:**
+```java
+// Rename queue
+DBWriter.renameQueue(queueId, "Updated Name").get();
+
+// Change queue color
+DBWriter.changeQueueColor(queueId, 0xFF42A5F5).get();
+
+// Delete queue (cannot delete last queue)
+DBWriter.deleteQueue(queueId).get();
+
+// Get all queues
+List<QueueMetadata> allQueues = DBReader.getAllQueues();
+```
 
 **Feed Updates:**
 - Managed via `FeedUpdateManager` (singleton)

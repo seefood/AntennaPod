@@ -1045,13 +1045,8 @@ public class DBWriter {
             PodDBAdapter adapter = PodDBAdapter.getInstance();
             adapter.open();
             try {
-                // Get next sort_order
-                int sortOrder = 0;
-                try (Cursor cursor = adapter.getAllQueueMetadataCursor()) {
-                    if (cursor.moveToLast()) {
-                        sortOrder = cursor.getInt(cursor.getColumnIndexOrThrow(PodDBAdapter.QUEUE_METADATA_SORT_ORDER)) + 1;
-                    }
-                }
+                // Get next sort_order using atomic MAX query to avoid race conditions
+                int sortOrder = adapter.getNextQueueSortOrder();
 
                 // Insert new queue
                 android.content.ContentValues values = new android.content.ContentValues();
@@ -1193,33 +1188,6 @@ public class DBWriter {
 
                 // Post event for UI to update (T026 - Phase 4)
                 EventBus.getDefault().post(QueueEvent.currentlyPlayingUpdated(queueId));
-            } finally {
-                adapter.close();
-            }
-            return null;
-        });
-    }
-
-    /**
-     * Reorders queues.
-     * T019: reorderQueues(List&lt;Long&gt; queueIds)
-     *
-     * @param queueIds List of queue IDs in the new order
-     * @return {@code Future<Void>}
-     */
-    public static Future<Void> reorderQueues(@NonNull final List<Long> queueIds) {
-        return dbExec.submit(() -> {
-            PodDBAdapter adapter = PodDBAdapter.getInstance();
-            adapter.open();
-            try {
-                for (int i = 0; i < queueIds.size(); i++) {
-                    android.content.ContentValues values = new android.content.ContentValues();
-                    values.put(PodDBAdapter.QUEUE_METADATA_SORT_ORDER, i);
-                    adapter.updateQueueMetadata(queueIds.get(i), values);
-                }
-
-                // Post queues reordered event (T026 - Phase 4)
-                EventBus.getDefault().post(QueueEvent.queuesReordered(queueIds));
             } finally {
                 adapter.close();
             }

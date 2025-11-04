@@ -35,7 +35,7 @@ Display the currently active queue's color as a visual indicator on all major sc
   - Home/Browse screen (if using title bar)
   - Queue management screen (queue selector/editor)
 
-- **FR-002**: Gradient MUST fade from queue color (top) to default app background (bottom)
+- **FR-002**: Gradient MUST fade from queue color (top) to transparent (bottom), contained within the title bar area
 
 - **FR-003**: Gradient MUST update immediately when user switches queues
 
@@ -45,15 +45,26 @@ Display the currently active queue's color as a visual indicator on all major sc
 
 - **FR-006**: Gradient styling MUST NOT impact text readability on title bar (sufficient contrast)
 
-- **FR-007**: Title bar text and icons MUST remain readable at all times (dynamic contrast if needed)
+- **FR-007**: Title bar text and icons MUST remain readable at all times. Text color MUST be dynamically chosen (black or white) based on queue color luminance to maintain minimum WCAG AA contrast ratio of 1:4.5
 
 ### Design Requirements
 
-- **DR-001**: Use linear gradient (top to bottom)
-- **DR-002**: Gradient should be ~80px tall (standard toolbar height + some extension)
-- **DR-003**: Apply Material Design guidelines for gradient intensity
-- **DR-004**: Support both light and dark theme variations
-- **DR-005**: Ensure gradient works with safe area insets on notch devices
+- **DR-001**: Use linear gradient (top to bottom) fading from queue color to transparent
+- **DR-002**: Gradient fills the title bar background only (height matches standard toolbar height across all screens)
+- **DR-003**: Title bar text and icons render on top of gradient with sufficient contrast
+- **DR-004**: For light queue colors, apply a semi-transparent dark overlay (20% black scrim) beneath the gradient to ensure visibility
+- **DR-005**: Support both light and dark theme variations
+- **DR-006**: Ensure gradient works with safe area insets on notch devices
+
+## Clarifications
+
+### Session 2025-11-04
+
+- Q: How should text color adapt to ensure readability on the queue color gradient across light and dark themes? → A: Compute luminance of queue color at runtime; use black or white text based on luminance threshold to maintain minimum WCAG AA contrast ratio (1:4.5).
+- Q: Should the gradient height be a fixed value, or should it vary based on screen size / toolbar height? → A: Gradient background fills only the title bar (queue color at top to transparent at bottom). Title bar height is consistent across all screens/fragments.
+- Q: How should the gradient render when the queue color is light (or white) and the app is in light theme? → A: Add a semi-transparent dark overlay (20% black scrim) beneath the queue color gradient to ensure visibility even with light colors.
+- Q: How should gradient drawables be cached to prevent excessive object creation on each queue switch or configuration change? → A: Cache gradient drawables in QueueViewModel using Map<Integer, GradientDrawable> keyed by color; clear cache on theme changes. Follows app's standard ViewModel + LiveData pattern.
+- Q: Should all 6 target screens be updated with the gradient in Phase 2, or should the rollout be prioritized (MVP + follow-up screens)? → A: Implement all 6 screens in Phase 2 as a single cohesive feature with full coverage required.
 
 ## Implementation Plan
 
@@ -69,9 +80,15 @@ Display the currently active queue's color as a visual indicator on all major sc
    - Reusable layout with gradient background
    - Can be included in any screen's title bar
 
-3. **Extend QueueViewModel with LiveData**
-   - Add `getCurrentQueueColor()` LiveData
-   - Exposes active queue's color for binding in views
+3. **Extend QueueViewModel with Gradient Caching**
+   - Add `getCurrentQueueColor()` LiveData (if not already present)
+   - Add `Map<Integer, GradientDrawable>` cache field for gradient drawables keyed by queue color
+   - Add method `getGradientForColor(int queueColor) → GradientDrawable` that:
+     - Checks cache first
+     - Creates new gradient if not cached (with luminance-based scrim handling)
+     - Stores in cache
+     - Returns drawable
+   - Add method to clear cache on theme change (subscribe to theme EventBus events)
 
 ### Phase 2: Screen Integration
 
@@ -119,21 +136,34 @@ Apply gradient to each screen:
     - Verify behavior on different screen sizes
 
 11. **Edge Case Testing**
-    - Queue with very light color + light theme
+    - Queue with very light color + light theme (verify scrim darkening is applied)
     - Queue with very dark color + dark theme
     - Queue deletion while on that queue's screen
     - Rapid queue switching
     - Orientation change
+    - Verify luminance-based text color selection (black vs white)
 
 ## Technical Details
 
 ### Gradient Creation
 
 ```java
-// Example implementation
+// Example implementation with scrim for light colors
 int queueColor = queue.getColor();
-int backgroundColor = context.getColor(R.color.background_light);
-int[] colors = {queueColor, backgroundColor};
+
+// Apply semi-transparent dark scrim if color is light (luminance > 0.5)
+int displayColor = queueColor;
+if (ColorUtils.calculateLuminance(queueColor) > 0.5) {
+    // Blend 20% black scrim
+    displayColor = Color.argb(
+        Color.alpha(queueColor),
+        (int) (Color.red(queueColor) * 0.8),
+        (int) (Color.green(queueColor) * 0.8),
+        (int) (Color.blue(queueColor) * 0.8)
+    );
+}
+
+int[] colors = {displayColor, Color.TRANSPARENT};
 float[] positions = {0f, 1f};
 
 GradientDrawable gradient = new GradientDrawable(
@@ -141,7 +171,7 @@ GradientDrawable gradient = new GradientDrawable(
     colors);
 gradient.setDither(true);
 
-view.setBackground(gradient);
+titleBar.setBackground(gradient);
 ```
 
 ### View Binding
@@ -158,17 +188,18 @@ queueViewModel.getCurrentQueueColor().observe(getViewLifecycleOwner(), color -> 
 
 ```kotlin
 queueViewModel.getCurrentQueueColor().observe(viewLifecycleOwner) { color ->
-    val bgColor = ContextCompat.getColor(requireContext(), R.color.background_light)
-    titleBar.background = createGradientDrawable(color, bgColor)
+    titleBar.background = createGradientDrawable(color, Color.TRANSPARENT)
 }
 ```
 
 ## Considerations
 
 ### Performance
-- Gradient creation should be cached (not recreated on every frame)
-- LiveData subscription prevents excessive drawable recreation
-- Consider using hardware acceleration for smooth animations
+- Gradient drawables cached in QueueViewModel using Map<Integer, GradientDrawable> keyed by color
+- Cache cleared only on theme changes (via EventBus subscription)
+- LiveData emission prevents excessive drawable recreation on same queue
+- Drawable reuse across all screens displaying same queue color
+- No runtime gradient recreation—only cache lookup on color change
 
 ### Accessibility
 - Ensure sufficient contrast between text and gradient

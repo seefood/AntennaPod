@@ -227,13 +227,6 @@ DELETE FROM QueueMetadata WHERE id = ?;
 -- Update PREF_CURRENT_QUEUE_ID to a remaining queue
 ```
 
-### Reorder Queues
-
-```sql
--- Update sort_order for affected queues
-UPDATE QueueMetadata SET sort_order = ? WHERE id = ?;
-```
-
 ### Get All Queues
 
 ```sql
@@ -412,7 +405,6 @@ The following existing methods will need minor refactoring to support multiple q
 - `renameQueue(queueId, newName)` - Renames existing queue
 - `changeQueueColor(queueId, color)` - Changes queue color
 - `deleteQueue(queueId)` - Deletes queue and handles episodes (move to inbox), updates SharedPreferences if this was current queue
-- `reorderQueues(queueIdList)` - Updates sort_order for multiple queues
 - `moveEpisodeToQueue(episodeId, targetQueueId)` - Moves episode between queues
 
 **SharedPreferences helpers** (in PlaybackPreferences or new QueuePreferences):

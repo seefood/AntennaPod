@@ -17,7 +17,6 @@ import org.robolectric.RuntimeEnvironment;
 import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -141,21 +140,6 @@ public class QueueWriterTest {
 
         int countAfter = DBReader.countQueueItems(queueId);
         assertEquals(0, countAfter);
-    }
-
-    @Test
-    public void testReorderQueues_Success() throws Exception {
-        long queue1 = DBWriter.createQueue("Queue 1", 0xFF0000).get();
-        long queue2 = DBWriter.createQueue("Queue 2", 0x00FF00).get();
-        long queue3 = DBWriter.createQueue("Queue 3", 0x0000FF).get();
-
-        // Reorder: queue3, queue1, queue2
-        DBWriter.reorderQueues(Arrays.asList(queue3, queue1, queue2)).get();
-
-        List<QueueMetadata> queues = DBReader.getAllQueues();
-        assertEquals(queue3, queues.get(3).getId()); // Index 3 because default queue at 0
-        assertEquals(queue1, queues.get(4).getId());
-        assertEquals(queue2, queues.get(5).getId());
     }
 
     @Test

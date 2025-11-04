@@ -24,7 +24,6 @@ public class QueueEvent {
         QUEUE_RENAMED,
         QUEUE_COLOR_CHANGED,
         QUEUE_DELETED,
-        QUEUES_REORDERED,
         QUEUE_SWITCHED,
         CURRENTLY_PLAYING_UPDATED
     }
@@ -122,15 +121,6 @@ public class QueueEvent {
      */
     public static QueueEvent queueDeleted(long queueId) {
         return new QueueEvent(Action.QUEUE_DELETED, null, null, -1, queueId);
-    }
-
-    /**
-     * Fired when queues are reordered.
-     *
-     * @param queueIds List of queue IDs in new order
-     */
-    public static QueueEvent queuesReordered(List<Long> queueIds) {
-        return new QueueEvent(Action.QUEUES_REORDERED, null, null, -1, -1);
     }
 
     /**

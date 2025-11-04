@@ -139,24 +139,6 @@ public class QueuePerformanceTest {
         assertEquals(10, count);
     }
 
-    @Test
-    public void testReorderQueuesPerformance() throws Exception {
-        // Create multiple queues
-        List<Long> queueIds = new ArrayList<>();
-        queueIds.add(1L); // Default queue
-        for (int i = 0; i < 5; i++) {
-            queueIds.add(DBWriter.createQueue("Queue " + i, 0xFF0000).get());
-        }
-
-        long startTime = System.currentTimeMillis();
-        DBWriter.reorderQueues(queueIds).get();
-        long endTime = System.currentTimeMillis();
-
-        long duration = endTime - startTime;
-        assertTrue("reorderQueues should complete within " + OPERATION_TIMEOUT_MS + "ms (took " + duration + "ms)",
-                duration < OPERATION_TIMEOUT_MS);
-    }
-
     // Helper methods
     private Feed createFeed(long feedId, String title) {
         Feed feed = new Feed("http://example.com/feed" + feedId, title, null);

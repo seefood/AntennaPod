@@ -451,6 +451,19 @@ public class PodDBAdapter {
             for (String tableName : ALL_TABLES) {
                 adapter.db.delete(tableName, "1", null);
             }
+
+            // Recreate the default queue (mirrors onCreate behavior)
+            // This ensures tests start in the same state as a fresh database
+            ContentValues initialQueue = new ContentValues();
+            initialQueue.put(QUEUE_METADATA_ID, 1L);
+            initialQueue.put(QUEUE_METADATA_NAME, "Main");
+            initialQueue.put(QUEUE_METADATA_COLOR, -14575885);
+            initialQueue.put(QUEUE_METADATA_SORT_ORDER, 0);
+            initialQueue.put(QUEUE_METADATA_CREATED_AT, System.currentTimeMillis());
+            initialQueue.put(QUEUE_METADATA_CURRENTLY_PLAYING_FEEDMEDIA_ID, -1L);
+            initialQueue.put(QUEUE_METADATA_CURRENTLY_PLAYING_FEED_ID, -1L);
+            adapter.db.insert(TABLE_NAME_QUEUE_METADATA, null, initialQueue);
+
             return true;
         } finally {
             adapter.close();
@@ -1114,6 +1127,26 @@ public class PodDBAdapter {
     public Cursor getAllQueueMetadataCursor() {
         return db.query(TABLE_NAME_QUEUE_METADATA, null, null, null, null, null,
                 QUEUE_METADATA_SORT_ORDER + " ASC", null);
+    }
+
+    /**
+     * Returns the next available sort_order value for a new queue.
+     * Uses MAX() query to ensure atomicity and avoid UNIQUE constraint violations.
+     * @return Next sort_order value (0 if no queues exist, or max + 1)
+     */
+    public int getNextQueueSortOrder() {
+        Cursor cursor = db.rawQuery(
+                "SELECT MAX(" + QUEUE_METADATA_SORT_ORDER + ") FROM " + TABLE_NAME_QUEUE_METADATA, null);
+        if (cursor != null) {
+            try {
+                if (cursor.moveToFirst() && !cursor.isNull(0)) {
+                    return cursor.getInt(0) + 1;
+                }
+            } finally {
+                cursor.close();
+            }
+        }
+        return 0;
     }
 
     /**
