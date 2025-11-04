@@ -62,6 +62,15 @@ find . -wholename "*/res/layout/*.xml" | xargs java -jar android-xml-formatter.j
 
 Both flavors share the same codebase with dimension "market".
 
+## Project Organization
+
+### Documentation & Analysis Files
+- **Location**: All documentation, analysis, and specification files MUST go in `/specs/` directory
+- **Examples**: Feature specs, implementation plans, task lists, bug analysis documents, design decisions, research notes
+- **Format**: Use descriptive names with lowercase and hyphens (e.g., `queue-switching-bugs.md`, `phase-5-plan.md`)
+- **Rationale**: Keeps root directory clean and groups all feature planning/documentation together for easy discovery
+- **Root Exceptions**: Only CLAUDE.md and README.md belong in root; all other docs go to specs/
+
 ## Architecture Overview
 
 ### Module Structure (37 Gradle Modules)
