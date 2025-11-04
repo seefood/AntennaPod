@@ -214,9 +214,9 @@ public class QueueDialogManager {
         // Adjust dialog for keyboard and position it higher on screen
         if (dialog != null && dialog.getWindow() != null) {
             dialog.getWindow().setSoftInputMode(
-                    android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                    android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN
                     | android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
-            // Position dialog to start higher on screen (20% from top instead of centered)
+            // Position dialog to start higher on screen (5% from top instead of centered)
             android.view.WindowManager.LayoutParams params = dialog.getWindow().getAttributes();
             params.gravity = android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL;
             params.y = (int) (context.getResources().getDisplayMetrics().heightPixels * 0.05f);
@@ -259,7 +259,7 @@ public class QueueDialogManager {
         // Adjust dialog for keyboard and position it higher on screen
         if (dialog.getWindow() != null) {
             dialog.getWindow().setSoftInputMode(
-                    android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                    android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN
                     | android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
             // Position dialog to start higher on screen
             android.view.WindowManager.LayoutParams params = dialog.getWindow().getAttributes();
