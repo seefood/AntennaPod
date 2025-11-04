@@ -86,7 +86,7 @@ public class QueueManagementFragment extends Fragment {
         // Setup queue edit callback
         queueListAdapter.setOnQueueEditRequestListener(queueId -> {
             if (queueId > 0) {
-                // Get queue metadata and show rename dialog
+                // Get queue metadata and show edit dialog
                 QueueMetadata currentQueue = queueViewModel.getCurrentQueue();
                 QueueMetadata queue = currentQueue;
                 if (queue == null || queue.getId() != queueId) {
@@ -98,6 +98,7 @@ public class QueueManagementFragment extends Fragment {
                 if (finalQueue != null) {
                     QueueDialogManager.showRenameQueueDialog(
                             QueueManagementFragment.this,
+                            queueId,
                             finalQueue.getName(),
                             finalQueue.getColor(),
                             new QueueDialogManager.QueueNameColorCallback() {
@@ -116,6 +117,12 @@ public class QueueManagementFragment extends Fragment {
                                 @Override
                                 public void onCancel() {
                                     // Dialog cancelled - no action needed
+                                }
+
+                                @Override
+                                public void onDelete() {
+                                    // Delete the queue
+                                    queueViewModel.deleteQueue(queueId);
                                 }
                             });
                 }

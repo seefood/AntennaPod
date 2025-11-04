@@ -137,8 +137,9 @@ public class QueueSwitchBottomSheet extends BottomSheetDialogFragment {
 
         final QueueMetadata currentQueue = queue;
 
-        // Show rename dialog
+        // Show edit dialog with integrated delete button
         QueueDialogManager.showRenameQueueDialog(QueueSwitchBottomSheet.this,
+                queueId,
                 currentQueue.getName(),
                 currentQueue.getColor(),
                 new QueueDialogManager.QueueNameColorCallback() {
@@ -155,22 +156,14 @@ public class QueueSwitchBottomSheet extends BottomSheetDialogFragment {
 
                     @Override
                     public void onCancel() {
-                        // Show delete confirmation
-                        QueueDialogManager.showDeleteQueueDialog(QueueSwitchBottomSheet.this,
-                                currentQueue.getName(),
-                                new QueueDialogManager.QueueDeleteCallback() {
-                                    @Override
-                                    public void onConfirmDelete() {
-                                        // Delete the queue
-                                        queueViewModel.deleteQueue(queueId);
-                                        dismiss();
-                                    }
+                        // Dialog cancelled - no action needed
+                    }
 
-                                    @Override
-                                    public void onCancel() {
-                                        // User cancelled delete, do nothing
-                                    }
-                                });
+                    @Override
+                    public void onDelete() {
+                        // Delete the queue via integrated delete button
+                        queueViewModel.deleteQueue(queueId);
+                        dismiss();
                     }
                 });
     }

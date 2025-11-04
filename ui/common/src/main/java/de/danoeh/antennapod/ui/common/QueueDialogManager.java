@@ -41,6 +41,13 @@ public class QueueDialogManager {
          * Called when dialog is cancelled.
          */
         void onCancel();
+
+        /**
+         * Called when user requests queue deletion (edit mode only).
+         * Default implementation does nothing.
+         */
+        default void onDelete() {
+        }
     }
 
     /**
@@ -78,6 +85,7 @@ public class QueueDialogManager {
     /**
      * Show queue creation dialog.
      * Allows user to enter queue name and select a color.
+     * Buttons: Cancel, Create
      *
      * @param fragment Fragment for context
      * @param callback Called when confirmed or cancelled
@@ -89,30 +97,36 @@ public class QueueDialogManager {
                 fragment.requireActivity(),
                 fragment.getString(R.string.queue_creation_title),
                 null, // No current name
-                callback);
+                callback,
+                0, // No current color
+                -1); // No queueId (create mode)
     }
 
     /**
-     * Show queue rename dialog.
-     * Allows user to change queue name while keeping color.
+     * Show queue rename/edit dialog.
+     * Allows user to change queue name and color, or delete the queue.
+     * Buttons: Cancel, Apply (or OK), Delete
      *
      * @param fragment Fragment for context
+     * @param queueId ID of queue being edited
      * @param currentName Current queue name to pre-fill
      * @param currentColor Current queue color to show
-     * @param callback Called when confirmed or cancelled
+     * @param callback Called when confirmed, cancelled, or deleted
      */
     public static void showRenameQueueDialog(
             Fragment fragment,
+            long queueId,
             String currentName,
             @ColorInt int currentColor,
             QueueNameColorCallback callback) {
         Context context = fragment.requireActivity();
         showNameColorDialog(
                 context,
-                "Rename Queue",  // TODO: T003 - Add to strings.xml when implementing rename dialog
+                "Edit Queue",  // TODO: T003 - Add to strings.xml when implementing rename dialog
                 currentName,
                 callback,
-                currentColor);
+                currentColor,
+                queueId); // Pass queueId for edit mode
     }
 
     /**
@@ -155,19 +169,9 @@ public class QueueDialogManager {
     }
 
     /**
-     * Internal: Show name+color dialog for creation or rename.
-     */
-    @SuppressLint("InflateParams")
-    private static void showNameColorDialog(
-            Context context,
-            String title,
-            String currentName,
-            QueueNameColorCallback callback) {
-        showNameColorDialog(context, title, currentName, callback, 0);
-    }
-
-    /**
-     * Internal: Show name+color dialog with pre-selected color.
+     * Internal: Show name+color dialog with pre-selected color and optional delete button.
+     * If queueId > 0, dialog is in edit mode with Apply and Delete buttons.
+     * If queueId <= 0, dialog is in create mode with Create button only.
      */
     @SuppressLint("InflateParams")
     private static void showNameColorDialog(
@@ -175,7 +179,8 @@ public class QueueDialogManager {
             String title,
             String currentName,
             QueueNameColorCallback callback,
-            @ColorInt int currentColor) {
+            @ColorInt int currentColor,
+            long queueId) {
         LayoutInflater inflater = LayoutInflater.from(context);
         @SuppressLint("InflateParams")
         android.view.View view = inflater.inflate(R.layout.queue_creation_dialog, null);
@@ -196,19 +201,36 @@ public class QueueDialogManager {
         MaterialAlertDialogBuilder dialogBuilder = new MaterialAlertDialogBuilder(context)
                 .setTitle(title)
                 .setView(view)
-                .setNegativeButton(android.R.string.cancel, (dialogInterface, which) -> callback.onCancel())
-                .setPositiveButton(R.string.queue_create_button, (dialogInterface, which) -> {
-                    String name = nameInput.getText().toString().trim();
-                    if (name.isEmpty()) {
-                        Toast.makeText(context, R.string.queue_empty_name_error, Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    if (name.length() > 100) {
-                        name = name.substring(0, 100);
-                    }
-                    int selectedColor = colorAdapter.getSelectedColor();
-                    callback.onConfirm(name, selectedColor);
-                });
+                .setNegativeButton(android.R.string.cancel,
+                        (dialogInterface, which) -> callback.onCancel());
+
+        // Determine button labels and behavior based on mode (create vs edit)
+        final int positiveButtonLabel;
+        if (queueId > 0) {
+            // Edit mode: show Apply button and Delete button
+            positiveButtonLabel = android.R.string.ok; // "OK" / "Apply"
+            dialogBuilder.setNeutralButton("Delete", (dialogInterface, which) -> {
+                callback.onDelete();
+            });
+        } else {
+            // Create mode: show Create button only
+            positiveButtonLabel = R.string.queue_create_button;
+        }
+
+        dialogBuilder.setPositiveButton(positiveButtonLabel, (dialogInterface, which) -> {
+            String name = nameInput.getText().toString().trim();
+            if (name.isEmpty()) {
+                Toast.makeText(context, R.string.queue_empty_name_error,
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (name.length() > 100) {
+                name = name.substring(0, 100);
+            }
+            int selectedColor = colorAdapter.getSelectedColor();
+            callback.onConfirm(name, selectedColor);
+        });
+
         AlertDialog dialog = dialogBuilder.show();
 
         // Adjust dialog for keyboard and position it higher on screen
