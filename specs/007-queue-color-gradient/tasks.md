@@ -142,17 +142,17 @@ description: "Task list for Phase 7: Queue Color Gradient - Title Bar Styling"
 
 ### Code Quality Gates
 
-- [ ] T062 Run checkstyle: `./gradlew checkstyle` - fix any violations
-- [ ] T063 Run SpotBugs: `./gradlew spotbugsPlayDebug spotbugsDebug` - fix any bugs
-- [ ] T064 Run Android Lint: `./gradlew :app:lintPlayDebug` - fix any errors
-- [ ] T065 Re-run all quality checks to verify zero violations
+- [X] T062 Run checkstyle: `./gradlew checkstyle` - fix any violations
+- [X] T063 Run SpotBugs: `./gradlew spotbugsPlayDebug spotbugsDebug` - fix any bugs
+- [X] T064 Run Android Lint: `./gradlew :app:lintPlayDebug` - fix any errors
+- [X] T065 Re-run all quality checks to verify zero violations
 
 ### Documentation
 
-- [ ] T066 [P] Add "Queue Color Gradient" section to CLAUDE.md documenting feature behavior
-- [ ] T067 [P] Add code examples to CLAUDE.md showing how fragments observe queue color
-- [ ] T068 [P] Document performance characteristics (caching strategy) in CLAUDE.md
-- [ ] T069 [P] Add troubleshooting section to CLAUDE.md for gradient not showing / text unreadable
+- [X] T066 [P] Add "Queue Color Gradient" section to CLAUDE.md documenting feature behavior
+- [X] T067 [P] Add code examples to CLAUDE.md showing how fragments observe queue color
+- [X] T068 [P] Document performance characteristics (caching strategy) in CLAUDE.md
+- [X] T069 [P] Add troubleshooting section to CLAUDE.md for gradient not showing / text unreadable
 
 ### Performance Validation
 
@@ -163,9 +163,9 @@ description: "Task list for Phase 7: Queue Color Gradient - Title Bar Styling"
 
 ### Final Verification
 
-- [ ] T074 Run all unit tests: `./gradlew testPlayDebugUnitTest testDebugUnitTest`
+- [X] T074 Run all unit tests: `./gradlew testPlayDebugUnitTest testDebugUnitTest`
 - [ ] T075 Run all UI tests: `./gradlew connectedPlayDebugAndroidTest`
-- [ ] T076 Run full quality check suite: `./gradlew checkstyle spotbugsPlayDebug spotbugsDebug :app:lintPlayDebug`
+- [X] T076 Run full quality check suite: `./gradlew checkstyle spotbugsPlayDebug spotbugsDebug :app:lintPlayDebug`
 - [ ] T077 Verify all 8 success criteria from spec.md (gradient visible, colors match, updates immediately, text readable, no glitches, theme support, no performance impact, builds clean)
 - [ ] T078 Create completion summary in specs/007-queue-color-gradient/completion-summary.md with screenshots
 
