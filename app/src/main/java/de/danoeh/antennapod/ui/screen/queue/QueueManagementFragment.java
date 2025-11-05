@@ -1,5 +1,6 @@
 package de.danoeh.antennapod.ui.screen.queue;
 
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,6 +18,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.model.feed.QueueMetadata;
+import de.danoeh.antennapod.ui.common.QueueColorGradient;
 import de.danoeh.antennapod.ui.common.QueueDialogManager;
 import de.danoeh.antennapod.ui.common.QueueListAdapter;
 import de.danoeh.antennapod.ui.common.QueueViewModel;
@@ -156,6 +158,24 @@ public class QueueManagementFragment extends Fragment {
         queueViewModel.getCurrentQueueIdLiveData().observe(getViewLifecycleOwner(), currentQueueId -> {
             if (currentQueueId != null) {
                 queueListAdapter.setCurrentQueueId(currentQueueId);
+            }
+        });
+
+        // Phase 7: Queue Color Gradient - Apply gradient to title bar
+        queueViewModel.getCurrentQueueColor().observe(getViewLifecycleOwner(), color -> {
+            if (color != null && toolbar != null) {
+                GradientDrawable gradient = queueViewModel.getGradientForColor(color);
+                toolbar.setBackground(gradient);
+
+                int textColor = QueueColorGradient.computeTextColor(color);
+                toolbar.setTitleTextColor(textColor);
+                toolbar.setNavigationIconTint(textColor);
+
+                if (toolbar.getMenu() != null) {
+                    for (int i = 0; i < toolbar.getMenu().size(); i++) {
+                        toolbar.getMenu().getItem(i).getIcon().setTint(textColor);
+                    }
+                }
             }
         });
     }

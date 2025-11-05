@@ -89,28 +89,28 @@ description: "Task list for Phase 7: Queue Color Gradient - Title Bar Styling"
 
 ### Fragment Integration (Can work in parallel after T028 complete)
 
-- [ ] T029 [P] [US1] Apply gradient to AudioPlayerFragment title bar in app/src/main/java/de/danoeh/antennapod/ui/screen/playback/audio/AudioPlayerFragment.java
-- [ ] T030 [P] [US1] Add LiveData observation for getCurrentQueueColor() in AudioPlayerFragment.onViewCreated()
-- [ ] T031 [P] [US1] Set gradient background and compute text color on color change in AudioPlayerFragment
-- [ ] T032 [P] [US1] Apply gradient to QueueFragment title bar in app/src/main/java/de/danoeh/antennapod/ui/screen/queue/QueueFragment.java
-- [ ] T033 [P] [US1] Add LiveData observation for getCurrentQueueColor() in QueueFragment.onViewCreated()
-- [ ] T034 [P] [US1] Set gradient background and compute text color on color change in QueueFragment
-- [ ] T035 [P] [US1] Apply gradient to AllEpisodesFragment title bar in app/src/main/java/de/danoeh/antennapod/ui/screen/AllEpisodesFragment.java
-- [ ] T036 [P] [US1] Add LiveData observation for getCurrentQueueColor() in AllEpisodesFragment.onViewCreated()
-- [ ] T037 [P] [US1] Set gradient background and compute text color on color change in AllEpisodesFragment
-- [ ] T038 [P] [US1] Apply gradient to HomeFragment title bar in app/src/main/java/de/danoeh/antennapod/ui/screen/home/HomeFragment.java
-- [ ] T039 [P] [US1] Add LiveData observation for getCurrentQueueColor() in HomeFragment.onViewCreated()
-- [ ] T040 [P] [US1] Set gradient background and compute text color on color change in HomeFragment
-- [ ] T041 [P] [US1] Apply gradient to SubscriptionFragment title bar in app/src/main/java/de/danoeh/antennapod/ui/screen/subscriptions/SubscriptionFragment.java
-- [ ] T042 [P] [US1] Add LiveData observation for getCurrentQueueColor() in SubscriptionFragment.onViewCreated()
-- [ ] T043 [P] [US1] Set gradient background and compute text color on color change in SubscriptionFragment
-- [ ] T044 [P] [US1] Apply gradient to QueueManagementFragment title bar in app/src/main/java/de/danoeh/antennapod/ui/screen/queue/QueueManagementFragment.java
-- [ ] T045 [P] [US1] Add LiveData observation for getCurrentQueueColor() in QueueManagementFragment.onViewCreated()
-- [ ] T046 [P] [US1] Set gradient background and compute text color on color change in QueueManagementFragment
+- [X] T029 [P] [US1] Apply gradient to AudioPlayerFragment title bar in app/src/main/java/de/danoeh/antennapod/ui/screen/playback/audio/AudioPlayerFragment.java
+- [X] T030 [P] [US1] Add LiveData observation for getCurrentQueueColor() in AudioPlayerFragment.onViewCreated()
+- [X] T031 [P] [US1] Set gradient background and compute text color on color change in AudioPlayerFragment
+- [X] T032 [P] [US1] Apply gradient to QueueFragment title bar in app/src/main/java/de/danoeh/antennapod/ui/screen/queue/QueueFragment.java
+- [X] T033 [P] [US1] Add LiveData observation for getCurrentQueueColor() in QueueFragment.onViewCreated()
+- [X] T034 [P] [US1] Set gradient background and compute text color on color change in QueueFragment
+- [X] T035 [P] [US1] Apply gradient to AllEpisodesFragment title bar in app/src/main/java/de/danoeh/antennapod/ui/screen/AllEpisodesFragment.java
+- [X] T036 [P] [US1] Add LiveData observation for getCurrentQueueColor() in AllEpisodesFragment.onViewCreated()
+- [X] T037 [P] [US1] Set gradient background and compute text color on color change in AllEpisodesFragment
+- [X] T038 [P] [US1] Apply gradient to HomeFragment title bar in app/src/main/java/de/danoeh/antennapod/ui/screen/home/HomeFragment.java
+- [X] T039 [P] [US1] Add LiveData observation for getCurrentQueueColor() in HomeFragment.onViewCreated()
+- [X] T040 [P] [US1] Set gradient background and compute text color on color change in HomeFragment
+- [X] T041 [P] [US1] Apply gradient to SubscriptionFragment title bar in app/src/main/java/de/danoeh/antennapod/ui/screen/subscriptions/SubscriptionFragment.java
+- [X] T042 [P] [US1] Add LiveData observation for getCurrentQueueColor() in SubscriptionFragment.onViewCreated()
+- [X] T043 [P] [US1] Set gradient background and compute text color on color change in SubscriptionFragment
+- [X] T044 [P] [US1] Apply gradient to QueueManagementFragment title bar in app/src/main/java/de/danoeh/antennapod/ui/screen/queue/QueueManagementFragment.java
+- [X] T045 [P] [US1] Add LiveData observation for getCurrentQueueColor() in QueueManagementFragment.onViewCreated()
+- [X] T046 [P] [US1] Set gradient background and compute text color on color change in QueueManagementFragment
 
 ### Verification
 
-- [ ] T047 [US1] Build app: `./gradlew assemblePlayDebug`
+- [X] T047 [US1] Build app: `./gradlew assemblePlayDebug`
 - [ ] T048 [US1] Manual test: Create 4 test queues (blue, orange, light yellow, dark purple) per quickstart.md
 - [ ] T049 [US1] Manual test: Verify gradient visible on all 6 screens
 - [ ] T050 [US1] Manual test: Switch queues and verify immediate gradient update

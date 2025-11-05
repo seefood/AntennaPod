@@ -1,5 +1,6 @@
 package de.danoeh.antennapod.ui.screen.playback.audio;
 
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -17,6 +18,7 @@ import androidx.annotation.Nullable;
 import androidx.cardview.widget.CardView;
 import androidx.fragment.app.Fragment;
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
 import androidx.viewpager2.widget.ViewPager2;
 
@@ -48,6 +50,8 @@ import java.util.List;
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.activity.MainActivity;
 import de.danoeh.antennapod.ui.common.Converter;
+import de.danoeh.antennapod.ui.common.QueueColorGradient;
+import de.danoeh.antennapod.ui.common.QueueViewModel;
 import de.danoeh.antennapod.ui.screen.feed.preferences.SkipPreferenceDialog;
 import de.danoeh.antennapod.event.FavoritesEvent;
 import de.danoeh.antennapod.event.PlayerErrorEvent;
@@ -158,6 +162,33 @@ public class AudioPlayerFragment extends Fragment implements
         });
 
         return root;
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        // Phase 7: Queue Color Gradient - Apply gradient to title bar
+        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
+        queueViewModel.getCurrentQueueColor().observe(getViewLifecycleOwner(), color -> {
+            if (color != null && toolbar != null) {
+                // Get gradient drawable from cache
+                GradientDrawable gradient = queueViewModel.getGradientForColor(color);
+                toolbar.setBackground(gradient);
+
+                // Compute and apply text color for accessibility
+                int textColor = QueueColorGradient.computeTextColor(color);
+                toolbar.setTitleTextColor(textColor);
+                toolbar.setNavigationIconTint(textColor);
+
+                // Update menu item icon tint
+                if (toolbar.getMenu() != null) {
+                    for (int i = 0; i < toolbar.getMenu().size(); i++) {
+                        toolbar.getMenu().getItem(i).getIcon().setTint(textColor);
+                    }
+                }
+            }
+        });
     }
 
     private void setChapterDividers(Playable media) {

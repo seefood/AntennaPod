@@ -2,6 +2,7 @@ package de.danoeh.antennapod.ui.screen.subscriptions;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.ContextMenu;
@@ -11,8 +12,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ProgressBar;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.util.Pair;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -24,6 +27,8 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.activity.MainActivity;
 import de.danoeh.antennapod.event.FeedListUpdateEvent;
+import de.danoeh.antennapod.ui.common.QueueColorGradient;
+import de.danoeh.antennapod.ui.common.QueueViewModel;
 import de.danoeh.antennapod.event.FeedUpdateRunningEvent;
 import de.danoeh.antennapod.event.UnreadItemsUpdateEvent;
 import de.danoeh.antennapod.model.feed.Feed;
@@ -198,6 +203,30 @@ public class SubscriptionFragment extends Fragment
         tagAdapter.setSelectedTag(prefs.getString(PREF_LAST_TAG, FeedPreferences.TAG_ROOT));
         tagsRecycler.setAdapter(tagAdapter);
         return root;
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        // Phase 7: Queue Color Gradient - Apply gradient to title bar
+        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
+        queueViewModel.getCurrentQueueColor().observe(getViewLifecycleOwner(), color -> {
+            if (color != null && toolbar != null) {
+                GradientDrawable gradient = queueViewModel.getGradientForColor(color);
+                toolbar.setBackground(gradient);
+
+                int textColor = QueueColorGradient.computeTextColor(color);
+                toolbar.setTitleTextColor(textColor);
+                toolbar.setNavigationIconTint(textColor);
+
+                if (toolbar.getMenu() != null) {
+                    for (int i = 0; i < toolbar.getMenu().size(); i++) {
+                        toolbar.getMenu().getItem(i).getIcon().setTint(textColor);
+                    }
+                }
+            }
+        });
     }
 
     @Override

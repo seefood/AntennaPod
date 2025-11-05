@@ -2,6 +2,7 @@ package de.danoeh.antennapod.ui.screen.home;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -9,14 +10,18 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.widget.Toolbar;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentContainerView;
+import androidx.lifecycle.ViewModelProvider;
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.activity.MainActivity;
 import de.danoeh.antennapod.databinding.HomeFragmentBinding;
 import de.danoeh.antennapod.event.FeedListUpdateEvent;
 import de.danoeh.antennapod.event.FeedUpdateRunningEvent;
+import de.danoeh.antennapod.ui.common.QueueColorGradient;
+import de.danoeh.antennapod.ui.common.QueueViewModel;
 import de.danoeh.antennapod.model.feed.FeedItemFilter;
 import de.danoeh.antennapod.net.download.serviceinterface.FeedUpdateManager;
 import de.danoeh.antennapod.storage.database.DBReader;
@@ -76,6 +81,30 @@ public class HomeFragment extends Fragment implements Toolbar.OnMenuItemClickLis
                 FeedUpdateManager.getInstance().runOnceOrAsk(requireContext()));
 
         return viewBinding.getRoot();
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        // Phase 7: Queue Color Gradient - Apply gradient to title bar
+        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
+        queueViewModel.getCurrentQueueColor().observe(getViewLifecycleOwner(), color -> {
+            if (color != null && viewBinding != null) {
+                GradientDrawable gradient = queueViewModel.getGradientForColor(color);
+                viewBinding.toolbar.setBackground(gradient);
+
+                int textColor = QueueColorGradient.computeTextColor(color);
+                viewBinding.toolbar.setTitleTextColor(textColor);
+                viewBinding.toolbar.setNavigationIconTint(textColor);
+
+                if (viewBinding.toolbar.getMenu() != null) {
+                    for (int i = 0; i < viewBinding.toolbar.getMenu().size(); i++) {
+                        viewBinding.toolbar.getMenu().getItem(i).getIcon().setTint(textColor);
+                    }
+                }
+            }
+        });
     }
 
     private void populateSectionList() {

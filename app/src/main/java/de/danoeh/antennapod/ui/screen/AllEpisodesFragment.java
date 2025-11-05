@@ -1,5 +1,6 @@
 package de.danoeh.antennapod.ui.screen;
 
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
@@ -8,8 +9,11 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.util.Pair;
+import androidx.lifecycle.ViewModelProvider;
 
 import de.danoeh.antennapod.R;
+import de.danoeh.antennapod.ui.common.QueueColorGradient;
+import de.danoeh.antennapod.ui.common.QueueViewModel;
 import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.ui.AllEpisodesFilterDialog;
 import de.danoeh.antennapod.ui.screen.feed.ItemSortDialog;
@@ -51,6 +55,30 @@ public class AllEpisodesFragment extends EpisodesListFragment {
         int paddingVertical = (int) (getResources().getDisplayMetrics().density * 4);
         txtvInformation.setPadding(paddingHorizontal, paddingVertical, paddingHorizontal, paddingVertical);
         return root;
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        // Phase 7: Queue Color Gradient - Apply gradient to title bar
+        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
+        queueViewModel.getCurrentQueueColor().observe(getViewLifecycleOwner(), color -> {
+            if (color != null && toolbar != null) {
+                GradientDrawable gradient = queueViewModel.getGradientForColor(color);
+                toolbar.setBackground(gradient);
+
+                int textColor = QueueColorGradient.computeTextColor(color);
+                toolbar.setTitleTextColor(textColor);
+                toolbar.setNavigationIconTint(textColor);
+
+                if (toolbar.getMenu() != null) {
+                    for (int i = 0; i < toolbar.getMenu().size(); i++) {
+                        toolbar.getMenu().getItem(i).getIcon().setTint(textColor);
+                    }
+                }
+            }
+        });
     }
 
     @NonNull
