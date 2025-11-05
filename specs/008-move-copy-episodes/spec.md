@@ -18,6 +18,7 @@ Enable users to move or copy episodes from one queue to another, supporting both
 - Q: When an episode is copied to another queue, should it maintain its current playback position or reset to unplayed state? → A: Maintain playback position (shared state across all queues)
 - Q: Should the queue selection dialog remember the last used destination queue for convenience? → A: Remember last destination per session only (cleared on app restart)
 - Q: Should there be a maximum queue size limit to prevent performance issues? → A: No limit (match existing addQueueItem behavior)
+- **Q: When an episode is removed from a queue (deleted or moved), what happens to other queues containing it?** → **A: Removal only affects source queue. Episode remains in all other queues. EXCEPTION: When episode finishes playing (playback completion), it is removed from ALL queues automatically.**
 
 ## User Stories
 
@@ -89,11 +90,18 @@ Enable users to move or copy episodes from one queue to another, supporting both
 
 **Note on Playback State**: Episode playback position and play/unplayed status are stored at the episode level (FeedMedia table), not queue-specific. When episodes are moved or copied between queues, they maintain their current playback state. This ensures consistent listening experience regardless of which queue the episode is played from.
 
+**Critical Behavior - Queue Removal Semantics**:
+- **User-initiated removal** (delete, move operations): Only removes episode from the specified source queue. Episode remains in any OTHER queues it exists in.
+- **Automatic removal on playback completion**: When episode finishes playing, it is removed from ALL queues automatically (existing behavior in playback layer).
+- **Rationale**: Allows episodes to exist in multiple queues. Users manage removal per-queue explicitly. Completion triggers global removal to prevent clutter.
+- **Test Requirement**: Must verify move/copy operations do NOT affect other queues containing the episode.
+
 **Implementation Strategy**: Maximize code reuse from existing DBWriter queue methods:
 - **Copy operation** = existing `addQueueItem()` logic with target queueId parameter
 - **Move operation** = existing `removeQueueItem()` + `addQueueItem()` with queueIds
 - **Batch operations** = iterate using single-item methods (proven patterns)
 - No queue size limits (matches existing `addQueueItem` behavior)
+- **CRITICAL**: Ensure `removeQueueItem()` only removes from specified queue, not globally (verify existing implementation)
 
 ### Database Layer
 
@@ -354,19 +362,25 @@ Add to `ui/common/src/main/res/values/strings.xml`:
 - [ ] **T100**: Unit tests for DBWriter move/copy methods
 - [ ] **T101**: Unit tests for duplicate detection
 - [ ] **T102**: Unit tests for batch operations (edge cases: empty list, all duplicates, partial duplicates)
-- [ ] **T103**: Espresso UI tests for QueueSelectionDialog
-- [ ] **T104**: Espresso UI tests for context menu integration
-- [ ] **T105**: Integration tests for move/copy with EventBus verification
+- [ ] **T103**: **CRITICAL TEST - Queue Removal Semantics**: When episode exists in multiple queues (Q1, Q2, Q3):
+  - Move from Q1 to Q2 → Episode removed from Q1, remains in Q2 and Q3
+  - Delete from Q1 → Episode removed from Q1 only, remains in Q2 and Q3
+  - Copy from Q1 to new queue Q4 → Episode added to Q4, remains in Q1, Q2, Q3
+  - Verify no other queues affected when removing from specified queue
+- [ ] **T104**: Espresso UI tests for QueueSelectionDialog
+- [ ] **T105**: Espresso UI tests for context menu integration
+- [ ] **T106**: Integration tests for move/copy with EventBus verification
 
 ### Error Handling (Priority: Low)
-- [ ] **T106**: Handle move operation when source queue doesn't contain episode
-- [ ] **T107**: Handle database transaction failures with rollback
-- [ ] **T108**: Handle concurrent modifications (two users moving same episode)
+- [ ] **T107**: Handle move operation when source queue doesn't contain episode
+- [ ] **T108**: Handle database transaction failures with rollback
+- [ ] **T109**: Handle concurrent modifications (two users moving same episode)
 
 ### Documentation (Priority: Low)
-- [ ] **T110**: Update CLAUDE.md with move/copy operation examples
+- [ ] **T110**: Update CLAUDE.md with move/copy operation examples and queue removal semantics
 - [ ] **T111**: Add user documentation for queue transfer operations
 - [ ] **T112**: Document batch operation performance characteristics
+- [ ] **T113**: Document critical behavior: episode removal only affects specified queue, NOT other queues
 
 ## Performance Considerations
 
