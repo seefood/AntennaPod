@@ -9,6 +9,16 @@
 
 Enable users to move or copy episodes from one queue to another, supporting both single-episode and batch operations. This completes the queue management feature set by allowing flexible episode organization across multiple queues.
 
+## Clarifications
+
+### Session 2025-11-05
+
+- Q: When moving/copying episodes to a target queue, where should they be inserted? → A: Always append to end of target queue, preserving source order
+- Q: For batch move/copy operations, should they be atomic (all-or-nothing) or best-effort (partial success allowed)? → A: Best-effort: Move/copy what's possible, report skipped items with reasons
+- Q: When an episode is copied to another queue, should it maintain its current playback position or reset to unplayed state? → A: Maintain playback position (shared state across all queues)
+- Q: Should the queue selection dialog remember the last used destination queue for convenience? → A: Remember last destination per session only (cleared on app restart)
+- Q: Should there be a maximum queue size limit to prevent performance issues? → A: No limit (match existing addQueueItem behavior)
+
 ## User Stories
 
 ### US-1: Move Single Episode to Another Queue
@@ -18,8 +28,8 @@ Enable users to move or copy episodes from one queue to another, supporting both
 
 **Acceptance Criteria:**
 - Episode is removed from source queue
-- Episode is added to target queue (at end by default)
-- Original queue position is preserved for other episodes
+- Episode is appended to end of target queue
+- Original queue position is preserved for other episodes in source queue
 - Operation is reversible (can move back)
 - Works from episode context menu in queue view
 - Works from episode detail screen
@@ -31,7 +41,8 @@ Enable users to move or copy episodes from one queue to another, supporting both
 
 **Acceptance Criteria:**
 - Episode remains in source queue
-- Episode is added to target queue
+- Episode is appended to end of target queue
+- Episode playback position is maintained (shared state across all queues)
 - Episode can exist in multiple queues simultaneously
 - Duplicate detection prevents adding to same queue twice
 - Works from episode context menu
@@ -69,11 +80,20 @@ Enable users to move or copy episodes from one queue to another, supporting both
 - Dialog shows all queues except source queue (for move operations)
 - Dialog shows all queues except current queue (for copy operations)
 - Each queue shows: name, color indicator, episode count
-- Queues sorted by name or creation order
+- Queues sorted by name or creation order, with last-used destination (in current session) highlighted at top
 - "Create New Queue" option available in dialog
 - Search/filter for large queue lists (>10 queues)
+- Last destination memory cleared on app restart
 
 ## Technical Specification
+
+**Note on Playback State**: Episode playback position and play/unplayed status are stored at the episode level (FeedMedia table), not queue-specific. When episodes are moved or copied between queues, they maintain their current playback state. This ensures consistent listening experience regardless of which queue the episode is played from.
+
+**Implementation Strategy**: Maximize code reuse from existing DBWriter queue methods:
+- **Copy operation** = existing `addQueueItem()` logic with target queueId parameter
+- **Move operation** = existing `removeQueueItem()` + `addQueueItem()` with queueIds
+- **Batch operations** = iterate using single-item methods (proven patterns)
+- No queue size limits (matches existing `addQueueItem` behavior)
 
 ### Database Layer
 
@@ -82,7 +102,7 @@ Enable users to move or copy episodes from one queue to another, supporting both
 ```java
 /**
  * Move episode from one queue to another.
- * Episode is removed from source queue and added to target queue.
+ * Implementation: removeQueueItem(feedItemId, sourceQueueId) + addQueueItem(feedItemId, targetQueueId)
  *
  * @param feedItemId Episode to move
  * @param sourceQueueId Source queue ID
@@ -94,7 +114,7 @@ public static Future<Void> moveQueueItem(long feedItemId, long sourceQueueId, lo
 
 /**
  * Copy episode to another queue.
- * Episode remains in source queue and is added to target queue.
+ * Implementation: delegates to existing addQueueItem() with target queueId parameter
  *
  * @param feedItemId Episode to copy
  * @param targetQueueId Target queue ID
@@ -104,23 +124,23 @@ public static Future<Void> moveQueueItem(long feedItemId, long sourceQueueId, lo
 public static Future<Void> copyQueueItem(long feedItemId, long targetQueueId);
 
 /**
- * Move multiple episodes from one queue to another.
- * All episodes removed from source queue and added to target queue in same order.
+ * Move multiple episodes (best-effort).
+ * Implementation: iterates moveQueueItem() for each episode
  *
  * @param feedItemIds List of episode IDs to move
  * @param sourceQueueId Source queue ID
  * @param targetQueueId Target queue ID
- * @return Future<MoveResult> with counts of moved/skipped episodes
+ * @return Future<MoveResult> with counts of moved/skipped episodes and skip reasons
  */
 public static Future<MoveResult> moveQueueItems(List<Long> feedItemIds, long sourceQueueId, long targetQueueId);
 
 /**
- * Copy multiple episodes to another queue.
- * Episodes remain in source queue(s) and are added to target queue.
+ * Copy multiple episodes (best-effort).
+ * Implementation: iterates copyQueueItem() for each episode
  *
  * @param feedItemIds List of episode IDs to copy
  * @param targetQueueId Target queue ID
- * @return Future<CopyResult> with counts of copied/skipped episodes
+ * @return Future<CopyResult> with counts of copied/skipped episodes and skip reasons
  */
 public static Future<CopyResult> copyQueueItems(List<Long> feedItemIds, long targetQueueId);
 ```
@@ -132,23 +152,27 @@ public class MoveResult {
     public final int movedCount;
     public final int skippedCount;
     public final List<Long> skippedItemIds;
+    public final Map<Long, String> skipReasons; // Episode ID -> reason (e.g., "not in source queue", "already in target")
 
-    public MoveResult(int movedCount, int skippedCount, List<Long> skippedItemIds) {
+    public MoveResult(int movedCount, int skippedCount, List<Long> skippedItemIds, Map<Long, String> skipReasons) {
         this.movedCount = movedCount;
         this.skippedCount = skippedCount;
         this.skippedItemIds = skippedItemIds;
+        this.skipReasons = skipReasons;
     }
 }
 
 public class CopyResult {
     public final int copiedCount;
     public final int skippedCount;
-    public final List<Long> skippedItemIds; // Already in target queue
+    public final List<Long> skippedItemIds;
+    public final Map<Long, String> skipReasons; // Episode ID -> reason (e.g., "already in target queue")
 
-    public CopyResult(int copiedCount, int skippedCount, List<Long> skippedItemIds) {
+    public CopyResult(int copiedCount, int skippedCount, List<Long> skippedItemIds, Map<Long, String> skipReasons) {
         this.copiedCount = copiedCount;
         this.skippedCount = skippedCount;
         this.skippedItemIds = skippedItemIds;
+        this.skipReasons = skipReasons;
     }
 }
 ```
@@ -165,6 +189,8 @@ New dialog fragment for selecting destination queue:
 - RecyclerView showing all available queues
 - Each item shows: queue name, color badge, episode count
 - Filter out source queue for move operations
+- Last-used destination (in current session) highlighted at top of list
+- Session-based memory only (cleared on app restart)
 - "Create New Queue" button at bottom
 - Search bar for filtering (if >10 queues)
 - Material Design 3 dialog styling
@@ -296,18 +322,18 @@ Add to `ui/common/src/main/res/values/strings.xml`:
 ## Implementation Tasks
 
 ### Database Layer (Priority: High)
-- [ ] **T079**: Implement `moveQueueItem(feedItemId, sourceQueueId, targetQueueId)` in DBWriter
-- [ ] **T080**: Implement `copyQueueItem(feedItemId, targetQueueId)` in DBWriter
-- [ ] **T081**: Implement `moveQueueItems(List<Long>, sourceQueueId, targetQueueId)` in DBWriter
-- [ ] **T082**: Implement `copyQueueItems(List<Long>, targetQueueId)` in DBWriter
+- [ ] **T079**: Implement `moveQueueItem()` - delegates to existing `removeQueueItem()` + `addQueueItem()` with queueId
+- [ ] **T080**: Implement `copyQueueItem()` - delegates to existing `addQueueItem()` logic with target queueId
+- [ ] **T081**: Implement `moveQueueItems()` - iterates `moveQueueItem()` with result aggregation
+- [ ] **T082**: Implement `copyQueueItems()` - iterates `copyQueueItem()` with result aggregation
 - [ ] **T083**: Create `MoveResult` and `CopyResult` classes in model module
-- [ ] **T084**: Add duplicate detection logic in DBReader (check if episode already in target queue)
+- [ ] **T084**: Verify duplicate detection reuses existing `itemListContains()` logic from `addQueueItem()`
 - [ ] **T085**: Update QueueEvent with new action types (ITEM_MOVED, ITEM_COPIED, etc.)
 
 ### UI Components (Priority: High)
-- [ ] **T086**: Create `QueueSelectionDialog.java` dialog fragment
+- [ ] **T086**: Create `QueueSelectionDialog.java` dialog fragment with session-based last-destination memory
 - [ ] **T087**: Create `dialog_queue_selection.xml` layout
-- [ ] **T088**: Create `QueueSelectionAdapter` RecyclerView adapter
+- [ ] **T088**: Create `QueueSelectionAdapter` RecyclerView adapter with last-used highlighting
 - [ ] **T089**: Create `queue_selection_item.xml` list item layout with color badge and count
 - [ ] **T090**: Implement search/filter functionality for queue list
 
@@ -334,9 +360,8 @@ Add to `ui/common/src/main/res/values/strings.xml`:
 
 ### Error Handling (Priority: Low)
 - [ ] **T106**: Handle move operation when source queue doesn't contain episode
-- [ ] **T107**: Handle copy operation when target queue is full (if max queue size implemented)
-- [ ] **T108**: Handle database transaction failures with rollback
-- [ ] **T109**: Handle concurrent modifications (two users moving same episode)
+- [ ] **T107**: Handle database transaction failures with rollback
+- [ ] **T108**: Handle concurrent modifications (two users moving same episode)
 
 ### Documentation (Priority: Low)
 - [ ] **T110**: Update CLAUDE.md with move/copy operation examples
@@ -359,7 +384,7 @@ Add to `ui/common/src/main/res/values/strings.xml`:
 
 ### Memory Usage
 - Dialog: Load queue list lazily (only when opened)
-- Batch operations: Stream processing for very large batches (>500 episodes)
+- Batch operations: Iterate single-item methods (reuse existing patterns, no additional buffering)
 - Result objects: Minimal memory footprint
 
 ## User Experience
@@ -388,6 +413,8 @@ Add to `ui/common/src/main/res/values/strings.xml`:
 - **Move Last Episode from Queue**: Queue becomes empty (valid state)
 - **Copy Already Present Episode**: Show "Episode already in [Queue Name], skipped"
 - **Batch with Partial Duplicates**: Show "3 copied, 2 skipped (already in queue)"
+- **Batch Move with Missing Episodes**: Best-effort: skip episodes not in source queue, report "5 moved, 2 skipped (not found in source)"
+- **Batch Operation Errors**: Operations continue despite individual failures; final result shows success/skip counts with reasons
 
 ## Accessibility
 
@@ -424,19 +451,11 @@ Add to `ui/common/src/main/res/values/strings.xml`:
 
 ## Success Metrics
 
-- **Functionality**: All 33 tasks completed
+- **Functionality**: All 31 tasks completed
 - **Performance**: All operations meet target latency (<50ms single, <500ms batch)
 - **Quality**: Zero P0/P1 bugs in beta testing
 - **Usability**: <5% user confusion rate (measured by support tickets)
 - **Adoption**: 30% of users with multiple queues use move/copy within first month
-
-## Open Questions
-
-1. Should move operations be atomic (all-or-nothing) or best-effort (move what's possible)?
-2. Should there be a maximum queue size to prevent performance issues?
-3. Should copied episodes maintain playback position or reset to unplayed?
-4. Should we add "Move All" and "Copy All" bulk operations?
-5. Should queue selection dialog remember last used destination?
 
 ## Future Enhancements (Post-Phase 8)
 
