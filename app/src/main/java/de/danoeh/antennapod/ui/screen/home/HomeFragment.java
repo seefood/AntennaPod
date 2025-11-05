@@ -100,7 +100,10 @@ public class HomeFragment extends Fragment implements Toolbar.OnMenuItemClickLis
 
                 if (viewBinding.toolbar.getMenu() != null) {
                     for (int i = 0; i < viewBinding.toolbar.getMenu().size(); i++) {
-                        viewBinding.toolbar.getMenu().getItem(i).getIcon().setTint(textColor);
+                        android.view.MenuItem item = viewBinding.toolbar.getMenu().getItem(i);
+                        if (item.getIcon() != null) {
+                            item.getIcon().setTint(textColor);
+                        }
                     }
                 }
             }

@@ -184,7 +184,10 @@ public class AudioPlayerFragment extends Fragment implements
                 // Update menu item icon tint
                 if (toolbar.getMenu() != null) {
                     for (int i = 0; i < toolbar.getMenu().size(); i++) {
-                        toolbar.getMenu().getItem(i).getIcon().setTint(textColor);
+                        MenuItem item = toolbar.getMenu().getItem(i);
+                        if (item.getIcon() != null) {
+                            item.getIcon().setTint(textColor);
+                        }
                     }
                 }
             }

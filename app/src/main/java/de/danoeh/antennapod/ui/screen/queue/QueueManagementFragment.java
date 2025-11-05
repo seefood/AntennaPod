@@ -173,7 +173,10 @@ public class QueueManagementFragment extends Fragment {
 
                 if (toolbar.getMenu() != null) {
                     for (int i = 0; i < toolbar.getMenu().size(); i++) {
-                        toolbar.getMenu().getItem(i).getIcon().setTint(textColor);
+                        android.view.MenuItem item = toolbar.getMenu().getItem(i);
+                        if (item.getIcon() != null) {
+                            item.getIcon().setTint(textColor);
+                        }
                     }
                 }
             }

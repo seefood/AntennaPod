@@ -147,8 +147,21 @@ public class QueueViewModel extends AndroidViewModel {
      * <p>Example usage in fragments:
      * <pre>{@code
      * viewModel.getCurrentQueueColor().observe(getViewLifecycleOwner(), color -> {
-     *     GradientDrawable gradient = viewModel.getGradientForColor(color);
-     *     titleBar.setBackground(gradient);
+     *     if (color != null && toolbar != null) {
+     *         GradientDrawable gradient = viewModel.getGradientForColor(color);
+     *         toolbar.setBackground(gradient);
+     *         int textColor = QueueColorGradient.computeTextColor(color);
+     *         toolbar.setTitleTextColor(textColor);
+     *         toolbar.setNavigationIconTint(textColor);
+     *         if (toolbar.getMenu() != null) {
+     *             for (int i = 0; i < toolbar.getMenu().size(); i++) {
+     *                 android.view.MenuItem item = toolbar.getMenu().getItem(i);
+     *                 if (item.getIcon() != null) {
+     *                     item.getIcon().setTint(textColor);
+     *                 }
+     *             }
+     *         }
+     *     }
      * });
      * }</pre>
      *
