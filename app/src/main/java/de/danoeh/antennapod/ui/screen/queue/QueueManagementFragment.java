@@ -164,6 +164,7 @@ public class QueueManagementFragment extends Fragment {
         // Phase 7: Queue Color Gradient - Apply gradient to title bar
         queueViewModel.getCurrentQueueColor().observe(getViewLifecycleOwner(), color -> {
             if (color != null && toolbar != null) {
+                queueViewModel.checkThemeChanged();
                 GradientDrawable gradient = queueViewModel.getGradientForColor(color);
                 toolbar.setBackground(gradient);
 

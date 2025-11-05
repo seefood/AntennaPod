@@ -172,6 +172,9 @@ public class AudioPlayerFragment extends Fragment implements
         QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
         queueViewModel.getCurrentQueueColor().observe(getViewLifecycleOwner(), color -> {
             if (color != null && toolbar != null) {
+                // Check for theme changes and clear cache if needed
+                queueViewModel.checkThemeChanged();
+
                 // Get gradient drawable from cache
                 GradientDrawable gradient = queueViewModel.getGradientForColor(color);
                 toolbar.setBackground(gradient);

@@ -65,6 +65,7 @@ public class AllEpisodesFragment extends EpisodesListFragment {
         QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
         queueViewModel.getCurrentQueueColor().observe(getViewLifecycleOwner(), color -> {
             if (color != null && toolbar != null) {
+                queueViewModel.checkThemeChanged();
                 GradientDrawable gradient = queueViewModel.getGradientForColor(color);
                 toolbar.setBackground(gradient);
 

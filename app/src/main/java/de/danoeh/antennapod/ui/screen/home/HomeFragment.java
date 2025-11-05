@@ -91,6 +91,7 @@ public class HomeFragment extends Fragment implements Toolbar.OnMenuItemClickLis
         QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
         queueViewModel.getCurrentQueueColor().observe(getViewLifecycleOwner(), color -> {
             if (color != null && viewBinding != null) {
+                queueViewModel.checkThemeChanged();
                 GradientDrawable gradient = queueViewModel.getGradientForColor(color);
                 viewBinding.toolbar.setBackground(gradient);
 

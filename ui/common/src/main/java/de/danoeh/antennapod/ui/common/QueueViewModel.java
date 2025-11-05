@@ -54,10 +54,13 @@ public class QueueViewModel extends AndroidViewModel {
     // Phase 7: Queue Color Gradient - Gradient caching for performance
     private final Map<Integer, GradientDrawable> gradientCache = new HashMap<>();
     private final MutableLiveData<Integer> currentQueueColor = new MutableLiveData<>();
+    private int lastUiMode = -1; // Track current UI mode for theme change detection
 
     public QueueViewModel(@NonNull Application application) {
         super(application);
         EventBus.getDefault().register(this);
+        lastUiMode = getApplication().getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
         loadQueueData();
     }
 
@@ -216,6 +219,28 @@ public class QueueViewModel extends AndroidViewModel {
         if (currentColor != null) {
             currentQueueColor.setValue(currentColor);
         }
+    }
+
+    /**
+     * Handle configuration changes, particularly theme changes.
+     * Clears gradient cache if UI mode (dark/light theme) has changed.
+     *
+     * <p>Fragments should call this method in their color observation callback
+     * to ensure gradients are regenerated when theme changes.
+     *
+     * @since Phase 7: Queue Color Gradient
+     */
+    public void checkThemeChanged() {
+        int currentUiMode = getApplication().getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+
+        if (lastUiMode != -1 && lastUiMode != currentUiMode) {
+            Log.d(TAG, "Theme changed detected (UI mode: " + lastUiMode + " -> " + currentUiMode
+                    + "), clearing gradient cache");
+            clearGradientCache();
+        }
+
+        lastUiMode = currentUiMode;
     }
 
     /**
