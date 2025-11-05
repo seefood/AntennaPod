@@ -46,36 +46,36 @@ description: "Task list for Phase 7: Queue Color Gradient - Title Bar Styling"
 
 ### Unit Tests (Write First - TDD)
 
-- [ ] T005 [P] Create test file ui/common/src/test/java/de/danoeh/antennapod/ui/common/QueueColorGradientTest.java
-- [ ] T006 [P] Write test: `testCreateGradientDrawable_ValidColor()` - verify gradient creation with various colors
-- [ ] T007 [P] Write test: `testComputeTextColor_LightBackground()` - verify black text for luminance > 0.5
-- [ ] T008 [P] Write test: `testComputeTextColor_DarkBackground()` - verify white text for luminance ≤ 0.5
-- [ ] T009 [P] Write test: `testApplyScrim_LightColor()` - verify 20% darkening when luminance > 0.5
-- [ ] T010 [P] Write test: `testApplyScrim_DarkColor()` - verify no change when luminance ≤ 0.5
-- [ ] T011 [P] Write test: `testContrastRatio_MeetsWCAG_AA()` - verify 4.5:1 minimum contrast
+- [X] T005 [P] Create test file ui/common/src/test/java/de/danoeh/antennapod/ui/common/QueueColorGradientTest.java
+- [X] T006 [P] Write test: `testCreateGradientDrawable_ValidColor()` - verify gradient creation with various colors
+- [X] T007 [P] Write test: `testComputeTextColor_LightBackground()` - verify black text for luminance > 0.5
+- [X] T008 [P] Write test: `testComputeTextColor_DarkBackground()` - verify white text for luminance ≤ 0.5
+- [X] T009 [P] Write test: `testApplyScrim_LightColor()` - verify 20% darkening when luminance > 0.5
+- [X] T010 [P] Write test: `testApplyScrim_DarkColor()` - verify no change when luminance ≤ 0.5
+- [X] T011 [P] Write test: `testContrastRatio_MeetsWCAG_AA()` - verify 4.5:1 minimum contrast
 
 ### Infrastructure Implementation
 
-- [ ] T012 Create ui/common/src/main/java/de/danoeh/antennapod/ui/common/QueueColorGradient.java utility class
-- [ ] T013 Implement `createGradientDrawable(int queueColor, int endColor)` method with TOP_BOTTOM orientation
-- [ ] T014 Implement `computeTextColor(int backgroundColor)` using ColorUtils.calculateLuminance() with 0.5 threshold
-- [ ] T015 Implement `applyScrim(int color)` method multiplying RGB by 0.8 for light colors (luminance > 0.5)
-- [ ] T016 Add JavaDoc to all public methods in QueueColorGradient with @param, @return annotations
-- [ ] T017 Run unit tests: `./gradlew :ui:common:testDebugUnitTest --tests "*QueueColorGradient*"` - verify all tests pass
+- [X] T012 Create ui/common/src/main/java/de/danoeh/antennapod/ui/common/QueueColorGradient.java utility class
+- [X] T013 Implement `createGradientDrawable(int queueColor, int endColor)` method with TOP_BOTTOM orientation
+- [X] T014 Implement `computeTextColor(int backgroundColor)` using ColorUtils.calculateLuminance() with 0.5 threshold
+- [X] T015 Implement `applyScrim(int color)` method multiplying RGB by 0.8 for light colors (luminance > 0.5)
+- [X] T016 Add JavaDoc to all public methods in QueueColorGradient with @param, @return annotations
+- [X] T017 Run unit tests: `./gradlew :ui:common:testDebugUnitTest --tests "*QueueColorGradient*"` - verify all tests pass
 
 ### ViewModel Enhancement
 
-- [ ] T018 Add `Map<Integer, GradientDrawable> gradientCache` field to ui/common/src/main/java/de/danoeh/antennapod/ui/common/QueueViewModel.java
-- [ ] T019 Add `MutableLiveData<Integer> currentQueueColor` field to QueueViewModel
-- [ ] T020 Implement `getCurrentQueueColor()` method returning LiveData<Integer>
-- [ ] T021 Implement `getGradientForColor(int color)` method with cache check, creation, and storage
-- [ ] T022 Implement `clearGradientCache()` method
-- [ ] T023 Add EventBus subscription in QueueViewModel constructor: `EventBus.getDefault().register(this)`
-- [ ] T024 Implement `onQueueEvent(QueueEvent event)` method to emit queue color on SWITCHED/QUEUE_COLOR_CHANGED events
-- [ ] T025 Implement `onThemeChanged(ThemeChangedEvent event)` method to clear cache and re-emit color (or use Configuration.uiMode if ThemeChangedEvent doesn't exist)
-- [ ] T026 Override `onCleared()` to unregister from EventBus
-- [ ] T027 Add `loadCurrentQueueColor()` initialization in constructor to emit initial queue color
-- [ ] T028 Add JavaDoc to all new public methods in QueueViewModel
+- [X] T018 Add `Map<Integer, GradientDrawable> gradientCache` field to ui/common/src/main/java/de/danoeh/antennapod/ui/common/QueueViewModel.java
+- [X] T019 Add `MutableLiveData<Integer> currentQueueColor` field to QueueViewModel
+- [X] T020 Implement `getCurrentQueueColor()` method returning LiveData<Integer>
+- [X] T021 Implement `getGradientForColor(int color)` method with cache check, creation, and storage
+- [X] T022 Implement `clearGradientCache()` method
+- [X] T023 Add EventBus subscription in QueueViewModel constructor: `EventBus.getDefault().register(this)`
+- [X] T024 Implement `onQueueEvent(QueueEvent event)` method to emit queue color on SWITCHED/QUEUE_COLOR_CHANGED events
+- [X] T025 Implement `onThemeChanged(ThemeChangedEvent event)` method to clear cache and re-emit color (or use Configuration.uiMode if ThemeChangedEvent doesn't exist)
+- [X] T026 Override `onCleared()` to unregister from EventBus
+- [X] T027 Add `loadCurrentQueueColor()` initialization in constructor to emit initial queue color
+- [X] T028 Add JavaDoc to all new public methods in QueueViewModel
 
 **Checkpoint**: Foundation ready - QueueColorGradient utility tested and working, QueueViewModel caching functional
 

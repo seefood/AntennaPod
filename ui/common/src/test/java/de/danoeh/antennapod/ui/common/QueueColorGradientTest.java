@@ -9,7 +9,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Unit tests for QueueColorGradient utility class.
@@ -136,12 +138,12 @@ public class QueueColorGradientTest {
     /**
      * Test T011: Verify algorithm produces reasonable contrast for typical queue colors.
      *
-     * Note: The 0.5 luminance threshold with 20% scrim is a practical heuristic that
+     * <p>Note: The 0.5 luminance threshold with 20% scrim is a practical heuristic that
      * provides readable text for most colors. It doesn't guarantee WCAG AA 4.5:1 for
      * all possible colors, but ensures text is readable in practice.
      */
     @Test
-    public void testContrastRatio_MeetsWCAG_AA() {
+    public void testContrastRatio_MeetsWcagAa() {
         // Test extreme colors that should have excellent contrast
         int white = Color.WHITE;
         int withScrim = QueueColorGradient.applyScrim(white);

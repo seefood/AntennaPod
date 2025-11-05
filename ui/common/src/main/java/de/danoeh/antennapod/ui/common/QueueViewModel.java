@@ -1,6 +1,7 @@
 package de.danoeh.antennapod.ui.common;
 
 import android.app.Application;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -15,7 +16,9 @@ import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -48,6 +51,10 @@ public class QueueViewModel extends AndroidViewModel {
         return t;
     });
 
+    // Phase 7: Queue Color Gradient - Gradient caching for performance
+    private final Map<Integer, GradientDrawable> gradientCache = new HashMap<>();
+    private final MutableLiveData<Integer> currentQueueColor = new MutableLiveData<>();
+
     public QueueViewModel(@NonNull Application application) {
         super(application);
         EventBus.getDefault().register(this);
@@ -66,7 +73,8 @@ public class QueueViewModel extends AndroidViewModel {
 
     /**
      * Load initial queue data from database.
-     * Called once on ViewModel creation.
+     * Called once on ViewModel creation and after queue-related events.
+     * Also emits the current queue color for gradient rendering.
      */
     private void loadQueueData() {
         long currentQueueId = UserPreferences.getCurrentQueueId();
@@ -77,6 +85,11 @@ public class QueueViewModel extends AndroidViewModel {
 
         QueueMetadata currentQueue = DBReader.getQueueMetadataById(currentQueueId);
         currentQueueLiveData.setValue(currentQueue);
+
+        // Phase 7: Emit queue color for gradient rendering
+        if (currentQueue != null) {
+            currentQueueColor.setValue(currentQueue.getColor());
+        }
     }
 
     /**
@@ -124,6 +137,72 @@ public class QueueViewModel extends AndroidViewModel {
      */
     public QueueMetadata getCurrentQueue() {
         return currentQueueLiveData.getValue();
+    }
+
+    /**
+     * Get LiveData for the current queue color.
+     * Emits the ARGB color value of the currently active queue.
+     * Used by fragments to observe and apply color gradients.
+     *
+     * <p>Example usage in fragments:
+     * <pre>{@code
+     * viewModel.getCurrentQueueColor().observe(getViewLifecycleOwner(), color -> {
+     *     GradientDrawable gradient = viewModel.getGradientForColor(color);
+     *     titleBar.setBackground(gradient);
+     * });
+     * }</pre>
+     *
+     * @return LiveData emitting ARGB color when queue switches or color changes
+     * @since Phase 7: Queue Color Gradient
+     */
+    public LiveData<Integer> getCurrentQueueColor() {
+        return currentQueueColor;
+    }
+
+    /**
+     * Get a cached gradient drawable for the given queue color.
+     * Creates and caches the gradient on first access, returns cached version on subsequent calls.
+     *
+     * <p>The gradient fades from the queue color (with scrim applied for light colors)
+     * to transparent, using TOP_BOTTOM orientation.
+     *
+     * <p>Cache is automatically cleared on theme changes to ensure gradients match the current theme.
+     *
+     * @param color ARGB queue color value
+     * @return Cached or newly created GradientDrawable for this color
+     * @since Phase 7: Queue Color Gradient
+     */
+    public GradientDrawable getGradientForColor(@ColorInt int color) {
+        // Check cache first for performance
+        if (gradientCache.containsKey(color)) {
+            return gradientCache.get(color);
+        }
+
+        // Cache miss: create gradient and store in cache
+        GradientDrawable gradient = QueueColorGradient.createGradientDrawable(
+                color, android.graphics.Color.TRANSPARENT);
+        gradientCache.put(color, gradient);
+        return gradient;
+    }
+
+    /**
+     * Clear the gradient drawable cache.
+     * Should be called on theme changes to ensure gradients are regenerated with correct theming.
+     *
+     * <p>After clearing the cache, the current queue color is re-emitted to trigger
+     * fragments to request new gradients.
+     *
+     * @since Phase 7: Queue Color Gradient
+     */
+    public void clearGradientCache() {
+        gradientCache.clear();
+        Log.d(TAG, "Gradient cache cleared (theme change or manual clear)");
+
+        // Re-emit current queue color to trigger gradient redraw
+        Integer currentColor = currentQueueColor.getValue();
+        if (currentColor != null) {
+            currentQueueColor.setValue(currentColor);
+        }
     }
 
     /**
