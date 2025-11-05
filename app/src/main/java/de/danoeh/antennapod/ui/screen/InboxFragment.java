@@ -2,6 +2,7 @@ package de.danoeh.antennapod.ui.screen;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
@@ -11,12 +12,15 @@ import android.widget.CheckBox;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.util.Pair;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.event.MessageEvent;
 import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.storage.database.DBWriter;
+import de.danoeh.antennapod.ui.common.QueueColorGradient;
+import de.danoeh.antennapod.ui.common.QueueViewModel;
 import de.danoeh.antennapod.ui.screen.feed.ItemSortDialog;
 import de.danoeh.antennapod.event.FeedListUpdateEvent;
 import de.danoeh.antennapod.model.feed.FeedItem;
@@ -51,6 +55,33 @@ public class InboxFragment extends EpisodesListFragment {
         emptyView.setTitle(R.string.no_inbox_head_label);
         emptyView.setMessage(R.string.no_inbox_label);
         return root;
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        // Phase 7: Queue Color Gradient - Apply gradient to title bar
+        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
+        queueViewModel.getCurrentQueueColor().observe(getViewLifecycleOwner(), color -> {
+            if (color != null && toolbar != null) {
+                GradientDrawable gradient = queueViewModel.getGradientForColor(color);
+                toolbar.setBackground(gradient);
+
+                int textColor = QueueColorGradient.computeTextColor(color);
+                toolbar.setTitleTextColor(textColor);
+                toolbar.setNavigationIconTint(textColor);
+
+                if (toolbar.getMenu() != null) {
+                    for (int i = 0; i < toolbar.getMenu().size(); i++) {
+                        MenuItem item = toolbar.getMenu().getItem(i);
+                        if (item.getIcon() != null) {
+                            item.getIcon().setTint(textColor);
+                        }
+                    }
+                }
+            }
+        });
     }
 
     @Override
