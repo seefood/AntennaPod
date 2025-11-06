@@ -27,8 +27,10 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -46,12 +48,14 @@ import de.danoeh.antennapod.event.FeedEvent;
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import de.danoeh.antennapod.model.download.DownloadResult;
+import de.danoeh.antennapod.model.CopyResult;
 import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.model.feed.FeedPreferences;
 import de.danoeh.antennapod.model.feed.QueueMetadata;
 import de.danoeh.antennapod.model.feed.SortOrder;
+import de.danoeh.antennapod.model.MoveResult;
 import de.danoeh.antennapod.model.playback.Playable;
 import de.danoeh.antennapod.net.sync.serviceinterface.EpisodeAction;
 
@@ -1221,6 +1225,208 @@ public class DBWriter {
             }
             return null;
         });
+    }
+
+    // ============ Queue Item Transfer Operations (T012-T016) ============
+
+    /**
+     * Moves an episode from one queue to another.
+     * The episode is removed from the source queue and added to the target queue.
+     *
+     * @param feedItemId The ID of the feed item to move
+     * @param sourceQueueId The ID of the source queue
+     * @param targetQueueId The ID of the target queue
+     * @return {@code Future<MoveResult>} with operation details
+     */
+    public static Future<MoveResult> moveQueueItem(final long feedItemId, final long sourceQueueId, final long targetQueueId) {
+        return dbExec.submit(() -> {
+            try {
+                // Remove from source queue
+                removeQueueItemSynchronous(null, false, feedItemId, sourceQueueId);
+
+                // Add to target queue
+                addQueueItemSynchronous(feedItemId, targetQueueId);
+
+                // Post event
+                FeedItem item = DBReader.getFeedItem(feedItemId);
+                if (item != null) {
+                    EventBus.getDefault().post(QueueEvent.moved(item, -1));
+                }
+
+                // Return success result
+                return new MoveResult(1, 0, new ArrayList<>(), new HashMap<>());
+            } catch (Exception e) {
+                Log.e(TAG, "Error moving queue item: " + feedItemId, e);
+                List<Long> skipped = new ArrayList<>();
+                skipped.add(feedItemId);
+                Map<Long, String> reasons = new HashMap<>();
+                reasons.put(feedItemId, e.getMessage());
+                return new MoveResult(0, 1, skipped, reasons);
+            }
+        });
+    }
+
+    /**
+     * Copies an episode to another queue while keeping it in the source queue.
+     *
+     * @param feedItemId The ID of the feed item to copy
+     * @param targetQueueId The ID of the target queue
+     * @return {@code Future<CopyResult>} with operation details
+     */
+    public static Future<CopyResult> copyQueueItem(final long feedItemId, final long targetQueueId) {
+        return dbExec.submit(() -> {
+            try {
+                addQueueItemSynchronous(feedItemId, targetQueueId);
+
+                // Post event
+                FeedItem item = DBReader.getFeedItem(feedItemId);
+                if (item != null) {
+                    EventBus.getDefault().post(QueueEvent.added(item, -1));
+                }
+
+                return new CopyResult(1, 0, new ArrayList<>(), new HashMap<>());
+            } catch (Exception e) {
+                Log.e(TAG, "Error copying queue item: " + feedItemId, e);
+                List<Long> skipped = new ArrayList<>();
+                skipped.add(feedItemId);
+                Map<Long, String> reasons = new HashMap<>();
+                reasons.put(feedItemId, e.getMessage());
+                return new CopyResult(0, 1, skipped, reasons);
+            }
+        });
+    }
+
+    /**
+     * Moves multiple episodes from one queue to another.
+     * Uses best-effort approach: attempts to move each episode, skipping any that fail.
+     *
+     * @param feedItemIds The IDs of the feed items to move
+     * @param sourceQueueId The ID of the source queue
+     * @param targetQueueId The ID of the target queue
+     * @return {@code Future<MoveResult>} with operation details
+     */
+    public static Future<MoveResult> moveQueueItems(final List<Long> feedItemIds, final long sourceQueueId, final long targetQueueId) {
+        return dbExec.submit(() -> {
+            int movedCount = 0;
+            List<Long> skipped = new ArrayList<>();
+            Map<Long, String> reasons = new HashMap<>();
+
+            for (long feedItemId : feedItemIds) {
+                try {
+                    removeQueueItemSynchronous(null, false, feedItemId, sourceQueueId);
+                    addQueueItemSynchronous(feedItemId, targetQueueId);
+                    movedCount++;
+                } catch (Exception e) {
+                    skipped.add(feedItemId);
+                    reasons.put(feedItemId, e.getMessage());
+                }
+            }
+
+            if (movedCount > 0) {
+                EventBus.getDefault().post(QueueEvent.moved(null, -1));
+            }
+
+            return new MoveResult(movedCount, skipped.size(), skipped, reasons);
+        });
+    }
+
+    /**
+     * Copies multiple episodes to another queue.
+     * Uses best-effort approach: skips items that are already in the target queue or encounter errors.
+     *
+     * @param feedItemIds The IDs of the feed items to copy
+     * @param targetQueueId The ID of the target queue
+     * @return {@code Future<CopyResult>} with operation details
+     */
+    public static Future<CopyResult> copyQueueItems(final List<Long> feedItemIds, final long targetQueueId) {
+        return dbExec.submit(() -> {
+            int copiedCount = 0;
+            List<Long> skipped = new ArrayList<>();
+            Map<Long, String> reasons = new HashMap<>();
+
+            for (long feedItemId : feedItemIds) {
+                try {
+                    addQueueItemSynchronous(feedItemId, targetQueueId);
+                    copiedCount++;
+                } catch (Exception e) {
+                    skipped.add(feedItemId);
+                    reasons.put(feedItemId, e.getMessage());
+                }
+            }
+
+            if (copiedCount > 0) {
+                EventBus.getDefault().post(QueueEvent.added(null, -1));
+            }
+
+            return new CopyResult(copiedCount, skipped.size(), skipped, reasons);
+        });
+    }
+
+    /**
+     * Synchronous helper method to remove a queue item from a specific queue.
+     * Does NOT trigger events (caller is responsible).
+     *
+     * @param context Application context (nullable for internal use)
+     * @param performAutoDownload Whether to perform auto-download after removal
+     * @param feedItemId The feed item ID to remove
+     * @param queueId The queue ID to remove from
+     * @throws Exception if removal fails
+     */
+    private static void removeQueueItemSynchronous(@Nullable Context context, boolean performAutoDownload, long feedItemId, long queueId) throws Exception {
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try {
+            // Get current queue items
+            List<FeedItem> queue = DBReader.getQueue(queueId);
+
+            // Remove the item from the list (API 21 compatible)
+            for (int i = queue.size() - 1; i >= 0; i--) {
+                if (queue.get(i).getId() == feedItemId) {
+                    queue.remove(i);
+                    break;
+                }
+            }
+
+            // Update the queue
+            adapter.setQueue(queue, queueId);
+        } finally {
+            adapter.close();
+        }
+    }
+
+    /**
+     * Synchronous helper method to add a queue item to a specific queue.
+     * Does NOT trigger events (caller is responsible).
+     *
+     * @param feedItemId The feed item ID to add
+     * @param queueId The queue ID to add to
+     * @throws Exception if addition fails
+     */
+    private static void addQueueItemSynchronous(long feedItemId, long queueId) throws Exception {
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try {
+            FeedItem item = DBReader.getFeedItem(feedItemId);
+            if (item == null) {
+                throw new Exception("Feed item not found: " + feedItemId);
+            }
+
+            // Get current queue items
+            List<FeedItem> queue = DBReader.getQueue(queueId);
+
+            // Check if item already in target queue (prevent duplicates)
+            if (itemListContains(queue, feedItemId)) {
+                throw new Exception("Episode already in target queue");
+            }
+
+            // Add the item to the end of the queue
+            queue.add(item);
+
+            // Update the queue
+            adapter.setQueue(queue, queueId);
+        } finally {
+            adapter.close();
+        }
     }
 
     // ============ Backward Compatibility (T020-T022, T042) ============

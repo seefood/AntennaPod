@@ -19,6 +19,11 @@ public class QueueEvent {
         DELETED_MEDIA,
         SORTED,
         MOVED,
+        // Queue transfer operations (T028)
+        ITEM_MOVED,
+        ITEM_COPIED,
+        ITEMS_BATCH_MOVED,
+        ITEMS_BATCH_COPIED,
         // Queue management operations
         QUEUE_CREATED,
         QUEUE_RENAMED,
@@ -83,6 +88,51 @@ public class QueueEvent {
 
     public static QueueEvent moved(FeedItem item, int newPosition) {
         return new QueueEvent(Action.MOVED, item, null, newPosition, -1);
+    }
+
+    // ============ Queue Transfer Operations (T028-T029) ============
+
+    /**
+     * Fired when a single episode is moved from one queue to another.
+     *
+     * @param item The FeedItem that was moved
+     * @param sourceQueueId The ID of the source queue
+     * @param targetQueueId The ID of the target queue
+     */
+    public static QueueEvent itemMoved(FeedItem item, long sourceQueueId, long targetQueueId) {
+        // Store source queue ID in position field for now; better pattern would be to extend QueueEvent
+        return new QueueEvent(Action.ITEM_MOVED, item, null, (int) sourceQueueId, targetQueueId);
+    }
+
+    /**
+     * Fired when a single episode is copied to another queue.
+     *
+     * @param item The FeedItem that was copied
+     * @param targetQueueId The ID of the queue it was copied to
+     */
+    public static QueueEvent itemCopied(FeedItem item, long targetQueueId) {
+        return new QueueEvent(Action.ITEM_COPIED, item, null, -1, targetQueueId);
+    }
+
+    /**
+     * Fired when multiple episodes are moved from one queue to another.
+     *
+     * @param items The FeedItems that were moved
+     * @param sourceQueueId The ID of the source queue
+     * @param targetQueueId The ID of the target queue
+     */
+    public static QueueEvent itemsBatchMoved(List<FeedItem> items, long sourceQueueId, long targetQueueId) {
+        return new QueueEvent(Action.ITEMS_BATCH_MOVED, null, items, (int) sourceQueueId, targetQueueId);
+    }
+
+    /**
+     * Fired when multiple episodes are copied to another queue.
+     *
+     * @param items The FeedItems that were copied
+     * @param targetQueueId The ID of the target queue
+     */
+    public static QueueEvent itemsBatchCopied(List<FeedItem> items, long targetQueueId) {
+        return new QueueEvent(Action.ITEMS_BATCH_COPIED, null, items, -1, targetQueueId);
     }
 
     // ============ Queue Management Operations (T026 - new queue-specific actions) ============
