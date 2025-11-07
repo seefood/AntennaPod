@@ -372,7 +372,7 @@ public class DBWriter {
             }
 
             adapter.close();
-            AutoDownloadManager.getInstance().autodownloadUndownloadedItems(context);
+            callAutoDownloadManagerSafely(context);
         });
     }
 
@@ -428,7 +428,7 @@ public class DBWriter {
                 }
             }
             adapter.close();
-            AutoDownloadManager.getInstance().autodownloadUndownloadedItems(context);
+            callAutoDownloadManagerSafely(context);
         });
     }
 
@@ -1613,7 +1613,6 @@ public class DBWriter {
      *
      * Preserves existing behavior: insert episode at specific position within queue.
      * NOTE: This is an overload of existing addQueueItemAt(Context, long, int) method.
-     * For Phase 3, implementation deferred to Phase 4 when QueuePreferences available.
      *
      * @param context Application context
      * @param itemId Feed item ID to add
@@ -1621,14 +1620,34 @@ public class DBWriter {
      * @param queueId Target queue ID
      * @return {@code Future<Void>}
      */
-    // TODO T042: Implement addQueueItemAt with queueId parameter
-    // Implementation strategy:
-    // 1. Get current queue items: SELECT * FROM Queue WHERE queue_id = ? ORDER BY id ASC
-    // 2. If index > max_id, just append (no shift needed)
-    // 3. Otherwise, shift positions for all items at position >= index (increment id by 1)
-    // 4. Insert new item at target position
-    // 5. Update QueueMetadata.currently_playing_feedmedia_id if first item
-    // 6. Post QueueEvent
+    public static Future<?> addQueueItemAt(final Context context, final long itemId, final int index, final long queueId) {
+        return runOnDbThread(() -> {
+            final PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                final List<FeedItem> queue = DBReader.getQueue(queueId);
+
+                if (!itemListContains(queue, itemId)) {
+                    FeedItem item = DBReader.getFeedItem(itemId);
+                    if (item != null) {
+                        // Clamp index to valid range
+                        int insertIndex = Math.max(0, Math.min(index, queue.size()));
+                        queue.add(insertIndex, item);
+                        adapter.setQueue(queue, queueId);
+                        item.addTag(FeedItem.TAG_QUEUE);
+                        EventBus.getDefault().post(QueueEvent.added(item, insertIndex));
+                        EventBus.getDefault().post(FeedItemEvent.updated(item));
+                        if (item.isNew()) {
+                            DBWriter.markItemPlayed(FeedItem.UNPLAYED, item.getId());
+                        }
+                        callAutoDownloadManagerSafely(context);
+                    }
+                }
+            } finally {
+                adapter.close();
+            }
+        });
+    }
 
     /**
      * Safely gets the currently playing media, handling cases where PlaybackPreferences
