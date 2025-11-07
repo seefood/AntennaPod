@@ -359,26 +359,13 @@ public class DBWriterQueueTransferTest {
         }
 
         // Try to move from queue1 to queue1 (same queue)
+        // The implementation removes from source, then adds to target.
+        // When source == target, it removes then adds back (no-op behavior).
         MoveResult result = DBWriter.moveQueueItem(itemId, queue1Id, queue1Id).get();
 
-        // Should fail - item is removed from source but then fails to add to target (duplicate)
-        // Actually, the implementation removes first, then adds. So it will remove from queue1,
-        // then try to add to queue1, which will fail because it's not in queue1 anymore.
-        // Wait, that's not right. Let me check the implementation...
-        // Actually, removeQueueItemSynchronous removes from source, then addQueueItemSynchronous
-        // adds to target. If target == source, it will remove, then try to add, but the item
-        // is no longer in the queue, so addQueueItemSynchronous will check if it's already in
-        // the queue (it's not), and add it. So it should work, but it's a no-op effectively.
-        // Actually wait, let me re-read the code. removeQueueItemSynchronous removes from the
-        // queue, then addQueueItemSynchronous adds it back. So it should work, but it's
-        // inefficient. However, the duplicate check in addQueueItemSynchronous checks if the
-        // item is already in the queue. After removal, it's not, so it will add it back.
-        // So moving to the same queue should work, but it's a no-op.
-
-        // Actually, I think the test should verify that moving to the same queue is a no-op
-        // or fails. Let me check what the expected behavior should be. Since the implementation
-        // removes then adds, it should work but be inefficient. However, for testing purposes,
-        // let's verify it works (no-op behavior).
+        // Should succeed (no-op: removes then adds back)
+        assertEquals("Should have moved 1 item", 1, result.getMovedCount());
+        assertEquals("Should have skipped 0 items", 0, result.getSkippedCount());
 
         // Verify item still in queue1
         List<FeedItem> queue1After = DBReader.getQueue(queue1Id);
@@ -582,6 +569,85 @@ public class DBWriterQueueTransferTest {
             assertTrue("Item should be in queue2", queue2.stream()
                     .anyMatch(item -> item.getId() == itemId));
         }
+    }
+
+    @Test
+    public void testMoveQueueItem_AlreadyInTargetQueue_Fails() throws Exception {
+        long itemId = testItems.get(0).getId();
+
+        // Add item to both queue1 and queue2
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try {
+            List<FeedItem> queue1 = DBReader.getQueue(queue1Id);
+            queue1.add(testItems.get(0));
+            adapter.setQueue(queue1, queue1Id);
+
+            List<FeedItem> queue2 = DBReader.getQueue(queue2Id);
+            queue2.add(testItems.get(0));
+            adapter.setQueue(queue2, queue2Id);
+        } finally {
+            adapter.close();
+        }
+
+        // Try to move from queue1 to queue2 (already in queue2)
+        // The implementation removes from source first, then tries to add to target.
+        // Since item is already in target, addQueueItemSynchronous will fail with duplicate error.
+        MoveResult result = DBWriter.moveQueueItem(itemId, queue1Id, queue2Id).get();
+
+        // Should fail - item removed from queue1 but fails to add to queue2 (duplicate)
+        assertEquals("Should have moved 0 items", 0, result.getMovedCount());
+        assertEquals("Should have skipped 1 item", 1, result.getSkippedCount());
+        assertTrue("Skipped item IDs should contain itemId", result.getSkippedItemIds().contains(itemId));
+        assertNotNull("Skip reason should be present", result.getSkipReasons().get(itemId));
+
+        // Verify item removed from queue1 (removal succeeded)
+        assertFalse("Item should not be in queue1", DBReader.getQueue(queue1Id).stream()
+                .anyMatch(item -> item.getId() == itemId));
+
+        // Verify item still in queue2 (addition failed due to duplicate)
+        assertTrue("Item should still be in queue2", DBReader.getQueue(queue2Id).stream()
+                .anyMatch(item -> item.getId() == itemId));
+    }
+
+    @Test
+    public void testMoveQueueItems_MixedValidAndInvalid() throws Exception {
+        // Create list with valid and invalid item IDs
+        List<Long> itemIds = new ArrayList<>();
+        itemIds.add(testItems.get(0).getId()); // Valid
+        itemIds.add(99999L); // Invalid
+        itemIds.add(testItems.get(1).getId()); // Valid
+        itemIds.add(99998L); // Invalid
+        itemIds.add(testItems.get(2).getId()); // Valid
+
+        // Add valid items to queue1
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try {
+            List<FeedItem> queue1 = DBReader.getQueue(queue1Id);
+            queue1.add(testItems.get(0));
+            queue1.add(testItems.get(1));
+            queue1.add(testItems.get(2));
+            adapter.setQueue(queue1, queue1Id);
+        } finally {
+            adapter.close();
+        }
+
+        // Move all items (3 valid, 2 invalid)
+        MoveResult result = DBWriter.moveQueueItems(itemIds, queue1Id, queue2Id).get();
+
+        // Should move 3 valid items, skip 2 invalid items
+        assertEquals("Should have moved 3 items", 3, result.getMovedCount());
+        assertEquals("Should have skipped 2 items", 2, result.getSkippedCount());
+        assertEquals("Should have 2 skipped item IDs", 2, result.getSkippedItemIds().size());
+
+        // Verify 3 items in queue2
+        List<FeedItem> queue2 = DBReader.getQueue(queue2Id);
+        assertEquals("Queue2 should have 3 items", 3, queue2.size());
+
+        // Verify queue1 is empty (all valid items moved)
+        List<FeedItem> queue1 = DBReader.getQueue(queue1Id);
+        assertEquals("Queue1 should be empty", 0, queue1.size());
     }
 
     // Helper methods
