@@ -1232,6 +1232,7 @@ public class DBWriter {
     /**
      * Moves an episode from one queue to another.
      * The episode is removed from the source queue and added to the target queue.
+     * Reuses the public removeQueueItem and addQueueItem methods to ensure proper UI updates.
      *
      * @param feedItemId The ID of the feed item to move
      * @param sourceQueueId The ID of the source queue
@@ -1243,20 +1244,74 @@ public class DBWriter {
     public static Future<MoveResult> moveQueueItem(final long feedItemId, final long sourceQueueId, final long targetQueueId) {
         return dbExec.submit(() -> {
             try {
-                // Remove from source queue
-                removeQueueItemSynchronous(null, false, feedItemId, sourceQueueId);
-
-                // Add to target queue
-                addQueueItemSynchronous(feedItemId, targetQueueId);
-
-                // Post event
+                // Get the feed item
                 FeedItem item = DBReader.getFeedItem(feedItemId);
-                if (item != null) {
-                    EventBus.getDefault().post(QueueEvent.itemMoved(item, sourceQueueId, targetQueueId));
+                if (item == null) {
+                    throw new Exception("Feed item not found: " + feedItemId);
                 }
 
-                // Return success result
-                return new MoveResult(1, 0, new ArrayList<>(), new HashMap<>());
+                // Save the current active queue
+                long originalQueueId = UserPreferences.getCurrentQueueId();
+
+                try {
+                    // Switch to source queue and check if item is in queue
+                    UserPreferences.setCurrentQueueId(sourceQueueId);
+                    List<FeedItem> sourceQueue = DBReader.getQueue();
+                    boolean inSourceQueue = sourceQueue.stream().anyMatch(i -> i.getId() == feedItemId);
+                    if (!inSourceQueue) {
+                        throw new Exception("Episode not in source queue");
+                    }
+
+                    // Remove the item from source queue (this posts QueueEvent.removed)
+                    removeQueueItemSynchronous(null, false, feedItemId);
+
+                    // Switch to target queue and add the item (this posts QueueEvent.added)
+                    UserPreferences.setCurrentQueueId(targetQueueId);
+                    // Reuse addQueueItem logic - call it synchronously since we're on dbExec thread
+                    final PodDBAdapter adapter = PodDBAdapter.getInstance();
+                    adapter.open();
+                    final List<FeedItem> queue = DBReader.getQueue();
+
+                    if (!itemListContains(queue, item.getId()) && item.hasMedia()) {
+                        final LongList markAsUnplayedIds = new LongList();
+                        final List<QueueEvent> events = new ArrayList<>();
+                        final List<FeedItem> updatedItems = new ArrayList<>();
+                        final ItemEnqueuePositionCalculator positionCalculator =
+                                new ItemEnqueuePositionCalculator(UserPreferences.getEnqueueLocation());
+                        final Playable currentlyPlaying = DBReader.getFeedMedia(
+                                PlaybackPreferences.getCurrentlyPlayingFeedMediaId());
+                        final int insertPosition = positionCalculator.calcPosition(queue, currentlyPlaying);
+
+                        queue.add(insertPosition, item);
+                        events.add(QueueEvent.added(item, insertPosition));
+                        item.addTag(FeedItem.TAG_QUEUE);
+                        updatedItems.add(item);
+                        if (item.isNew()) {
+                            markAsUnplayedIds.add(item.getId());
+                        }
+
+                        applySortOrder(queue, events);
+                        adapter.setQueue(queue);
+                        for (QueueEvent event : events) {
+                            EventBus.getDefault().post(event);
+                        }
+                        EventBus.getDefault().post(FeedItemEvent.updated(updatedItems));
+                        if (markAsUnplayedIds.size() > 0) {
+                            DBWriter.markItemPlayed(FeedItem.UNPLAYED, markAsUnplayedIds.toArray());
+                        }
+                    }
+                    adapter.close();
+                    AutoDownloadManager.getInstance().autodownloadUndownloadedItems(null);
+
+                    // Post move event
+                    EventBus.getDefault().post(QueueEvent.itemMoved(item, sourceQueueId, targetQueueId));
+
+                    // Return success result
+                    return new MoveResult(1, 0, new ArrayList<>(), new HashMap<>());
+                } finally {
+                    // Restore the original active queue
+                    UserPreferences.setCurrentQueueId(originalQueueId);
+                }
             } catch (Exception e) {
                 Log.e(TAG, "Error moving queue item: " + feedItemId, e);
                 List<Long> skipped = new ArrayList<>();
@@ -1303,6 +1358,7 @@ public class DBWriter {
     /**
      * Moves multiple episodes from one queue to another.
      * Uses best-effort approach: attempts to move each episode, skipping any that fail.
+     * Reuses the public removeQueueItem and addQueueItem methods to ensure proper UI updates.
      *
      * @param feedItemIds The IDs of the feed items to move
      * @param sourceQueueId The ID of the source queue
@@ -1316,31 +1372,105 @@ public class DBWriter {
             int movedCount = 0;
             List<Long> skipped = new ArrayList<>();
             Map<Long, String> reasons = new HashMap<>();
+            List<FeedItem> movedItems = new ArrayList<>();
 
-            for (long feedItemId : feedItemIds) {
-                try {
-                    removeQueueItemSynchronous(null, false, feedItemId, sourceQueueId);
-                    addQueueItemSynchronous(feedItemId, targetQueueId);
-                    movedCount++;
-                } catch (Exception e) {
-                    skipped.add(feedItemId);
-                    reasons.put(feedItemId, e.getMessage());
-                }
-            }
+            // Save the current active queue
+            long originalQueueId = UserPreferences.getCurrentQueueId();
 
-            if (movedCount > 0) {
-                List<FeedItem> movedItems = new ArrayList<>();
+            try {
+                // Get all feed items first
+                List<FeedItem> items = new ArrayList<>();
                 for (long feedItemId : feedItemIds) {
-                    if (!skipped.contains(feedItemId)) {
-                        FeedItem item = DBReader.getFeedItem(feedItemId);
-                        if (item != null) {
-                            movedItems.add(item);
+                    FeedItem item = DBReader.getFeedItem(feedItemId);
+                    if (item != null) {
+                        items.add(item);
+                    } else {
+                        // Item not found, skip it
+                        skipped.add(feedItemId);
+                        reasons.put(feedItemId, "Feed item not found");
+                    }
+                }
+
+                // Switch to source queue and check which items are in the queue
+                UserPreferences.setCurrentQueueId(sourceQueueId);
+                List<FeedItem> sourceQueue = DBReader.getQueue();
+                List<FeedItem> itemsToRemove = new ArrayList<>();
+                for (FeedItem item : items) {
+                    if (!skipped.contains(item.getId())) {
+                        boolean inSourceQueue = sourceQueue.stream().anyMatch(i -> i.getId() == item.getId());
+                        if (inSourceQueue) {
+                            itemsToRemove.add(item);
+                        } else {
+                            // Item not in source queue, skip it
+                            skipped.add(item.getId());
+                            reasons.put(item.getId(), "Episode not in source queue");
                         }
                     }
                 }
+
+                // Remove items from source queue (this posts QueueEvent.removed for each)
+                if (!itemsToRemove.isEmpty()) {
+                    long[] itemIdsToRemove = itemsToRemove.stream().mapToLong(FeedItem::getId).toArray();
+                    removeQueueItemSynchronous(null, false, itemIdsToRemove);
+                }
+
+                // Switch to target queue and add items (this posts QueueEvent.added for each)
+                UserPreferences.setCurrentQueueId(targetQueueId);
+                // Reuse addQueueItem logic - call it synchronously since we're on dbExec thread
+                final PodDBAdapter adapter = PodDBAdapter.getInstance();
+                adapter.open();
+                final List<FeedItem> queue = DBReader.getQueue();
+
+                LongList markAsUnplayedIds = new LongList();
+                List<QueueEvent> events = new ArrayList<>();
+                List<FeedItem> updatedItems = new ArrayList<>();
+                ItemEnqueuePositionCalculator positionCalculator =
+                        new ItemEnqueuePositionCalculator(UserPreferences.getEnqueueLocation());
+                Playable currentlyPlaying = DBReader.getFeedMedia(PlaybackPreferences.getCurrentlyPlayingFeedMediaId());
+                int insertPosition = positionCalculator.calcPosition(queue, currentlyPlaying);
+
+                for (FeedItem item : itemsToRemove) {
+                    if (!itemListContains(queue, item.getId()) && item.hasMedia()) {
+                        queue.add(insertPosition, item);
+                        events.add(QueueEvent.added(item, insertPosition));
+                        item.addTag(FeedItem.TAG_QUEUE);
+                        updatedItems.add(item);
+                        if (item.isNew()) {
+                            markAsUnplayedIds.add(item.getId());
+                        }
+                        insertPosition++;
+                        movedItems.add(item);
+                        movedCount++;
+                    } else {
+                        // Item already in queue or has no media, skip it
+                        skipped.add(item.getId());
+                        reasons.put(item.getId(), itemListContains(queue, item.getId())
+                                ? "Episode already in target queue"
+                                : "Episode has no media");
+                    }
+                }
+
+                if (!updatedItems.isEmpty()) {
+                    applySortOrder(queue, events);
+                    adapter.setQueue(queue);
+                    for (QueueEvent event : events) {
+                        EventBus.getDefault().post(event);
+                    }
+                    EventBus.getDefault().post(FeedItemEvent.updated(updatedItems));
+                    if (markAsUnplayedIds.size() > 0) {
+                        DBWriter.markItemPlayed(FeedItem.UNPLAYED, markAsUnplayedIds.toArray());
+                    }
+                }
+                adapter.close();
+                AutoDownloadManager.getInstance().autodownloadUndownloadedItems(null);
+
+                // Post batch move event if any items were moved
                 if (!movedItems.isEmpty()) {
                     EventBus.getDefault().post(QueueEvent.itemsBatchMoved(movedItems, sourceQueueId, targetQueueId));
                 }
+            } finally {
+                // Restore the original active queue
+                UserPreferences.setCurrentQueueId(originalQueueId);
             }
 
             return new MoveResult(movedCount, skipped.size(), skipped, reasons);
