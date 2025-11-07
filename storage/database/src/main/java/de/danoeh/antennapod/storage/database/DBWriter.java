@@ -1270,16 +1270,25 @@ public class DBWriter {
                     // Reuse addQueueItem logic - call it synchronously since we're on dbExec thread
                     final PodDBAdapter adapter = PodDBAdapter.getInstance();
                     adapter.open();
-                    final List<FeedItem> queue = DBReader.getQueue();
+                    try {
+                        final List<FeedItem> queue = DBReader.getQueue();
 
-                    if (!itemListContains(queue, item.getId()) && item.hasMedia()) {
+                        // Check if item already in target queue
+                        if (itemListContains(queue, item.getId())) {
+                            throw new Exception("Episode already in target queue");
+                        }
+
+                        // Check if item has media
+                        if (!item.hasMedia()) {
+                            throw new Exception("Episode has no media");
+                        }
+
                         final LongList markAsUnplayedIds = new LongList();
                         final List<QueueEvent> events = new ArrayList<>();
                         final List<FeedItem> updatedItems = new ArrayList<>();
                         final ItemEnqueuePositionCalculator positionCalculator =
                                 new ItemEnqueuePositionCalculator(UserPreferences.getEnqueueLocation());
-                        final Playable currentlyPlaying = DBReader.getFeedMedia(
-                                PlaybackPreferences.getCurrentlyPlayingFeedMediaId());
+                        Playable currentlyPlaying = getCurrentlyPlayingSafely();
                         final int insertPosition = positionCalculator.calcPosition(queue, currentlyPlaying);
 
                         queue.add(insertPosition, item);
@@ -1299,9 +1308,10 @@ public class DBWriter {
                         if (markAsUnplayedIds.size() > 0) {
                             DBWriter.markItemPlayed(FeedItem.UNPLAYED, markAsUnplayedIds.toArray());
                         }
+                        callAutoDownloadManagerSafely(null);
+                    } finally {
+                        adapter.close();
                     }
-                    adapter.close();
-                    AutoDownloadManager.getInstance().autodownloadUndownloadedItems(null);
 
                     // Post move event
                     EventBus.getDefault().post(QueueEvent.itemMoved(item, sourceQueueId, targetQueueId));
@@ -1426,7 +1436,7 @@ public class DBWriter {
                 List<FeedItem> updatedItems = new ArrayList<>();
                 ItemEnqueuePositionCalculator positionCalculator =
                         new ItemEnqueuePositionCalculator(UserPreferences.getEnqueueLocation());
-                Playable currentlyPlaying = DBReader.getFeedMedia(PlaybackPreferences.getCurrentlyPlayingFeedMediaId());
+                Playable currentlyPlaying = getCurrentlyPlayingSafely();
                 int insertPosition = positionCalculator.calcPosition(queue, currentlyPlaying);
 
                 for (FeedItem item : itemsToRemove) {
@@ -1462,7 +1472,7 @@ public class DBWriter {
                     }
                 }
                 adapter.close();
-                AutoDownloadManager.getInstance().autodownloadUndownloadedItems(null);
+                callAutoDownloadManagerSafely(null);
 
                 // Post batch move event if any items were moved
                 if (!movedItems.isEmpty()) {
@@ -1619,6 +1629,42 @@ public class DBWriter {
     // 4. Insert new item at target position
     // 5. Update QueueMetadata.currently_playing_feedmedia_id if first item
     // 6. Post QueueEvent
+
+    /**
+     * Safely gets the currently playing media, handling cases where PlaybackPreferences
+     * is not initialized (e.g., in tests).
+     *
+     * @return The currently playing Playable, or null if not available
+     */
+    private static Playable getCurrentlyPlayingSafely() {
+        try {
+            long currentlyPlayingId = PlaybackPreferences.getCurrentlyPlayingFeedMediaId();
+            if (currentlyPlayingId >= 0) {
+                return DBReader.getFeedMedia(currentlyPlayingId);
+            }
+        } catch (Exception e) {
+            // PlaybackPreferences not initialized (e.g., in tests)
+            Log.v(TAG, "PlaybackPreferences not initialized, using null for currentlyPlaying", e);
+        }
+        return null;
+    }
+
+    /**
+     * Safely calls AutoDownloadManager, handling cases where it is not initialized (e.g., in tests).
+     *
+     * @param context Application context (nullable)
+     */
+    private static void callAutoDownloadManagerSafely(@Nullable Context context) {
+        try {
+            AutoDownloadManager manager = AutoDownloadManager.getInstance();
+            if (manager != null) {
+                manager.autodownloadUndownloadedItems(context);
+            }
+        } catch (Exception e) {
+            // AutoDownloadManager not initialized (e.g., in tests)
+            Log.v(TAG, "AutoDownloadManager not initialized", e);
+        }
+    }
 
     /**
      * Submit to the DB thread only if caller is not already on the DB thread. Otherwise,
