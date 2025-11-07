@@ -121,6 +121,29 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
         super.onStart();
         loadItems();
         EventBus.getDefault().register(this);
+        // Recompute text color when fragment becomes visible (e.g., after theme change)
+        recomputeToolbarColors();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Recompute text color when fragment resumes (e.g., after theme change)
+        recomputeToolbarColors();
+    }
+
+    private void recomputeToolbarColors() {
+        if (toolbar == null) {
+            return;
+        }
+        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
+        Integer currentColor = queueViewModel.getCurrentQueueColor().getValue();
+        if (currentColor != null) {
+            // Clear cache without re-emitting (to avoid infinite loop)
+            queueViewModel.clearGradientCache(false);
+            GradientDrawable gradient = queueViewModel.getGradientForColor(currentColor);
+            QueueColorGradient.applyGradientToToolbar(toolbar, gradient, currentColor);
+        }
     }
 
     @Override
@@ -481,6 +504,11 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
                 menu.findItem(R.id.move_to_top_item).setVisible(canMove.first);
                 menu.findItem(R.id.move_to_bottom_item).setVisible(canMove.second);
 
+                // Show move/copy to queue items if episodes are in queue
+                boolean canMoveToQueue = !selectedItems.isEmpty() && selectedItems.get(0).isTagged(FeedItem.TAG_QUEUE);
+                menu.findItem(R.id.move_to_queue_item).setVisible(canMoveToQueue);
+                menu.findItem(R.id.copy_to_queue_item).setVisible(canMoveToQueue);
+
                 floatingSelectMenu.updateItemVisibility();
             }
         };
@@ -505,7 +533,7 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
                 EventBus.getDefault().post(new MessageEvent(getString(R.string.no_items_selected_message)));
                 return false;
             }
-            new EpisodeMultiSelectActionHandler(getActivity(), menuItem.getItemId())
+            new EpisodeMultiSelectActionHandler(getActivity(), menuItem.getItemId(), QueueFragment.this)
                     .handleAction(recyclerAdapter.getSelectedItems());
             recyclerAdapter.endSelectMode();
             return true;
@@ -521,24 +549,27 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
         QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
         queueViewModel.getCurrentQueueColor().observe(getViewLifecycleOwner(), color -> {
             if (color != null && toolbar != null) {
+                // Check for theme changes (but don't clear cache here to avoid infinite loop)
                 queueViewModel.checkThemeChanged();
+                // Get gradient (cache will be cleared by checkThemeChanged if theme changed)
                 GradientDrawable gradient = queueViewModel.getGradientForColor(color);
-                toolbar.setBackground(gradient);
-
-                int textColor = QueueColorGradient.computeTextColor(color);
-                toolbar.setTitleTextColor(textColor);
-                toolbar.setNavigationIconTint(textColor);
-
-                if (toolbar.getMenu() != null) {
-                    for (int i = 0; i < toolbar.getMenu().size(); i++) {
-                        MenuItem item = toolbar.getMenu().getItem(i);
-                        if (item.getIcon() != null) {
-                            item.getIcon().setTint(textColor);
-                        }
-                    }
-                }
+                QueueColorGradient.applyGradientToToolbar(toolbar, gradient, color);
             }
         });
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull android.content.res.Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        // Recompute text color when theme changes (e.g., dark to light mode)
+        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
+        Integer currentColor = queueViewModel.getCurrentQueueColor().getValue();
+        if (currentColor != null && toolbar != null) {
+            // Clear gradient cache without re-emitting (to avoid infinite loop)
+            queueViewModel.clearGradientCache(false);
+            GradientDrawable gradient = queueViewModel.getGradientForColor(currentColor);
+            QueueColorGradient.applyGradientToToolbar(toolbar, gradient, currentColor);
+        }
     }
 
     @Override

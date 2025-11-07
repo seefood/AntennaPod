@@ -208,17 +208,31 @@ public class QueueViewModel extends AndroidViewModel {
      * <p>After clearing the cache, the current queue color is re-emitted to trigger
      * fragments to request new gradients.
      *
+     * @param reEmitColor If true, re-emits the current color to trigger observers. Set to false
+     *                    when called from within an observer to avoid infinite loops.
      * @since Phase 7: Queue Color Gradient
      */
-    public void clearGradientCache() {
+    public void clearGradientCache(boolean reEmitColor) {
         gradientCache.clear();
         Log.d(TAG, "Gradient cache cleared (theme change or manual clear)");
 
-        // Re-emit current queue color to trigger gradient redraw
-        Integer currentColor = currentQueueColor.getValue();
-        if (currentColor != null) {
-            currentQueueColor.setValue(currentColor);
+        // Re-emit current queue color to trigger gradient redraw (only if not in observer)
+        if (reEmitColor) {
+            Integer currentColor = currentQueueColor.getValue();
+            if (currentColor != null) {
+                currentQueueColor.setValue(currentColor);
+            }
         }
+    }
+
+    /**
+     * Clear the gradient drawable cache and re-emit color.
+     * Convenience method that calls clearGradientCache(true).
+     *
+     * @since Phase 7: Queue Color Gradient
+     */
+    public void clearGradientCache() {
+        clearGradientCache(true);
     }
 
     /**
@@ -228,19 +242,24 @@ public class QueueViewModel extends AndroidViewModel {
      * <p>Fragments should call this method in their color observation callback
      * to ensure gradients are regenerated when theme changes.
      *
+     * @return true if theme changed, false otherwise
      * @since Phase 7: Queue Color Gradient
      */
-    public void checkThemeChanged() {
+    public boolean checkThemeChanged() {
         int currentUiMode = getApplication().getResources().getConfiguration().uiMode
                 & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
 
         if (lastUiMode != -1 && lastUiMode != currentUiMode) {
             Log.d(TAG, "Theme changed detected (UI mode: " + lastUiMode + " -> " + currentUiMode
                     + "), clearing gradient cache");
-            clearGradientCache();
+            // Re-emit color when theme changes (not in observer, so safe)
+            clearGradientCache(true);
+            lastUiMode = currentUiMode;
+            return true;
         }
 
         lastUiMode = currentUiMode;
+        return false;
     }
 
     /**

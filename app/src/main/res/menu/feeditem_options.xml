@@ -36,6 +36,18 @@
     </item>
 
     <item
+        android:id="@+id/move_to_queue_item"
+        custom:showAsAction="collapseActionView"
+        android:title="@string/move_to_queue_label">
+    </item>
+
+    <item
+        android:id="@+id/copy_to_queue_item"
+        custom:showAsAction="collapseActionView"
+        android:title="@string/copy_to_queue_label">
+    </item>
+
+    <item
         android:id="@+id/add_to_favorites_item"
         android:menuCategory="container"
         android:title="@string/add_to_favorite_label" />

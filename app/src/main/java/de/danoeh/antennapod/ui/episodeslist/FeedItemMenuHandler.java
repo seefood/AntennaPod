@@ -22,8 +22,12 @@ import de.danoeh.antennapod.net.download.serviceinterface.DownloadServiceInterfa
 import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationQueue;
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.playback.service.PlaybackServiceInterface;
+import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.storage.database.DBWriter;
 import de.danoeh.antennapod.storage.preferences.SynchronizationSettings;
+import de.danoeh.antennapod.storage.preferences.UserPreferences;
+import de.danoeh.antennapod.ui.common.QueueSelectionDialog;
+import de.danoeh.antennapod.event.MessageEvent;
 import de.danoeh.antennapod.ui.common.IntentUtils;
 import de.danoeh.antennapod.playback.service.PlaybackStatus;
 import de.danoeh.antennapod.ui.share.ShareUtils;
@@ -74,6 +78,8 @@ public class FeedItemMenuHandler {
         boolean canRemoveFavorite = false;
         boolean canShowTranscript = false;
         boolean canShowSocialInteract = false;
+        boolean canMoveToQueue = false;
+        boolean canCopyToQueue = false;
 
         for (FeedItem item : selectedItems) {
             final boolean hasMedia = item.getMedia() != null;
@@ -95,6 +101,8 @@ public class FeedItemMenuHandler {
             canRemoveFavorite |= item.isTagged(FeedItem.TAG_FAVORITE);
             canShowTranscript |= item.hasTranscript();
             canShowSocialInteract |= item.getSocialInteractUrl() != null;
+            canMoveToQueue |= item.isTagged(FeedItem.TAG_QUEUE);
+            canCopyToQueue |= item.isTagged(FeedItem.TAG_QUEUE);
         }
 
         if (selectedItems.size() > 1) {
@@ -129,6 +137,8 @@ public class FeedItemMenuHandler {
         setItemVisibility(menu, R.id.remove_item, canDelete);
         setItemVisibility(menu, R.id.download_item, canDownload);
         setItemVisibility(menu, R.id.transcript_item, canShowTranscript);
+        setItemVisibility(menu, R.id.move_to_queue_item, canMoveToQueue);
+        setItemVisibility(menu, R.id.copy_to_queue_item, canCopyToQueue);
 
         if (selectedItems.size() == 1 && selectedItems.get(0).getFeed().getState() != Feed.STATE_SUBSCRIBED) {
             setItemVisibility(menu, R.id.mark_read_item, false);
@@ -221,6 +231,10 @@ public class FeedItemMenuHandler {
             DBWriter.addQueueItem(context, selectedItem);
         } else if (menuItemId == R.id.remove_from_queue_item) {
             DBWriter.removeQueueItem(context, true, selectedItem);
+        } else if (menuItemId == R.id.move_to_queue_item) {
+            handleMoveToQueue(fragment, selectedItem);
+        } else if (menuItemId == R.id.copy_to_queue_item) {
+            handleCopyToQueue(fragment, selectedItem);
         } else if (menuItemId == R.id.add_to_favorites_item) {
             DBWriter.addFavoriteItem(selectedItem);
         } else if (menuItemId == R.id.remove_from_favorites_item) {
@@ -320,6 +334,76 @@ public class FeedItemMenuHandler {
 
     public static void removeNewFlagWithUndo(@NonNull Fragment fragment, FeedItem item) {
         markReadWithUndo(fragment, item, FeedItem.UNPLAYED, false);
+    }
+
+    /**
+     * Handle move to queue operation.
+     * Shows QueueSelectionDialog and moves episode to selected queue.
+     */
+    private static void handleMoveToQueue(@NonNull Fragment fragment, @NonNull FeedItem item) {
+        // Get source queue ID (episode should be in exactly one queue for move)
+        List<Long> queueIds = DBReader.getQueueIdsForFeedItem(item.getId());
+        if (queueIds.isEmpty()) {
+            // Episode not in any queue - shouldn't happen if menu visibility is correct
+            return;
+        }
+
+        // Use first queue as source (in practice, episode should only be in one queue)
+        Long sourceQueueId = queueIds.get(0);
+
+        QueueSelectionDialog dialog = QueueSelectionDialog.newInstance(sourceQueueId, "move");
+        dialog.setOnQueueSelectedListener(selectedQueue -> {
+            try {
+                de.danoeh.antennapod.model.MoveResult result = DBWriter.moveQueueItem(
+                        item.getId(), sourceQueueId, selectedQueue.getId()).get();
+                if (result.getMovedCount() > 0) {
+                    String message = fragment.getString(R.string.episode_moved_to_queue,
+                            selectedQueue.getName());
+                    EventBus.getDefault().post(new MessageEvent(message));
+                } else {
+                    String errorMessage = fragment.getString(R.string.error_moving_episode);
+                    EventBus.getDefault().post(new MessageEvent(errorMessage));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error moving episode to queue", e);
+                String errorMessage = fragment.getString(R.string.error_moving_episode);
+                EventBus.getDefault().post(new MessageEvent(errorMessage));
+            }
+        });
+        dialog.show(fragment.getChildFragmentManager(), "QueueSelectionDialog");
+    }
+
+    /**
+     * Handle copy to queue operation.
+     * Shows QueueSelectionDialog and copies episode to selected queue.
+     */
+    private static void handleCopyToQueue(@NonNull Fragment fragment, @NonNull FeedItem item) {
+        // For copy, we don't filter out source queue (can copy to same queue, will be skipped)
+        QueueSelectionDialog dialog = QueueSelectionDialog.newInstance(null, "copy");
+        dialog.setOnQueueSelectedListener(selectedQueue -> {
+            try {
+                de.danoeh.antennapod.model.CopyResult result = DBWriter.copyQueueItem(
+                        item.getId(), selectedQueue.getId()).get();
+                if (result.getCopiedCount() > 0) {
+                    String message = fragment.getString(R.string.episode_copied_to_queue,
+                            selectedQueue.getName());
+                    EventBus.getDefault().post(new MessageEvent(message));
+                } else if (result.getSkippedCount() > 0) {
+                    // Episode already in target queue
+                    String errorMessage = fragment.getString(R.string.episode_already_in_queue,
+                            selectedQueue.getName());
+                    EventBus.getDefault().post(new MessageEvent(errorMessage));
+                } else {
+                    String errorMessage = fragment.getString(R.string.error_copying_episode);
+                    EventBus.getDefault().post(new MessageEvent(errorMessage));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error copying episode to queue", e);
+                String errorMessage = fragment.getString(R.string.error_copying_episode);
+                EventBus.getDefault().post(new MessageEvent(errorMessage));
+            }
+        });
+        dialog.show(fragment.getChildFragmentManager(), "QueueSelectionDialog");
     }
 
 }

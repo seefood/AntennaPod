@@ -1236,7 +1236,9 @@ public class DBWriter {
      * @param feedItemId The ID of the feed item to move
      * @param sourceQueueId The ID of the source queue
      * @param targetQueueId The ID of the target queue
-     * @return {@code Future<MoveResult>} with operation details
+     * @return {@code Future<MoveResult>} with operation details. On success, movedCount=1, skippedCount=0.
+     *         On failure (e.g., episode not in source queue), movedCount=0, skippedCount=1 with reason.
+     * @throws Exception (via Future) if database operation fails
      */
     public static Future<MoveResult> moveQueueItem(final long feedItemId, final long sourceQueueId, final long targetQueueId) {
         return dbExec.submit(() -> {
@@ -1250,7 +1252,7 @@ public class DBWriter {
                 // Post event
                 FeedItem item = DBReader.getFeedItem(feedItemId);
                 if (item != null) {
-                    EventBus.getDefault().post(QueueEvent.moved(item, -1));
+                    EventBus.getDefault().post(QueueEvent.itemMoved(item, sourceQueueId, targetQueueId));
                 }
 
                 // Return success result
@@ -1271,7 +1273,9 @@ public class DBWriter {
      *
      * @param feedItemId The ID of the feed item to copy
      * @param targetQueueId The ID of the target queue
-     * @return {@code Future<CopyResult>} with operation details
+     * @return {@code Future<CopyResult>} with operation details. On success, copiedCount=1, skippedCount=0.
+     *         On failure (e.g., episode already in target queue), copiedCount=0, skippedCount=1 with reason.
+     * @throws Exception (via Future) if database operation fails
      */
     public static Future<CopyResult> copyQueueItem(final long feedItemId, final long targetQueueId) {
         return dbExec.submit(() -> {
@@ -1281,7 +1285,7 @@ public class DBWriter {
                 // Post event
                 FeedItem item = DBReader.getFeedItem(feedItemId);
                 if (item != null) {
-                    EventBus.getDefault().post(QueueEvent.added(item, -1));
+                    EventBus.getDefault().post(QueueEvent.itemCopied(item, targetQueueId));
                 }
 
                 return new CopyResult(1, 0, new ArrayList<>(), new HashMap<>());
@@ -1303,7 +1307,9 @@ public class DBWriter {
      * @param feedItemIds The IDs of the feed items to move
      * @param sourceQueueId The ID of the source queue
      * @param targetQueueId The ID of the target queue
-     * @return {@code Future<MoveResult>} with operation details
+     * @return {@code Future<MoveResult>} with operation details. Contains movedCount, skippedCount,
+     *         skippedItemIds, and skipReasons for each failed item.
+     * @throws Exception (via Future) if database operation fails
      */
     public static Future<MoveResult> moveQueueItems(final List<Long> feedItemIds, final long sourceQueueId, final long targetQueueId) {
         return dbExec.submit(() -> {
@@ -1323,7 +1329,18 @@ public class DBWriter {
             }
 
             if (movedCount > 0) {
-                EventBus.getDefault().post(QueueEvent.moved(null, -1));
+                List<FeedItem> movedItems = new ArrayList<>();
+                for (long feedItemId : feedItemIds) {
+                    if (!skipped.contains(feedItemId)) {
+                        FeedItem item = DBReader.getFeedItem(feedItemId);
+                        if (item != null) {
+                            movedItems.add(item);
+                        }
+                    }
+                }
+                if (!movedItems.isEmpty()) {
+                    EventBus.getDefault().post(QueueEvent.itemsBatchMoved(movedItems, sourceQueueId, targetQueueId));
+                }
             }
 
             return new MoveResult(movedCount, skipped.size(), skipped, reasons);
@@ -1336,7 +1353,9 @@ public class DBWriter {
      *
      * @param feedItemIds The IDs of the feed items to copy
      * @param targetQueueId The ID of the target queue
-     * @return {@code Future<CopyResult>} with operation details
+     * @return {@code Future<CopyResult>} with operation details. Contains copiedCount, skippedCount,
+     *         skippedItemIds, and skipReasons for each failed item.
+     * @throws Exception (via Future) if database operation fails
      */
     public static Future<CopyResult> copyQueueItems(final List<Long> feedItemIds, final long targetQueueId) {
         return dbExec.submit(() -> {
@@ -1355,7 +1374,16 @@ public class DBWriter {
             }
 
             if (copiedCount > 0) {
-                EventBus.getDefault().post(QueueEvent.added(null, -1));
+                List<FeedItem> copiedItems = new ArrayList<>();
+                for (long feedItemId : feedItemIds) {
+                    if (!skipped.contains(feedItemId)) {
+                        FeedItem item = DBReader.getFeedItem(feedItemId);
+                        if (item != null) {
+                            copiedItems.add(item);
+                        }
+                    }
+                }
+                EventBus.getDefault().post(QueueEvent.itemsBatchCopied(copiedItems, targetQueueId));
             }
 
             return new CopyResult(copiedCount, skipped.size(), skipped, reasons);
@@ -1379,12 +1407,20 @@ public class DBWriter {
             // Get current queue items
             List<FeedItem> queue = DBReader.getQueue(queueId);
 
+            // Check if item is in the queue
+            boolean found = false;
             // Remove the item from the list (API 21 compatible)
             for (int i = queue.size() - 1; i >= 0; i--) {
                 if (queue.get(i).getId() == feedItemId) {
                     queue.remove(i);
+                    found = true;
                     break;
                 }
+            }
+
+            // Throw exception if item not found in source queue
+            if (!found) {
+                throw new Exception("Episode not in source queue");
             }
 
             // Update the queue

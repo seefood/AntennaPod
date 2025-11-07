@@ -2,8 +2,12 @@ package de.danoeh.antennapod.ui.common;
 
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
+import android.view.MenuItem;
 
+import androidx.annotation.NonNull;
 import androidx.core.graphics.ColorUtils;
+
+import com.google.android.material.appbar.MaterialToolbar;
 
 /**
  * Utility class for creating queue color gradients with proper contrast and accessibility support.
@@ -127,5 +131,35 @@ public class QueueColorGradient {
 
         // Dark colors unchanged
         return color;
+    }
+
+    /**
+     * Applies the queue color gradient and text color to a toolbar.
+     * Helper method to avoid code duplication across fragments.
+     *
+     * @param toolbar The toolbar to apply the gradient and text color to
+     * @param gradientDrawable The gradient drawable to set as background
+     * @param queueColor The queue color to compute text color from
+     * @since Phase 7: Queue Color Gradient
+     */
+    public static void applyGradientToToolbar(@NonNull MaterialToolbar toolbar,
+                                               @NonNull GradientDrawable gradientDrawable,
+                                               int queueColor) {
+        toolbar.setBackground(gradientDrawable);
+
+        // Compute and apply text color for accessibility
+        int textColor = computeTextColor(queueColor);
+        toolbar.setTitleTextColor(textColor);
+        toolbar.setNavigationIconTint(textColor);
+
+        // Update menu item icon tint
+        if (toolbar.getMenu() != null) {
+            for (int i = 0; i < toolbar.getMenu().size(); i++) {
+                MenuItem item = toolbar.getMenu().getItem(i);
+                if (item != null && item.getIcon() != null) {
+                    item.getIcon().setTint(textColor);
+                }
+            }
+        }
     }
 }

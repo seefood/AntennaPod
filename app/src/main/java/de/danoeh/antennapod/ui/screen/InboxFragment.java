@@ -65,24 +65,46 @@ public class InboxFragment extends EpisodesListFragment {
         QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
         queueViewModel.getCurrentQueueColor().observe(getViewLifecycleOwner(), color -> {
             if (color != null && toolbar != null) {
+                // Check for theme changes (but don't clear cache here to avoid infinite loop)
                 queueViewModel.checkThemeChanged();
                 GradientDrawable gradient = queueViewModel.getGradientForColor(color);
-                toolbar.setBackground(gradient);
-
-                int textColor = QueueColorGradient.computeTextColor(color);
-                toolbar.setTitleTextColor(textColor);
-                toolbar.setNavigationIconTint(textColor);
-
-                if (toolbar.getMenu() != null) {
-                    for (int i = 0; i < toolbar.getMenu().size(); i++) {
-                        MenuItem item = toolbar.getMenu().getItem(i);
-                        if (item.getIcon() != null) {
-                            item.getIcon().setTint(textColor);
-                        }
-                    }
-                }
+                QueueColorGradient.applyGradientToToolbar(toolbar, gradient, color);
             }
         });
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        recomputeToolbarColors();
+    }
+
+    private void recomputeToolbarColors() {
+        if (toolbar == null) {
+            return;
+        }
+        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
+        Integer currentColor = queueViewModel.getCurrentQueueColor().getValue();
+        if (currentColor != null) {
+            // Clear cache without re-emitting (to avoid infinite loop)
+            queueViewModel.clearGradientCache(false);
+            GradientDrawable gradient = queueViewModel.getGradientForColor(currentColor);
+            QueueColorGradient.applyGradientToToolbar(toolbar, gradient, currentColor);
+        }
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull android.content.res.Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        // Recompute text color when theme changes (e.g., dark to light mode)
+        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
+        Integer currentColor = queueViewModel.getCurrentQueueColor().getValue();
+        if (currentColor != null && toolbar != null) {
+            // Clear cache without re-emitting (to avoid infinite loop)
+            queueViewModel.clearGradientCache(false);
+            GradientDrawable gradient = queueViewModel.getGradientForColor(currentColor);
+            QueueColorGradient.applyGradientToToolbar(toolbar, gradient, currentColor);
+        }
     }
 
     @Override
