@@ -31,7 +31,15 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+Verify compliance with AntennaPod Development Constitution (`.specify/memory/constitution.md`):
+
+- **Code Quality First (I)**: Plan includes checkstyle, SpotBugs, and Android Lint checks
+- **Test Coverage (II)**: Plan includes unit tests for new business logic
+- **Modular Architecture (III)**: Plan respects 37-module dependency hierarchy
+- **Event-Driven Communication (IV)**: Plan uses EventBus for cross-component communication
+- **Database Integrity (V)**: Plan uses DBWriter/DBReader pattern, no raw SQL writes
+
+**Violations**: Document in Complexity Tracking section below with justification.
 
 ## Project Structure
 

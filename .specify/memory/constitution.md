@@ -1,11 +1,13 @@
 <!--
 Sync Impact Report:
-- Version change: None → 1.0.0 (initial constitution)
-- New principles: Code Quality First, Test Coverage, Modular Architecture, Event-Driven Communication, Database Integrity
+- Version change: 1.0.0 → 1.0.1 (template clarification)
+- Modified principles: None
+- Added sections: None
+- Removed sections: None
 - Templates requiring updates:
-  ✅ plan-template.md - Constitution Check section aligned
-  ✅ spec-template.md - Requirements section aligned
-  ✅ tasks-template.md - Test-first workflow aligned
+  ✅ plan-template.md - Constitution Check section now includes specific principle references
+  ✅ spec-template.md - Requirements section aligned (no changes needed)
+  ✅ tasks-template.md - Test-first workflow aligned (no changes needed)
 - Follow-up TODOs: None
 -->
 
@@ -162,4 +164,4 @@ This constitution establishes the non-negotiable development standards for Anten
 
 **Runtime Development Guidance**: See `CLAUDE.md` for build commands, architecture details, and implementation patterns.
 
-**Version**: 1.0.0 | **Ratified**: 2025-10-31 | **Last Amended**: 2025-10-31
+**Version**: 1.0.1 | **Ratified**: 2025-10-31 | **Last Amended**: 2025-11-08
