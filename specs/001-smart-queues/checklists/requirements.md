@@ -29,8 +29,16 @@
 - [x] Feature meets measurable outcomes defined in Success Criteria
 - [x] No implementation details leak into specification
 
+## Implementation Requirements
+
+- [x] Code reuse requirements specified (FR-024)
+- [x] Database schema constraints specified (FR-025)
+- [x] Development workflow requirements specified (FR-026)
+- [x] Implementation constraints section added with detailed guidance
+
 ## Notes
 
 - All items pass validation
 - Specification is ready for `/speckit.plan` command
 - No clarifications needed
+- Added implementation constraints: code reuse, database schema limits, and development workflow requirements

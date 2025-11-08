@@ -422,3 +422,10 @@ releaseKeyPassword=yourpassword
 9. **Database Migrations (v3080100+):** SQLite ALTER TABLE with DEFAULT applies virtually (instant operation). Use composite indexes for query optimization. Enable foreign keys in `PodDBAdapter.onConfigure()`.
 
 10. **Queue Operations (v3080100+):** Episode can only be in one queue at a time. Always check if episode already in queue before adding. Use `QueuePreferences.getCurrentQueueId()` for default queue parameter.
+
+## Active Technologies
+- Java 17 (source/target compatibility), Android API 21-35 + Android SDK, SQLite (via PodDBAdapter), EventBus (GreenRobot), ExoPlayer (001-smart-queues)
+- SQLite database (new tables: QueueRuleset, RefillRule) - no modifications to existing tables (001-smart-queues)
+
+## Recent Changes
+- 001-smart-queues: Added Java 17 (source/target compatibility), Android API 21-35 + Android SDK, SQLite (via PodDBAdapter), EventBus (GreenRobot), ExoPlayer
