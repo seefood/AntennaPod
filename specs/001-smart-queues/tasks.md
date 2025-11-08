@@ -70,9 +70,9 @@
 
 ### Implementation for User Story 1
 
-- [ ] T018 [US1] Implement DBWriter.createQueueRuleset() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
-- [ ] T019 [US1] Implement DBWriter.updateQueueRuleset() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
-- [ ] T020 [US1] Implement DBWriter.deleteQueueRuleset() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
+- [ ] T018 [US1] Implement DBWriter.createQueueRuleset() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java (post QueueEvent or new RulesetEvent if needed)
+- [ ] T019 [US1] Implement DBWriter.updateQueueRuleset() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java (post QueueEvent or new RulesetEvent if needed)
+- [ ] T020 [US1] Implement DBWriter.deleteQueueRuleset() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java (post QueueEvent or new RulesetEvent if needed)
 - [ ] T021 [US1] Implement DBWriter.createRefillRule() with Clear queue rule validation (FR-030, FR-031) in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
 - [ ] T022 [US1] Implement DBWriter.updateRefillRule() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
 - [ ] T023 [US1] Implement DBWriter.deleteRefillRule() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
@@ -142,7 +142,8 @@
 - [ ] T069 [US2] Add refill button to QueueFragment layout in app/src/main/res/layout/fragment_queue.xml
 - [ ] T070 [US2] Implement refill button click handler in QueueFragment.java (calls DBWriter.refillQueue(), starts playback, FR-017)
 - [ ] T071 [US2] Add string resources for refill button in app/src/main/res/values/strings.xml
-- [ ] T072 [US2] Post QueueEvent.refilled() after refill completes in DBWriter.refillQueue() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
+- [ ] T072 [US2] Post QueueEvent.setQueue() or new QueueEvent.REFILLED action after refill completes in DBWriter.refillQueue() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
+- [ ] T073 [US2] Implement edit mode blocking during refill operation in QueueRulesetEditFragment.java (disable edit mode or show message, FR-036)
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -158,17 +159,17 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T073 [P] [US3] Create unit test for automatic refill trigger when queue runs out in playback/service/src/test/java/de/danoeh/antennapod/playback/service/PlaybackServiceQueueRefillTest.java
-- [ ] T074 [P] [US3] Create unit test for automatic refill with no rules configured (should not refill) in playback/service/src/test/java/de/danoeh/antennapod/playback/service/PlaybackServiceQueueRefillTest.java
-- [ ] T075 [P] [US3] Create unit test for automatic refill playback continuation (FR-017) in playback/service/src/test/java/de/danoeh/antennapod/playback/service/PlaybackServiceQueueRefillTest.java
+- [ ] T074 [P] [US3] Create unit test for automatic refill trigger when queue runs out in playback/service/src/test/java/de/danoeh/antennapod/playback/service/PlaybackServiceQueueRefillTest.java
+- [ ] T075 [P] [US3] Create unit test for automatic refill with no rules configured (should not refill) in playback/service/src/test/java/de/danoeh/antennapod/playback/service/PlaybackServiceQueueRefillTest.java
+- [ ] T076 [P] [US3] Create unit test for automatic refill playback continuation (FR-017) in playback/service/src/test/java/de/danoeh/antennapod/playback/service/PlaybackServiceQueueRefillTest.java
 
 ### Implementation for User Story 3
 
-- [ ] T076 [US3] Add PlaybackHistoryEvent subscriber to PlaybackService in playback/service/src/main/java/de/danoeh/antennapod/playback/service/PlaybackService.java
-- [ ] T077 [US3] Implement queue empty check in PlaybackService.onPlaybackHistoryEvent() in playback/service/src/main/java/de/danoeh/antennapod/playback/service/PlaybackService.java
-- [ ] T078 [US3] Implement automatic refill trigger when queue runs out (FR-016) in PlaybackService.java
-- [ ] T079 [US3] Implement playback continuation after automatic refill (FR-017) in PlaybackService.java
-- [ ] T080 [US3] Post QueueEvent.refilled() after automatic refill completes in PlaybackService.java
+- [ ] T077 [US3] Add PlaybackHistoryEvent subscriber to PlaybackService in playback/service/src/main/java/de/danoeh/antennapod/playback/service/PlaybackService.java
+- [ ] T078 [US3] Implement queue empty check in PlaybackService.onPlaybackHistoryEvent() in playback/service/src/main/java/de/danoeh/antennapod/playback/service/PlaybackService.java
+- [ ] T079 [US3] Implement automatic refill trigger when queue runs out (FR-016) in PlaybackService.java
+- [ ] T080 [US3] Implement playback continuation after automatic refill (FR-017) in PlaybackService.java
+- [ ] T081 [US3] Post QueueEvent.setQueue() or new QueueEvent.REFILLED action after automatic refill completes in PlaybackService.java
 
 **Checkpoint**: All user stories should now be independently functional
 
@@ -178,15 +179,15 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T081 [P] Add integration tests for end-to-end refill workflow in app/src/androidTest/java/de/danoeh/antennapod/ui/screen/queue/QueueRefillIntegrationTest.java
-- [ ] T082 [P] Add edge case tests for rule validation in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBWriterQueueRulesetTest.java
-- [ ] T083 [P] Add performance tests for refill with large episode counts in storage/database/src/test/java/de/danoeh/antennapod/storage/database/QueueRefillEngineTest.java
-- [ ] T084 Code cleanup and refactoring across all Smart Queues files
-- [ ] T085 [P] Add logging for refill operations in QueueRefillEngine.java
-- [ ] T086 [P] Add error handling and user feedback for refill failures in QueueFragment.java
-- [ ] T087 [P] Add accessibility labels for ruleset editing UI in QueueRulesetEditFragment.java
-- [ ] T088 Run quickstart.md validation (manual testing of example rulesets)
-- [ ] T089 [P] Update documentation with Smart Queues usage in README.md or user guide
+- [ ] T082 [P] Add integration tests for end-to-end refill workflow in app/src/androidTest/java/de/danoeh/antennapod/ui/screen/queue/QueueRefillIntegrationTest.java
+- [ ] T083 [P] Add edge case tests for rule validation in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBWriterQueueRulesetTest.java
+- [ ] T084 [P] Add performance tests for refill with large episode counts (<5s for 100 episodes, SC-002) in storage/database/src/test/java/de/danoeh/antennapod/storage/database/QueueRefillEngineTest.java
+- [ ] T085 Code cleanup and refactoring across all Smart Queues files
+- [ ] T086 [P] Add logging for refill operations in QueueRefillEngine.java
+- [ ] T087 [P] Add error handling and user feedback for refill failures in QueueFragment.java
+- [ ] T088 [P] Add accessibility labels for ruleset editing UI in QueueRulesetEditFragment.java
+- [ ] T089 Run quickstart.md validation (manual testing of example rulesets)
+- [ ] T090 [P] Update documentation with Smart Queues usage in README.md or user guide
 
 ---
 
