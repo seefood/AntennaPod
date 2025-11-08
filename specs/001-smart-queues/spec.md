@@ -13,6 +13,9 @@
 - Q: When a rule references a feed or tag that no longer exists, what should happen during refill? → A: Skip the rule silently and continue with next rule
 - Q: When a queue has rules configured but no episodes match any rule during refill, what should happen? → A: Complete refill with empty queue and start playback (or show empty state if no episodes)
 - Q: What happens if a user tries to add a "Clear queue" rule in the middle or end of the ruleset? → A: Allow "Clear queue" rule later than first, but automatically move it to first position. If first rule is already "Clear queue", UI won't offer it in new rule dialog. User can't drag/reorder "Clear queue" if at position 1. "Clear queue" can only be removed or inserted on top if not already there. Only one "Clear queue" rule allowed. If inserting rule at top and "Clear queue" is already rule 1, insertion goes to position 2.
+- Q: What happens if a user edits rules while a refill is in progress? → A: Block edits during refill (disable edit mode or show message)
+- Q: How can rules be added in edit mode? → A: Rules may be appended at the end or inserted at the top, with the exception of the clear queue rule as already stated
+- Q: What happens to unfinished episodes when a queue is cleared? → A: Unfinished episodes that exist in a queue when it is cleared are not marked as played or deleted, and they may be added again to the queue by the rules when refilled
 
 ## User Scenarios & Testing *(mandatory)*
 
