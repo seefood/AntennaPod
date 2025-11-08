@@ -5,6 +5,15 @@
 **Status**: Draft
 **Input**: User description: "Antennapod is a podcast player, it has multiple queues the users can switch between but each time they are done playing the entire queue, they need to refill it manually. Goal of this feature is to refill a queue automatically according to a set of rules the user can edit."
 
+## Clarifications
+
+### Session 2025-11-08
+
+- Q: When a rule requests more episodes than are available from the source, what should happen? → A: Add all available episodes (partial fulfillment) and continue with next rule
+- Q: When a rule references a feed or tag that no longer exists, what should happen during refill? → A: Skip the rule silently and continue with next rule
+- Q: When a queue has rules configured but no episodes match any rule during refill, what should happen? → A: Complete refill with empty queue and start playback (or show empty state if no episodes)
+- Q: What happens if a user tries to add a "Clear queue" rule in the middle or end of the ruleset? → A: Allow "Clear queue" rule later than first, but automatically move it to first position. If first rule is already "Clear queue", UI won't offer it in new rule dialog. User can't drag/reorder "Clear queue" if at position 1. "Clear queue" can only be removed or inserted on top if not already there. Only one "Clear queue" rule allowed. If inserting rule at top and "Clear queue" is already rule 1, insertion goes to position 2.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Edit Queue Rules (Priority: P1)
@@ -18,11 +27,14 @@ A user wants to customize the rules that determine how their queue is automatica
 **Acceptance Scenarios**:
 
 1. **Given** a queue with an existing ruleset, **When** the user enters edit mode, **Then** they can view all current rules in order
-2. **Given** a queue in edit mode, **When** the user adds a new rule, **Then** the rule is added to the ruleset and can be positioned anywhere in the order
-3. **Given** a queue in edit mode, **When** the user removes a rule, **Then** the rule is removed from the ruleset
-4. **Given** a queue in edit mode, **When** the user changes a rule's parameters (count, source, selection method), **Then** the rule is updated with the new parameters
-5. **Given** a queue in edit mode, **When** the user reorders rules, **Then** the rules are applied in the new order during refill
-6. **Given** a queue with no rules configured, **When** the user enters edit mode, **Then** they can add the first rule to the ruleset
+2. **Given** a queue in edit mode, **When** the user adds a new rule, **Then** the rule is added to the ruleset and can be positioned anywhere in the order (except "Clear queue" which moves to first position automatically)
+3. **Given** a queue in edit mode with "Clear queue" as first rule, **When** the user opens new rule dialog, **Then** "Clear queue" option is not available
+4. **Given** a queue in edit mode with "Clear queue" at position 1, **When** the user tries to drag/reorder it, **Then** the reorder is prevented
+5. **Given** a queue in edit mode with "Clear queue" at position 1, **When** the user inserts a new rule at top, **Then** the new rule is inserted at position 2
+6. **Given** a queue in edit mode, **When** the user removes a rule, **Then** the rule is removed from the ruleset
+7. **Given** a queue in edit mode, **When** the user changes a rule's parameters (count, source, selection method), **Then** the rule is updated with the new parameters
+8. **Given** a queue in edit mode, **When** the user reorders rules, **Then** the rules are applied in the new order during refill (except "Clear queue" at position 1 which cannot be reordered)
+9. **Given** a queue with no rules configured, **When** the user enters edit mode, **Then** they can add the first rule to the ruleset
 
 ---
 
@@ -61,13 +73,13 @@ A user wants their queue to automatically refill when they finish playing all ep
 
 ### Edge Cases
 
-- What happens when a rule requests more episodes than are available from the source (e.g., "add 10 newest episodes" but only 5 exist)?
+- What happens when a rule requests more episodes than are available from the source (e.g., "add 10 newest episodes" but only 5 exist)? → **Resolved**: Add all available episodes (partial fulfillment) and continue with next rule
 - How does the system handle a queue with rules but no episodes match any rule?
-- What happens if a user tries to add a "Clear queue" rule in the middle or end of the ruleset?
+- What happens if a user tries to add a "Clear queue" rule in the middle or end of the ruleset? → **Resolved**: Allow "Clear queue" rule later than first, but automatically move it to first position. If first rule is already "Clear queue", UI won't offer it in new rule dialog. User can't drag/reorder "Clear queue" if at position 1. "Clear queue" can only be removed or inserted on top if not already there. Only one "Clear queue" rule allowed. If inserting rule at top and "Clear queue" is already rule 1, insertion goes to position 2.
 - How does the system handle a feed or tag that no longer exists when a rule references it?
 - What happens when all available episodes are already in the queue and refill is triggered?
 - How does the system handle a queue that runs out of episodes while the user is not actively listening?
-- What happens if a user edits rules while a refill is in progress?
+- What happens if a user edits rules while a refill is in progress? → **Resolved**: Block edits during refill (disable edit mode or show message)
 
 ## Requirements *(mandatory)*
 
@@ -75,6 +87,13 @@ A user wants their queue to automatically refill when they finish playing all ep
 
 - **FR-001**: System MUST allow users to configure zero or more rules per queue that define how episodes are selected during refill
 - **FR-002**: System MUST support a "Clear queue" rule that removes all existing episodes from the queue before applying other rules
+- **FR-030**: System MUST allow only one "Clear queue" rule per ruleset
+- **FR-031**: System MUST automatically move "Clear queue" rule to first position if added at any other position
+- **FR-032**: System MUST prevent UI from offering "Clear queue" in new rule dialog if it already exists as first rule
+- **FR-033**: System MUST prevent user from dragging/reordering "Clear queue" rule if it is at position 1
+- **FR-034**: System MUST allow "Clear queue" rule to be removed or inserted at top position only (if not already present)
+- **FR-035**: System MUST insert new rules at position 2 if "Clear queue" is already at position 1 and user inserts at top
+- **FR-036**: System MUST block rule edits during refill operation (disable edit mode or show message indicating refill in progress)
 - **FR-003**: System MUST support rules that add N oldest episodes from a specific feed
 - **FR-004**: System MUST support rules that add N newest episodes from a specific feed
 - **FR-005**: System MUST support rules that add N random episodes from a specific feed
@@ -87,6 +106,9 @@ A user wants their queue to automatically refill when they finish playing all ep
 - **FR-012**: System MUST only select episodes that are not 100% played (partially played episodes are eligible)
 - **FR-013**: System MUST prevent duplicate episodes in the queue when an episode matches multiple rules during a single refill operation
 - **FR-014**: System MUST apply rules in the order they are configured in the ruleset
+- **FR-027**: System MUST add all available episodes when a rule requests more episodes than are available (partial fulfillment) and continue with the next rule
+- **FR-028**: System MUST skip rules that reference feeds or tags that no longer exist (skip silently and continue with next rule)
+- **FR-029**: System MUST complete refill operation even when no episodes match any rule (resulting in empty queue) and start playback or show empty state
 - **FR-015**: System MUST allow users to manually trigger queue refill via a refill button
 - **FR-016**: System MUST automatically trigger queue refill when a queue runs out of episodes during playback
 - **FR-017**: System MUST start playback from the first episode in the queue after a refill operation completes
