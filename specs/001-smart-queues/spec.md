@@ -27,7 +27,7 @@ A user wants to customize the rules that determine how their queue is automatica
 **Acceptance Scenarios**:
 
 1. **Given** a queue with an existing ruleset, **When** the user enters edit mode, **Then** they can view all current rules in order
-2. **Given** a queue in edit mode, **When** the user adds a new rule, **Then** the rule is added to the ruleset and can be positioned anywhere in the order (except "Clear queue" which moves to first position automatically)
+2. **Given** a queue in edit mode, **When** the user adds a new rule, **Then** the rule can be appended at the end or inserted at the top (except "Clear queue" which moves to first position automatically)
 3. **Given** a queue in edit mode with "Clear queue" as first rule, **When** the user opens new rule dialog, **Then** "Clear queue" option is not available
 4. **Given** a queue in edit mode with "Clear queue" at position 1, **When** the user tries to drag/reorder it, **Then** the reorder is prevented
 5. **Given** a queue in edit mode with "Clear queue" at position 1, **When** the user inserts a new rule at top, **Then** the new rule is inserted at position 2
@@ -49,7 +49,7 @@ A user wants to refill their podcast queue automatically using predefined rules 
 **Acceptance Scenarios**:
 
 1. **Given** a queue with no episodes and rules configured (via US1), **When** the user presses the refill button, **Then** the queue is populated with episodes matching the rules and playback starts from the first episode
-2. **Given** a queue with existing episodes and a "Clear queue" rule as the first rule, **When** the user presses the refill button, **Then** all existing episodes are removed and the queue is repopulated according to the remaining rules
+2. **Given** a queue with existing episodes and a "Clear queue" rule as the first rule, **When** the user presses the refill button, **Then** all existing episodes are removed from the queue (but not marked as played or deleted) and the queue is repopulated according to the remaining rules, allowing previously unfinished episodes to be added again
 3. **Given** a queue with rules that add episodes from multiple sources (feeds, tags, inbox), **When** the user presses the refill button, **Then** episodes are added in rule order with no duplicates even if an episode matches multiple rules
 4. **Given** a queue with rules configured, **When** the user presses the refill button, **Then** only episodes that are not 100% played are selected (partially played episodes can be included)
 
@@ -77,7 +77,7 @@ A user wants their queue to automatically refill when they finish playing all ep
 - How does the system handle a queue with rules but no episodes match any rule?
 - What happens if a user tries to add a "Clear queue" rule in the middle or end of the ruleset? → **Resolved**: Allow "Clear queue" rule later than first, but automatically move it to first position. If first rule is already "Clear queue", UI won't offer it in new rule dialog. User can't drag/reorder "Clear queue" if at position 1. "Clear queue" can only be removed or inserted on top if not already there. Only one "Clear queue" rule allowed. If inserting rule at top and "Clear queue" is already rule 1, insertion goes to position 2.
 - How does the system handle a feed or tag that no longer exists when a rule references it?
-- What happens when all available episodes are already in the queue and refill is triggered?
+- What happens when all available episodes are already in the queue and refill is triggered? → **Resolved**: Unfinished episodes that exist in a queue when it is cleared are not marked as played or deleted, and they may be added again to the queue by the rules when refilled
 - How does the system handle a queue that runs out of episodes while the user is not actively listening?
 - What happens if a user edits rules while a refill is in progress? → **Resolved**: Block edits during refill (disable edit mode or show message)
 
@@ -94,6 +94,8 @@ A user wants their queue to automatically refill when they finish playing all ep
 - **FR-034**: System MUST allow "Clear queue" rule to be removed or inserted at top position only (if not already present)
 - **FR-035**: System MUST insert new rules at position 2 if "Clear queue" is already at position 1 and user inserts at top
 - **FR-036**: System MUST block rule edits during refill operation (disable edit mode or show message indicating refill in progress)
+- **FR-037**: System MUST allow rules to be appended at the end or inserted at the top in edit mode (with exception of "Clear queue" rule which moves to first position automatically)
+- **FR-038**: System MUST NOT mark episodes as played or delete them when queue is cleared - unfinished episodes remain available and may be added again by rules during refill
 - **FR-003**: System MUST support rules that add N oldest episodes from a specific feed
 - **FR-004**: System MUST support rules that add N newest episodes from a specific feed
 - **FR-005**: System MUST support rules that add N random episodes from a specific feed
