@@ -8,6 +8,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
+import android.widget.NumberPicker;
 import android.widget.TextView;
 
 import java.util.HashMap;
@@ -230,28 +231,12 @@ public class QueueRulesetEditFragment extends Fragment {
 
     /**
      * Show dialog for adding a new rule.
-     * Only shows "Add Episodes" option (Clear queue is handled separately in QueueFragment).
+     * Goes directly to rule configuration dialog (only "Add Episodes" rule type exists).
      *
      * @param insertAtTop If true, insert at position 0; if false, append at end
      */
     private void showAddRuleDialog(boolean insertAtTop) {
-        // Only show "Add Episodes" option - Clear queue is handled in QueueFragment menu
-        new MaterialAlertDialogBuilder(requireContext())
-                .setTitle(insertAtTop ? R.string.insert_rule_label : R.string.add_rule_label)
-                .setItems(new String[]{"Add Episodes"}, (dialog, which) -> {
-                    // Show dialog for "Add Episodes" rule configuration
-                    showAddEpisodesRuleDialog(insertAtTop);
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
-    }
-
-    /**
-     * Show dialog for configuring "Add Episodes" rule.
-     *
-     * @param insertAtTop If true, insert at position 0; if false, append at end
-     */
-    private void showAddEpisodesRuleDialog(boolean insertAtTop) {
+        // Go directly to rule configuration dialog (only "Add Episodes" rule type exists)
         showRuleEditDialog(null, insertAtTop);
     }
 
@@ -274,13 +259,17 @@ public class QueueRulesetEditFragment extends Fragment {
         View dialogView = LayoutInflater.from(requireContext())
                 .inflate(R.layout.dialog_refill_rule_edit, null);
 
-        AutoCompleteTextView sourceTypeInput = dialogView.findViewById(R.id.rule_source_type_input);
-        com.google.android.material.textfield.TextInputLayout sourceInputLayout =
+        final AutoCompleteTextView sourceTypeInput = dialogView.findViewById(R.id.rule_source_type_input);
+        final com.google.android.material.textfield.TextInputLayout sourceInputLayout =
                 dialogView.findViewById(R.id.rule_source_input_layout);
-        AutoCompleteTextView sourceInput = dialogView.findViewById(R.id.rule_source_input);
-        AutoCompleteTextView selectionMethodInput = dialogView.findViewById(R.id.rule_selection_method_input);
-        com.google.android.material.textfield.TextInputEditText countInput =
-                dialogView.findViewById(R.id.rule_count_input);
+        final AutoCompleteTextView sourceInput = dialogView.findViewById(R.id.rule_source_input);
+        final AutoCompleteTextView selectionMethodInput = dialogView.findViewById(R.id.rule_selection_method_input);
+        final NumberPicker countInput = dialogView.findViewById(R.id.rule_count_input);
+
+        // Setup NumberPicker (1-20 range)
+        countInput.setMinValue(1);
+        countInput.setMaxValue(20);
+        countInput.setValue(10);
 
         // Setup source type dropdown
         String[] sourceTypes = {
@@ -296,10 +285,13 @@ public class QueueRulesetEditFragment extends Fragment {
         ArrayAdapter<String> sourceTypeAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_dropdown_item_1line, sourceTypes);
         sourceTypeInput.setAdapter(sourceTypeAdapter);
+        sourceTypeInput.setThreshold(1); // Show dropdown after 1 character
         sourceTypeInput.setOnItemClickListener((parent, view, position, id) -> {
             RefillRule.SourceType selectedType = sourceTypeValues[position];
             updateSourceInputVisibility(sourceInputLayout, sourceInput, selectedType);
         });
+        // Show dropdown when clicked
+        sourceTypeInput.setOnClickListener(v -> sourceTypeInput.showDropDown());
 
         // Setup selection method dropdown
         String[] selectionMethods = {
@@ -315,6 +307,9 @@ public class QueueRulesetEditFragment extends Fragment {
         ArrayAdapter<String> selectionMethodAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_dropdown_item_1line, selectionMethods);
         selectionMethodInput.setAdapter(selectionMethodAdapter);
+        selectionMethodInput.setThreshold(1); // Show dropdown after 1 character
+        // Show dropdown when clicked
+        selectionMethodInput.setOnClickListener(v -> selectionMethodInput.showDropDown());
 
         // Pre-populate fields if editing
         if (rule != null) {
@@ -380,13 +375,18 @@ public class QueueRulesetEditFragment extends Fragment {
 
             // Set count
             if (rule.getCount() != null) {
-                countInput.setText(String.valueOf(rule.getCount()));
+                int count = rule.getCount();
+                if (count >= 1 && count <= 20) {
+                    countInput.setValue(count);
+                } else {
+                    countInput.setValue(10); // Default if out of range
+                }
             }
         } else {
             // Default values for new rule
             sourceTypeInput.setText(sourceTypes[0], false); // FEED
             selectionMethodInput.setText(selectionMethods[0], false); // OLDEST
-            countInput.setText("10"); // Default count
+            countInput.setValue(10); // Default count
             updateSourceInputVisibility(sourceInputLayout, sourceInput, RefillRule.SourceType.FEED);
         }
 
@@ -435,10 +435,14 @@ public class QueueRulesetEditFragment extends Fragment {
                             ArrayAdapter<String> feedAdapter = new ArrayAdapter<>(requireContext(),
                                     android.R.layout.simple_dropdown_item_1line, feedNames);
                             sourceInput.setAdapter(feedAdapter);
+                            sourceInput.setThreshold(1);
+                            sourceInput.setOnClickListener(v -> sourceInput.showDropDown());
                         } else if (selectedType == RefillRule.SourceType.TAG) {
                             ArrayAdapter<String> tagAdapter = new ArrayAdapter<>(requireContext(),
                                     android.R.layout.simple_dropdown_item_1line, tagNames);
                             sourceInput.setAdapter(tagAdapter);
+                            sourceInput.setThreshold(1);
+                            sourceInput.setOnClickListener(v -> sourceInput.showDropDown());
                         }
                     });
 
@@ -449,10 +453,14 @@ public class QueueRulesetEditFragment extends Fragment {
                         ArrayAdapter<String> feedAdapter = new ArrayAdapter<>(requireContext(),
                                 android.R.layout.simple_dropdown_item_1line, feedNames);
                         sourceInput.setAdapter(feedAdapter);
+                        sourceInput.setThreshold(1);
+                        sourceInput.setOnClickListener(v -> sourceInput.showDropDown());
                     } else if (currentType == RefillRule.SourceType.TAG) {
                         ArrayAdapter<String> tagAdapter = new ArrayAdapter<>(requireContext(),
                                 android.R.layout.simple_dropdown_item_1line, tagNames);
                         sourceInput.setAdapter(tagAdapter);
+                        sourceInput.setThreshold(1);
+                        sourceInput.setOnClickListener(v -> sourceInput.showDropDown());
                     }
                 });
             } catch (Exception e) {
@@ -530,14 +538,14 @@ public class QueueRulesetEditFragment extends Fragment {
                                      AutoCompleteTextView sourceTypeInput,
                                      AutoCompleteTextView sourceInput,
                                      AutoCompleteTextView selectionMethodInput,
-                                     com.google.android.material.textfield.TextInputEditText countInput,
+                                     NumberPicker countInput,
                                      RefillRule.SourceType[] sourceTypeValues,
                                      RefillRule.SelectionMethod[] selectionMethodValues,
                                      Map<String, Long> feedNameToId) {
         // Validate inputs
         String sourceTypeText = sourceTypeInput.getText().toString();
         String selectionMethodText = selectionMethodInput.getText().toString();
-        String countText = countInput.getText().toString();
+        int count = countInput.getValue();
 
         // Find selected source type
         RefillRule.SourceType sourceType = null;
@@ -567,26 +575,7 @@ public class QueueRulesetEditFragment extends Fragment {
             }
         }
 
-        // Validate count
-        int count = 0;
-        try {
-            count = Integer.parseInt(countText);
-            if (count <= 0) {
-                new MaterialAlertDialogBuilder(requireContext())
-                        .setTitle(R.string.edit_rule_label)
-                        .setMessage(R.string.rule_count_error)
-                        .setPositiveButton(android.R.string.ok, null)
-                        .show();
-                return;
-            }
-        } catch (NumberFormatException e) {
-            new MaterialAlertDialogBuilder(requireContext())
-                    .setTitle(R.string.edit_rule_label)
-                    .setMessage(R.string.rule_count_error)
-                    .setPositiveButton(android.R.string.ok, null)
-                    .show();
-            return;
-        }
+        // Count is already validated by NumberPicker (1-20 range)
 
         // Validate source (required for FEED and TAG)
         String sourceId = sourceInput.getText().toString().trim();

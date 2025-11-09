@@ -390,7 +390,6 @@
     <string name="selection_method_oldest">Oldest First</string>
     <string name="selection_method_newest">Newest First</string>
     <string name="selection_method_random">Random</string>
-    <string name="rule_count_error">Count must be greater than 0</string>
     <string name="rule_source_required">Source is required for Feed and Tag</string>
     <string name="queue_empty_name_error">Queue name cannot be empty</string>
     <string name="queue_color_label">Choose Color</string>
