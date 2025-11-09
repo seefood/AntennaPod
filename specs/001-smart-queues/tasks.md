@@ -26,10 +26,10 @@
 
 **Purpose**: Database schema setup and migration
 
-- [ ] T001 Add QueueRuleset table schema to PodDBAdapter.java in storage/database/src/main/java/de/danoeh/antennapod/storage/database/PodDBAdapter.java
-- [ ] T002 Add RefillRule table schema to PodDBAdapter.java in storage/database/src/main/java/de/danoeh/antennapod/storage/database/PodDBAdapter.java
-- [ ] T003 Add database migration for QueueRuleset and RefillRule tables in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBUpgrader.java
-- [ ] T004 [P] Add indexes for QueueRuleset and RefillRule tables in PodDBAdapter.java (idx_queue_ruleset_queue_id, idx_refill_rule_ruleset_id, idx_refill_rule_ruleset_position)
+- [X] T001 Add QueueRuleset table schema to PodDBAdapter.java in storage/database/src/main/java/de/danoeh/antennapod/storage/database/PodDBAdapter.java
+- [X] T002 Add RefillRule table schema to PodDBAdapter.java in storage/database/src/main/java/de/danoeh/antennapod/storage/database/PodDBAdapter.java
+- [X] T003 Add database migration for QueueRuleset and RefillRule tables in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBUpgrader.java
+- [X] T004 [P] Add indexes for QueueRuleset and RefillRule tables in PodDBAdapter.java (idx_queue_ruleset_queue_id, idx_refill_rule_ruleset_id, idx_refill_rule_ruleset_position)
 
 ---
 
@@ -39,10 +39,10 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T005 [P] Create QueueRuleset entity class in model/src/main/java/de/danoeh/antennapod/model/feed/QueueRuleset.java
-- [ ] T006 [P] Create RefillRule entity class in model/src/main/java/de/danoeh/antennapod/model/feed/RefillRule.java
-- [ ] T007 [P] Create RefillResult class in storage/database/src/main/java/de/danoeh/antennapod/storage/database/RefillResult.java
-- [ ] T008 Add QueueRuleset and RefillRule table creation methods to PodDBAdapter.java in storage/database/src/main/java/de/danoeh/antennapod/storage/database/PodDBAdapter.java
+- [X] T005 [P] Create QueueRuleset entity class in model/src/main/java/de/danoeh/antennapod/model/feed/QueueRuleset.java
+- [X] T006 [P] Create RefillRule entity class in model/src/main/java/de/danoeh/antennapod/model/feed/RefillRule.java
+- [X] T007 [P] Create RefillResult class in storage/database/src/main/java/de/danoeh/antennapod/storage/database/RefillResult.java
+- [X] T008 Add QueueRuleset and RefillRule table creation methods to PodDBAdapter.java in storage/database/src/main/java/de/danoeh/antennapod/storage/database/PodDBAdapter.java
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -58,31 +58,31 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T009 [P] [US1] Create unit test for DBWriter.createQueueRuleset() in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBWriterQueueRulesetTest.java
-- [ ] T010 [P] [US1] Create unit test for DBWriter.createRefillRule() in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBWriterQueueRulesetTest.java
-- [ ] T011 [P] [US1] Create unit test for DBWriter.updateRefillRule() in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBWriterQueueRulesetTest.java
-- [ ] T012 [P] [US1] Create unit test for DBWriter.deleteRefillRule() in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBWriterQueueRulesetTest.java
-- [ ] T013 [P] [US1] Create unit test for DBWriter.reorderRefillRules() in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBWriterQueueRulesetTest.java
-- [ ] T014 [P] [US1] Create unit test for DBReader.getQueueRuleset() in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBReaderQueueRulesetTest.java
-- [ ] T015 [P] [US1] Create unit test for DBReader.getRefillRules() in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBReaderQueueRulesetTest.java
-- [ ] T016 [P] [US1] Create unit test for DBReader.hasClearQueueRule() in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBReaderQueueRulesetTest.java
-- [ ] T017 [P] [US1] Create unit test for Clear queue rule validation (only one, must be first) in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBWriterQueueRulesetTest.java
+- [X] T009 [P] [US1] Create unit test for DBWriter.createQueueRuleset() in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBWriterQueueRulesetTest.java
+- [X] T010 [P] [US1] Create unit test for DBWriter.createRefillRule() in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBWriterQueueRulesetTest.java
+- [X] T011 [P] [US1] Create unit test for DBWriter.updateRefillRule() in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBWriterQueueRulesetTest.java
+- [X] T012 [P] [US1] Create unit test for DBWriter.deleteRefillRule() in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBWriterQueueRulesetTest.java
+- [X] T013 [P] [US1] Create unit test for DBWriter.reorderRefillRules() in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBWriterQueueRulesetTest.java
+- [X] T014 [P] [US1] Create unit test for DBReader.getQueueRuleset() in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBReaderQueueRulesetTest.java
+- [X] T015 [P] [US1] Create unit test for DBReader.getRefillRules() in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBReaderQueueRulesetTest.java
+- [X] T016 [P] [US1] Create unit test for DBReader.hasClearQueueRule() in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBReaderQueueRulesetTest.java
+- [X] T017 [P] [US1] Create unit test for Clear queue rule validation (only one, must be first) in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBWriterQueueRulesetTest.java
 
 ### Implementation for User Story 1
 
-- [ ] T018 [US1] Implement DBWriter.createQueueRuleset() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java (post QueueEvent or new RulesetEvent if needed)
-- [ ] T019 [US1] Implement DBWriter.updateQueueRuleset() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java (post QueueEvent or new RulesetEvent if needed)
-- [ ] T020 [US1] Implement DBWriter.deleteQueueRuleset() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java (post QueueEvent or new RulesetEvent if needed)
-- [ ] T021 [US1] Implement DBWriter.createRefillRule() with Clear queue rule validation (FR-030, FR-031) in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
-- [ ] T022 [US1] Implement DBWriter.updateRefillRule() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
-- [ ] T023 [US1] Implement DBWriter.deleteRefillRule() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
-- [ ] T024 [US1] Implement DBWriter.reorderRefillRules() with Clear queue rule position protection (FR-033) in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
-- [ ] T025 [US1] Implement DBReader.getQueueRuleset() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java
-- [ ] T026 [US1] Implement DBReader.hasQueueRuleset() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java
-- [ ] T027 [US1] Implement DBReader.getRefillRules() ordered by position in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java
-- [ ] T028 [US1] Implement DBReader.getRefillRule() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java
-- [ ] T029 [US1] Implement DBReader.hasClearQueueRule() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java
-- [ ] T030 [US1] Implement DBReader.getClearQueueRule() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java
+- [X] T018 [US1] Implement DBWriter.createQueueRuleset() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java (post QueueEvent or new RulesetEvent if needed)
+- [X] T019 [US1] Implement DBWriter.updateQueueRuleset() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java (post QueueEvent or new RulesetEvent if needed)
+- [X] T020 [US1] Implement DBWriter.deleteQueueRuleset() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java (post QueueEvent or new RulesetEvent if needed)
+- [X] T021 [US1] Implement DBWriter.createRefillRule() with Clear queue rule validation (FR-030, FR-031) in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
+- [X] T022 [US1] Implement DBWriter.updateRefillRule() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
+- [X] T023 [US1] Implement DBWriter.deleteRefillRule() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
+- [X] T024 [US1] Implement DBWriter.reorderRefillRules() with Clear queue rule position protection (FR-033) in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
+- [X] T025 [US1] Implement DBReader.getQueueRuleset() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java
+- [X] T026 [US1] Implement DBReader.hasQueueRuleset() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java
+- [X] T027 [US1] Implement DBReader.getRefillRules() ordered by position in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java
+- [X] T028 [US1] Implement DBReader.getRefillRule() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java
+- [X] T029 [US1] Implement DBReader.hasClearQueueRule() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java
+- [X] T030 [US1] Implement DBReader.getClearQueueRule() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java
 - [ ] T031 [US1] Create QueueRulesetViewModel in ui/common/src/main/java/de/danoeh/antennapod/ui/common/QueueRulesetViewModel.java
 - [ ] T032 [US1] Create QueueRulesetEditFragment layout XML in app/src/main/res/layout/fragment_queue_ruleset_edit.xml
 - [ ] T033 [US1] Create QueueRulesetEditFragment in app/src/main/java/de/danoeh/antennapod/ui/screen/queue/QueueRulesetEditFragment.java

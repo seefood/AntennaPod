@@ -75,6 +75,7 @@ import de.danoeh.antennapod.ui.episodeslist.EpisodeItemListRecyclerView;
 import de.danoeh.antennapod.ui.view.LiftOnScrollListener;
 import de.danoeh.antennapod.ui.episodeslist.EpisodeItemViewHolder;
 import de.danoeh.antennapod.ui.screen.queue.QueueManagementFragment;
+import de.danoeh.antennapod.ui.screen.queue.QueueRulesetEditFragment;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.Disposable;
@@ -136,7 +137,9 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
         if (toolbar == null) {
             return;
         }
-        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
+        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity(),
+                ViewModelProvider.AndroidViewModelFactory.getInstance(requireActivity().getApplication()))
+                .get(QueueViewModel.class);
         Integer currentColor = queueViewModel.getCurrentQueueColor().getValue();
         if (currentColor != null) {
             // Clear cache without re-emitting (to avoid infinite loop)
@@ -332,6 +335,10 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
             return true;
         } else if (itemId == R.id.queue_sort) {
             new QueueSortDialog().show(getChildFragmentManager().beginTransaction(), "SortDialog");
+            return true;
+        } else if (itemId == R.id.queue_edit_rules) {
+            // Navigate to queue rules editor
+            ((MainActivity) getActivity()).loadChildFragment(new QueueRulesetEditFragment());
             return true;
         } else if (itemId == R.id.refresh_item) {
             FeedUpdateManager.getInstance().runOnceOrAsk(requireContext());
@@ -546,7 +553,9 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
         super.onViewCreated(view, savedInstanceState);
 
         // Phase 7: Queue Color Gradient - Apply gradient to title bar
-        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
+        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity(),
+                ViewModelProvider.AndroidViewModelFactory.getInstance(requireActivity().getApplication()))
+                .get(QueueViewModel.class);
         queueViewModel.getCurrentQueueColor().observe(getViewLifecycleOwner(), color -> {
             if (color != null && toolbar != null) {
                 // Check for theme changes (but don't clear cache here to avoid infinite loop)
@@ -562,7 +571,9 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
     public void onConfigurationChanged(@NonNull android.content.res.Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         // Recompute text color when theme changes (e.g., dark to light mode)
-        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
+        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity(),
+                ViewModelProvider.AndroidViewModelFactory.getInstance(requireActivity().getApplication()))
+                .get(QueueViewModel.class);
         Integer currentColor = queueViewModel.getCurrentQueueColor().getValue();
         if (currentColor != null && toolbar != null) {
             // Clear gradient cache without re-emitting (to avoid infinite loop)
@@ -667,8 +678,11 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
         if (toolbar == null) {
             return;
         }
-        long currentQueueId = UserPreferences.getCurrentQueueId();
-        QueueMetadata queueMetadata = DBReader.getQueueMetadataById(currentQueueId);
+        // Use QueueViewModel to avoid I/O on main thread
+        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity(),
+                ViewModelProvider.AndroidViewModelFactory.getInstance(requireActivity().getApplication()))
+                .get(QueueViewModel.class);
+        QueueMetadata queueMetadata = queueViewModel.getCurrentQueue();
         if (queueMetadata != null) {
             toolbar.setTitle(queueMetadata.getName());
         } else {

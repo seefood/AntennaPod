@@ -368,6 +368,12 @@
     <string name="queue_creation_title">Create New Queue</string>
     <string name="queue_delete_title">Delete Queue?</string>
     <string name="queue_name_label">Queue Name</string>
+    <string name="edit_queue_rules_label">Edit Rules</string>
+    <string name="queue_rules_title">Queue Refill Rules</string>
+    <string name="queue_rules_empty">No rules configured. Add a rule to automatically refill this queue.</string>
+    <string name="add_rule_label">Add Rule</string>
+    <string name="edit_rule_label">Edit Rule</string>
+    <string name="delete_rule_label">Delete Rule</string>
     <string name="queue_empty_name_error">Queue name cannot be empty</string>
     <string name="queue_color_label">Choose Color</string>
     <string name="queue_color_picker_title">Pick Color</string>

@@ -59,7 +59,8 @@ public class PodDBAdapter {
     // Database versioning: MAJOR*1000000 + MINOR*100 + PATCH
     // Version 3080000: Initial single-queue schema
     // Version 3080100: Add multiple queues support (MINOR increment)
-    public static final int VERSION = 3080100;
+    // Version 3080200: Add Smart Queues support (QueueRuleset, RefillRule tables)
+    public static final int VERSION = 3080200;
     private static final int VERSION_OLD = 3080000;
 
     /**
@@ -142,6 +143,8 @@ public class PodDBAdapter {
     public static final String TABLE_NAME_DOWNLOAD_LOG = "DownloadLog";
     public static final String TABLE_NAME_QUEUE = "Queue";
     public static final String TABLE_NAME_QUEUE_METADATA = "QueueMetadata";
+    public static final String TABLE_NAME_QUEUE_RULESET = "QueueRuleset";
+    public static final String TABLE_NAME_REFILL_RULE = "RefillRule";
     public static final String TABLE_NAME_SIMPLECHAPTERS = "SimpleChapters";
     public static final String TABLE_NAME_FAVORITES = "Favorites";
 
@@ -156,6 +159,24 @@ public class PodDBAdapter {
 
     // Queue table columns (new in v3080100)
     public static final String KEY_QUEUE_ID = "queue_id";
+
+    // QueueRuleset columns (new in v3080200)
+    public static final String QUEUE_RULESET_ID = "id";
+    public static final String QUEUE_RULESET_QUEUE_ID = "queue_id";
+    public static final String QUEUE_RULESET_CREATED_AT = "created_at";
+    public static final String QUEUE_RULESET_UPDATED_AT = "updated_at";
+
+    // RefillRule columns (new in v3080200)
+    public static final String REFILL_RULE_ID = "id";
+    public static final String REFILL_RULE_RULESET_ID = "ruleset_id";
+    public static final String REFILL_RULE_POSITION = "position";
+    public static final String REFILL_RULE_RULE_TYPE = "rule_type";
+    public static final String REFILL_RULE_SELECTION_METHOD = "selection_method";
+    public static final String REFILL_RULE_COUNT = "count";
+    public static final String REFILL_RULE_SOURCE_TYPE = "source_type";
+    public static final String REFILL_RULE_SOURCE_ID = "source_id";
+    public static final String REFILL_RULE_CREATED_AT = "created_at";
+    public static final String REFILL_RULE_UPDATED_AT = "updated_at";
 
     // SQL Statements for creating new tables
     private static final String TABLE_PRIMARY_KEY = KEY_ID
@@ -247,6 +268,36 @@ public class PodDBAdapter {
             + QUEUE_METADATA_CURRENTLY_PLAYING_FEEDMEDIA_ID + " INTEGER DEFAULT -1,"
             + QUEUE_METADATA_CURRENTLY_PLAYING_FEED_ID + " INTEGER DEFAULT -1)";
 
+    // QueueRuleset table created in v3080200
+    static final String CREATE_TABLE_QUEUE_RULESET = "CREATE TABLE "
+            + TABLE_NAME_QUEUE_RULESET + " ("
+            + QUEUE_RULESET_ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
+            + QUEUE_RULESET_QUEUE_ID + " INTEGER NOT NULL UNIQUE,"
+            + QUEUE_RULESET_CREATED_AT + " INTEGER NOT NULL,"
+            + QUEUE_RULESET_UPDATED_AT + " INTEGER NOT NULL,"
+            + "FOREIGN KEY (" + QUEUE_RULESET_QUEUE_ID + ") REFERENCES "
+            + TABLE_NAME_QUEUE_METADATA + "(" + QUEUE_METADATA_ID + ") ON DELETE CASCADE)";
+
+    // RefillRule table created in v3080200
+    static final String CREATE_TABLE_REFILL_RULE = "CREATE TABLE "
+            + TABLE_NAME_REFILL_RULE + " ("
+            + REFILL_RULE_ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
+            + REFILL_RULE_RULESET_ID + " INTEGER NOT NULL,"
+            + REFILL_RULE_POSITION + " INTEGER NOT NULL,"
+            + REFILL_RULE_RULE_TYPE + " TEXT NOT NULL CHECK (" + REFILL_RULE_RULE_TYPE
+            + " IN ('CLEAR_QUEUE', 'ADD_EPISODES')),"
+            + REFILL_RULE_SELECTION_METHOD + " TEXT CHECK (" + REFILL_RULE_SELECTION_METHOD
+            + " IN ('OLDEST', 'NEWEST', 'RANDOM')),"
+            + REFILL_RULE_COUNT + " INTEGER CHECK (" + REFILL_RULE_COUNT + " > 0),"
+            + REFILL_RULE_SOURCE_TYPE + " TEXT CHECK (" + REFILL_RULE_SOURCE_TYPE
+            + " IN ('FEED', 'TAG', 'INBOX')),"
+            + REFILL_RULE_SOURCE_ID + " TEXT,"
+            + REFILL_RULE_CREATED_AT + " INTEGER NOT NULL,"
+            + REFILL_RULE_UPDATED_AT + " INTEGER NOT NULL,"
+            + "FOREIGN KEY (" + REFILL_RULE_RULESET_ID + ") REFERENCES "
+            + TABLE_NAME_QUEUE_RULESET + "(" + QUEUE_RULESET_ID + ") ON DELETE CASCADE,"
+            + "UNIQUE (" + REFILL_RULE_RULESET_ID + ", " + REFILL_RULE_POSITION + "))";
+
     private static final String CREATE_TABLE_SIMPLECHAPTERS = "CREATE TABLE "
             + TABLE_NAME_SIMPLECHAPTERS + " (" + TABLE_PRIMARY_KEY + KEY_TITLE
             + " TEXT," + KEY_START + " INTEGER," + KEY_FEEDITEM + " INTEGER,"
@@ -276,6 +327,19 @@ public class PodDBAdapter {
     static final String CREATE_INDEX_SIMPLECHAPTERS_FEEDITEM = "CREATE INDEX "
             + TABLE_NAME_SIMPLECHAPTERS + "_" + KEY_FEEDITEM + " ON " + TABLE_NAME_SIMPLECHAPTERS + " ("
             + KEY_FEEDITEM + ")";
+
+    // Indexes for QueueRuleset and RefillRule tables (new in v3080200)
+    static final String CREATE_INDEX_QUEUE_RULESET_QUEUE_ID = "CREATE INDEX "
+            + "idx_queue_ruleset_queue_id ON " + TABLE_NAME_QUEUE_RULESET + " ("
+            + QUEUE_RULESET_QUEUE_ID + ")";
+
+    static final String CREATE_INDEX_REFILL_RULE_RULESET_ID = "CREATE INDEX "
+            + "idx_refill_rule_ruleset_id ON " + TABLE_NAME_REFILL_RULE + " ("
+            + REFILL_RULE_RULESET_ID + ")";
+
+    static final String CREATE_INDEX_REFILL_RULE_RULESET_POSITION = "CREATE INDEX "
+            + "idx_refill_rule_ruleset_position ON " + TABLE_NAME_REFILL_RULE + " ("
+            + REFILL_RULE_RULESET_ID + ", " + REFILL_RULE_POSITION + ")";
 
     static final String CREATE_TABLE_FAVORITES = "CREATE TABLE "
             + TABLE_NAME_FAVORITES + "(" + KEY_ID + " INTEGER PRIMARY KEY,"
@@ -1246,6 +1310,135 @@ public class PodDBAdapter {
                 new String[]{String.valueOf(queueId)});
     }
 
+    // ============ Smart Queues: Ruleset Operations (v3080200) ============
+
+    /**
+     * Get ruleset by queue ID cursor.
+     * @param queueId Queue ID
+     * @return Cursor positioned before first row
+     */
+    public Cursor getQueueRulesetByQueueIdCursor(long queueId) {
+        return db.query(TABLE_NAME_QUEUE_RULESET, null,
+                QUEUE_RULESET_QUEUE_ID + " = ?", new String[]{String.valueOf(queueId)},
+                null, null, null);
+    }
+
+    /**
+     * Insert a new ruleset.
+     * @param values ContentValues with ruleset data
+     * @return The ID of the inserted ruleset
+     */
+    public long insertQueueRuleset(ContentValues values) {
+        return db.insert(TABLE_NAME_QUEUE_RULESET, null, values);
+    }
+
+    /**
+     * Update a ruleset.
+     * @param rulesetId Ruleset ID to update
+     * @param values ContentValues with fields to update
+     * @return Number of rows affected
+     */
+    public int updateQueueRuleset(long rulesetId, ContentValues values) {
+        return db.update(TABLE_NAME_QUEUE_RULESET, values,
+                QUEUE_RULESET_ID + " = ?", new String[]{String.valueOf(rulesetId)});
+    }
+
+    /**
+     * Delete a ruleset (cascade delete will remove rules).
+     * @param rulesetId Ruleset ID to delete
+     * @return Number of rows affected
+     */
+    public int deleteQueueRuleset(long rulesetId) {
+        return db.delete(TABLE_NAME_QUEUE_RULESET, QUEUE_RULESET_ID + " = ?",
+                new String[]{String.valueOf(rulesetId)});
+    }
+
+    // ============ Smart Queues: Rule Operations (v3080200) ============
+
+    /**
+     * Get refill rules by ruleset ID cursor, ordered by position.
+     * @param rulesetId Ruleset ID
+     * @return Cursor positioned before first row
+     */
+    public Cursor getRefillRulesByRulesetIdCursor(long rulesetId) {
+        return db.query(TABLE_NAME_REFILL_RULE, null,
+                REFILL_RULE_RULESET_ID + " = ?", new String[]{String.valueOf(rulesetId)},
+                null, null, REFILL_RULE_POSITION + " ASC");
+    }
+
+    /**
+     * Get refill rule by ID cursor.
+     * @param ruleId Rule ID
+     * @return Cursor positioned before first row
+     */
+    public Cursor getRefillRuleByIdCursor(long ruleId) {
+        return db.query(TABLE_NAME_REFILL_RULE, null,
+                REFILL_RULE_ID + " = ?", new String[]{String.valueOf(ruleId)},
+                null, null, null);
+    }
+
+    /**
+     * Get CLEAR_QUEUE rule for a ruleset cursor.
+     * @param rulesetId Ruleset ID
+     * @return Cursor positioned before first row
+     */
+    public Cursor getClearQueueRuleCursor(long rulesetId) {
+        return db.query(TABLE_NAME_REFILL_RULE, null,
+                REFILL_RULE_RULESET_ID + " = ? AND " + REFILL_RULE_RULE_TYPE + " = ?",
+                new String[]{String.valueOf(rulesetId), "CLEAR_QUEUE"},
+                null, null, null);
+    }
+
+    /**
+     * Insert a new refill rule.
+     * @param values ContentValues with rule data
+     * @return The ID of the inserted rule
+     */
+    public long insertRefillRule(ContentValues values) {
+        return db.insert(TABLE_NAME_REFILL_RULE, null, values);
+    }
+
+    /**
+     * Update a refill rule.
+     * @param ruleId Rule ID to update
+     * @param values ContentValues with fields to update
+     * @return Number of rows affected
+     */
+    public int updateRefillRule(long ruleId, ContentValues values) {
+        return db.update(TABLE_NAME_REFILL_RULE, values,
+                REFILL_RULE_ID + " = ?", new String[]{String.valueOf(ruleId)});
+    }
+
+    /**
+     * Delete a refill rule.
+     * @param ruleId Rule ID to delete
+     * @return Number of rows affected
+     */
+    public int deleteRefillRule(long ruleId) {
+        return db.delete(TABLE_NAME_REFILL_RULE, REFILL_RULE_ID + " = ?",
+                new String[]{String.valueOf(ruleId)});
+    }
+
+    /**
+     * Shift refill rule positions within a ruleset.
+     * Used when inserting a rule at a specific position.
+     * @param rulesetId Ruleset ID
+     * @param fromPosition Starting position (inclusive)
+     * @param toPosition Ending position (inclusive)
+     * @param shiftAmount Amount to shift (positive = down, negative = up)
+     */
+    public void shiftRefillRulePositions(long rulesetId, int fromPosition, int toPosition, int shiftAmount) {
+        String whereClause = REFILL_RULE_RULESET_ID + " = ? AND " + REFILL_RULE_POSITION + " >= ? AND "
+                + REFILL_RULE_POSITION + " <= ?";
+        String[] whereArgs = new String[]{String.valueOf(rulesetId), String.valueOf(fromPosition),
+                String.valueOf(toPosition)};
+        // Use raw SQL for position update with arithmetic
+        String sql = "UPDATE " + TABLE_NAME_REFILL_RULE
+                + " SET " + REFILL_RULE_POSITION + " = " + REFILL_RULE_POSITION + " + " + shiftAmount
+                + " WHERE " + whereClause;
+        db.execSQL(sql, whereArgs);
+    }
+
     public Cursor getNextInQueue(final FeedItem item) {
         final String query = "SELECT " + KEYS_FEED_ITEM_WITHOUT_DESCRIPTION + ", " + KEYS_FEED_MEDIA
                 + " FROM " + TABLE_NAME_QUEUE
@@ -1732,6 +1925,10 @@ public class PodDBAdapter {
             db.execSQL(CREATE_TABLE_QUEUE);
             db.execSQL(CREATE_TABLE_QUEUE_METADATA);
 
+            // Create Smart Queues tables (v3080200: Smart Queues support)
+            db.execSQL(CREATE_TABLE_QUEUE_RULESET);
+            db.execSQL(CREATE_TABLE_REFILL_RULE);
+
             // Create other tables
             db.execSQL(CREATE_TABLE_SIMPLECHAPTERS);
             db.execSQL(CREATE_TABLE_FAVORITES);
@@ -1742,6 +1939,11 @@ public class PodDBAdapter {
             db.execSQL(CREATE_INDEX_FEEDITEMS_READ);
             db.execSQL(CREATE_INDEX_FEEDMEDIA_FEEDITEM);
             db.execSQL(CREATE_INDEX_QUEUE_FEEDITEM);
+
+            // Create indexes for Smart Queues tables (v3080200)
+            db.execSQL(CREATE_INDEX_QUEUE_RULESET_QUEUE_ID);
+            db.execSQL(CREATE_INDEX_REFILL_RULE_RULESET_ID);
+            db.execSQL(CREATE_INDEX_REFILL_RULE_RULESET_POSITION);
 
             // Queue metadata and multiple queues support indexes (v3080100+)
             // UNIQUE constraint on sort_order ensures each queue has unique ordering

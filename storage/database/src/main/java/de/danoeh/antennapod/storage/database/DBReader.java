@@ -23,6 +23,8 @@ import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.model.feed.FeedOrder;
 import de.danoeh.antennapod.model.feed.FeedPreferences;
 import de.danoeh.antennapod.model.feed.QueueMetadata;
+import de.danoeh.antennapod.model.feed.QueueRuleset;
+import de.danoeh.antennapod.model.feed.RefillRule;
 import de.danoeh.antennapod.model.feed.SortOrder;
 import de.danoeh.antennapod.model.feed.SubscriptionsFilter;
 import de.danoeh.antennapod.model.download.DownloadResult;
@@ -31,6 +33,8 @@ import de.danoeh.antennapod.storage.database.mapper.DownloadResultCursor;
 import de.danoeh.antennapod.storage.database.mapper.FeedCursor;
 import de.danoeh.antennapod.storage.database.mapper.FeedItemCursor;
 import de.danoeh.antennapod.storage.database.mapper.QueueMetadataCursor;
+import de.danoeh.antennapod.storage.database.mapper.QueueRulesetCursor;
+import de.danoeh.antennapod.storage.database.mapper.RefillRuleCursor;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 
 /**
@@ -975,6 +979,133 @@ public final class DBReader {
                 items.add(cursor.getFeed());
             }
             return items;
+        } finally {
+            adapter.close();
+        }
+    }
+
+    // ============ Smart Queues: Ruleset Read Operations (T025-T030) ============
+
+    /**
+     * Gets the ruleset for a queue.
+     * T025: getQueueRuleset(long queueId)
+     *
+     * @param queueId The ID of the queue
+     * @return QueueRuleset The ruleset, or null if no ruleset exists
+     */
+    @Nullable
+    public static QueueRuleset getQueueRuleset(long queueId) {
+        Log.d(TAG, "getQueueRuleset() called with queueId=" + queueId);
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try (QueueRulesetCursor cursor = new QueueRulesetCursor(adapter.getQueueRulesetByQueueIdCursor(queueId))) {
+            if (cursor.moveToFirst()) {
+                return cursor.getQueueRuleset();
+            }
+            return null;
+        } finally {
+            adapter.close();
+        }
+    }
+
+    /**
+     * Checks if a queue has a ruleset.
+     * T026: hasQueueRuleset(long queueId)
+     *
+     * @param queueId The ID of the queue
+     * @return boolean True if ruleset exists, false otherwise
+     */
+    public static boolean hasQueueRuleset(long queueId) {
+        Log.d(TAG, "hasQueueRuleset() called with queueId=" + queueId);
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try (Cursor cursor = adapter.getQueueRulesetByQueueIdCursor(queueId)) {
+            return cursor != null && cursor.getCount() > 0;
+        } finally {
+            adapter.close();
+        }
+    }
+
+    /**
+     * Gets all rules for a ruleset, ordered by position.
+     * T027: getRefillRules(long rulesetId)
+     *
+     * @param rulesetId The ID of the ruleset
+     * @return List of rules ordered by position (ascending)
+     */
+    @NonNull
+    public static List<RefillRule> getRefillRules(long rulesetId) {
+        Log.d(TAG, "getRefillRules() called with rulesetId=" + rulesetId);
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try (RefillRuleCursor cursor = new RefillRuleCursor(adapter.getRefillRulesByRulesetIdCursor(rulesetId))) {
+            List<RefillRule> rules = new ArrayList<>(cursor.getCount());
+            while (cursor.moveToNext()) {
+                rules.add(cursor.getRefillRule());
+            }
+            return rules;
+        } finally {
+            adapter.close();
+        }
+    }
+
+    /**
+     * Gets a specific rule by ID.
+     * T028: getRefillRule(long ruleId)
+     *
+     * @param ruleId The ID of the rule
+     * @return RefillRule The rule, or null if not found
+     */
+    @Nullable
+    public static RefillRule getRefillRule(long ruleId) {
+        Log.d(TAG, "getRefillRule() called with ruleId=" + ruleId);
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try (RefillRuleCursor cursor = new RefillRuleCursor(adapter.getRefillRuleByIdCursor(ruleId))) {
+            if (cursor.moveToFirst()) {
+                return cursor.getRefillRule();
+            }
+            return null;
+        } finally {
+            adapter.close();
+        }
+    }
+
+    /**
+     * Checks if a ruleset has a CLEAR_QUEUE rule.
+     * T029: hasClearQueueRule(long rulesetId)
+     *
+     * @param rulesetId The ID of the ruleset
+     * @return boolean True if CLEAR_QUEUE rule exists, false otherwise
+     */
+    public static boolean hasClearQueueRule(long rulesetId) {
+        Log.d(TAG, "hasClearQueueRule() called with rulesetId=" + rulesetId);
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try (Cursor cursor = adapter.getClearQueueRuleCursor(rulesetId)) {
+            return cursor != null && cursor.getCount() > 0;
+        } finally {
+            adapter.close();
+        }
+    }
+
+    /**
+     * Gets the CLEAR_QUEUE rule for a ruleset, if it exists.
+     * T030: getClearQueueRule(long rulesetId)
+     *
+     * @param rulesetId The ID of the ruleset
+     * @return RefillRule The CLEAR_QUEUE rule, or null if not found
+     */
+    @Nullable
+    public static RefillRule getClearQueueRule(long rulesetId) {
+        Log.d(TAG, "getClearQueueRule() called with rulesetId=" + rulesetId);
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try (RefillRuleCursor cursor = new RefillRuleCursor(adapter.getClearQueueRuleCursor(rulesetId))) {
+            if (cursor.moveToFirst()) {
+                return cursor.getRefillRule();
+            }
+            return null;
         } finally {
             adapter.close();
         }

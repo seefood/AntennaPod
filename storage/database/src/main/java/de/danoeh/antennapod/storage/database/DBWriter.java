@@ -54,6 +54,7 @@ import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.model.feed.FeedPreferences;
 import de.danoeh.antennapod.model.feed.QueueMetadata;
+import de.danoeh.antennapod.model.feed.RefillRule;
 import de.danoeh.antennapod.model.feed.SortOrder;
 import de.danoeh.antennapod.model.MoveResult;
 import de.danoeh.antennapod.model.playback.Playable;
@@ -1611,7 +1612,7 @@ public class DBWriter {
      * Add queue item at specific position (overloaded for multi-queue).
      * T042: addQueueItemAt(long itemId, int index, long queueId)
      *
-     * Preserves existing behavior: insert episode at specific position within queue.
+     * <p>Preserves existing behavior: insert episode at specific position within queue.
      * NOTE: This is an overload of existing addQueueItemAt(Context, long, int) method.
      *
      * @param context Application context
@@ -1696,5 +1697,330 @@ public class DBWriter {
         } else {
             return dbExec.submit(runnable);
         }
+    }
+
+    // ============ Smart Queues: Ruleset Operations (T018-T020) ============
+
+    /**
+     * Creates a new ruleset for a queue.
+     * T018: createQueueRuleset(long queueId)
+     *
+     * @param queueId The ID of the queue to create a ruleset for
+     * @return Future with the ID of the created ruleset
+     */
+    public static Future<Long> createQueueRuleset(final long queueId) {
+        return dbExec.submit(() -> {
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                // Check if ruleset already exists
+                Cursor cursor = adapter.getQueueRulesetByQueueIdCursor(queueId);
+                try {
+                    if (cursor != null && cursor.getCount() > 0 && cursor.moveToFirst()) {
+                        long existingId = cursor.getLong(cursor.getColumnIndexOrThrow(PodDBAdapter.QUEUE_RULESET_ID));
+                        return existingId;
+                    }
+                } finally {
+                    if (cursor != null) {
+                        cursor.close();
+                    }
+                }
+
+                // Create new ruleset
+                ContentValues values = new ContentValues();
+                long now = System.currentTimeMillis();
+                values.put(PodDBAdapter.QUEUE_RULESET_QUEUE_ID, queueId);
+                values.put(PodDBAdapter.QUEUE_RULESET_CREATED_AT, now);
+                values.put(PodDBAdapter.QUEUE_RULESET_UPDATED_AT, now);
+                long rulesetId = adapter.insertQueueRuleset(values);
+                return rulesetId;
+            } finally {
+                adapter.close();
+            }
+        });
+    }
+
+    /**
+     * Updates the ruleset's updatedAt timestamp.
+     * T019: updateQueueRuleset(long rulesetId)
+     *
+     * @param rulesetId The ID of the ruleset to update
+     * @return Future
+     */
+    public static Future<Void> updateQueueRuleset(final long rulesetId) {
+        return dbExec.submit(() -> {
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                ContentValues values = new ContentValues();
+                values.put(PodDBAdapter.QUEUE_RULESET_UPDATED_AT, System.currentTimeMillis());
+                adapter.updateQueueRuleset(rulesetId, values);
+            } finally {
+                adapter.close();
+            }
+            return null;
+        });
+    }
+
+    /**
+     * Deletes a ruleset and all its rules (cascade delete).
+     * T020: deleteQueueRuleset(long rulesetId)
+     *
+     * @param rulesetId The ID of the ruleset to delete
+     * @return Future
+     */
+    public static Future<Void> deleteQueueRuleset(final long rulesetId) {
+        return dbExec.submit(() -> {
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                adapter.deleteQueueRuleset(rulesetId);
+            } finally {
+                adapter.close();
+            }
+            return null;
+        });
+    }
+
+    // ============ Smart Queues: Rule Operations (T021-T024) ============
+
+    /**
+     * Creates a new refill rule in a ruleset.
+     * T021: createRefillRule(rulesetId, position, ruleType, selectionMethod, count, sourceType, sourceId)
+     *
+     * @param rulesetId The ID of the ruleset to add the rule to
+     * @param position The position of the rule (0-based, lower numbers execute first)
+     * @param ruleType The type of rule (CLEAR_QUEUE or ADD_EPISODES)
+     * @param selectionMethod The selection method (OLDEST, NEWEST, or RANDOM) - null for CLEAR_QUEUE
+     * @param count The number of episodes to add - null for CLEAR_QUEUE
+     * @param sourceType The source type (FEED, TAG, or INBOX) - null for CLEAR_QUEUE
+     * @param sourceId The source identifier (feed ID, tag name, or null for INBOX) - null for CLEAR_QUEUE
+     * @return Future with the ID of the created rule
+     */
+    public static Future<Long> createRefillRule(final long rulesetId, final int position,
+                                                final RefillRule.RuleType ruleType,
+                                                final RefillRule.SelectionMethod selectionMethod,
+                                                final Integer count,
+                                                final RefillRule.SourceType sourceType,
+                                                final String sourceId) {
+        return dbExec.submit(() -> {
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                // Validate CLEAR_QUEUE rule constraints (FR-030, FR-031)
+                if (ruleType == RefillRule.RuleType.CLEAR_QUEUE) {
+                    // Check if CLEAR_QUEUE rule already exists
+                    Cursor cursor = adapter.getClearQueueRuleCursor(rulesetId);
+                    if (cursor != null && cursor.getCount() > 0) {
+                        cursor.close();
+                        throw new IllegalArgumentException("Only one CLEAR_QUEUE rule allowed per ruleset (FR-030)");
+                    }
+                    if (cursor != null) {
+                        cursor.close();
+                    }
+                    // CLEAR_QUEUE must be at position 0 (FR-031)
+                    if (position != 0) {
+                        // Move existing rules down and insert at position 0
+                        adapter.shiftRefillRulePositions(rulesetId, 0, Integer.MAX_VALUE, 1);
+                    }
+                }
+
+                // Create rule
+                ContentValues values = new ContentValues();
+                final long now = System.currentTimeMillis();
+                values.put(PodDBAdapter.REFILL_RULE_RULESET_ID, rulesetId);
+                values.put(PodDBAdapter.REFILL_RULE_POSITION, ruleType == RefillRule.RuleType.CLEAR_QUEUE ? 0 : position);
+                values.put(PodDBAdapter.REFILL_RULE_RULE_TYPE, ruleType.name());
+                if (selectionMethod != null) {
+                    values.put(PodDBAdapter.REFILL_RULE_SELECTION_METHOD, selectionMethod.name());
+                }
+                if (count != null) {
+                    values.put(PodDBAdapter.REFILL_RULE_COUNT, count);
+                }
+                if (sourceType != null) {
+                    values.put(PodDBAdapter.REFILL_RULE_SOURCE_TYPE, sourceType.name());
+                }
+                if (sourceId != null) {
+                    values.put(PodDBAdapter.REFILL_RULE_SOURCE_ID, sourceId);
+                }
+                values.put(PodDBAdapter.REFILL_RULE_CREATED_AT, now);
+                values.put(PodDBAdapter.REFILL_RULE_UPDATED_AT, now);
+                long ruleId = adapter.insertRefillRule(values);
+
+                // Update ruleset timestamp synchronously
+                ContentValues rulesetValues = new ContentValues();
+                rulesetValues.put(PodDBAdapter.QUEUE_RULESET_UPDATED_AT, now);
+                adapter.updateQueueRuleset(rulesetId, rulesetValues);
+
+                return ruleId;
+            } finally {
+                adapter.close();
+            }
+        });
+    }
+
+    /**
+     * Updates an existing refill rule.
+     * T022: updateRefillRule(ruleId, ruleType, selectionMethod, count, sourceType, sourceId)
+     *
+     * @param ruleId The ID of the rule to update
+     * @param ruleType The type of rule (CLEAR_QUEUE or ADD_EPISODES)
+     * @param selectionMethod The selection method (OLDEST, NEWEST, or RANDOM) - null for CLEAR_QUEUE
+     * @param count The number of episodes to add - null for CLEAR_QUEUE
+     * @param sourceType The source type (FEED, TAG, or INBOX) - null for CLEAR_QUEUE
+     * @param sourceId The source identifier (feed ID, tag name, or null for INBOX) - null for CLEAR_QUEUE
+     * @return Future
+     */
+    public static Future<Void> updateRefillRule(final long ruleId,
+                                                 final RefillRule.RuleType ruleType,
+                                                 final RefillRule.SelectionMethod selectionMethod,
+                                                 final Integer count,
+                                                 final RefillRule.SourceType sourceType,
+                                                 final String sourceId) {
+        return dbExec.submit(() -> {
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                ContentValues values = new ContentValues();
+                values.put(PodDBAdapter.REFILL_RULE_RULE_TYPE, ruleType.name());
+                if (selectionMethod != null) {
+                    values.put(PodDBAdapter.REFILL_RULE_SELECTION_METHOD, selectionMethod.name());
+                } else {
+                    values.putNull(PodDBAdapter.REFILL_RULE_SELECTION_METHOD);
+                }
+                if (count != null) {
+                    values.put(PodDBAdapter.REFILL_RULE_COUNT, count);
+                } else {
+                    values.putNull(PodDBAdapter.REFILL_RULE_COUNT);
+                }
+                if (sourceType != null) {
+                    values.put(PodDBAdapter.REFILL_RULE_SOURCE_TYPE, sourceType.name());
+                } else {
+                    values.putNull(PodDBAdapter.REFILL_RULE_SOURCE_TYPE);
+                }
+                if (sourceId != null) {
+                    values.put(PodDBAdapter.REFILL_RULE_SOURCE_ID, sourceId);
+                } else {
+                    values.putNull(PodDBAdapter.REFILL_RULE_SOURCE_ID);
+                }
+                values.put(PodDBAdapter.REFILL_RULE_UPDATED_AT, System.currentTimeMillis());
+                adapter.updateRefillRule(ruleId, values);
+
+                // Get ruleset ID and update timestamp
+                Cursor cursor = adapter.getRefillRuleByIdCursor(ruleId);
+                try {
+                    if (cursor != null && cursor.moveToFirst()) {
+                        long rulesetId = cursor.getLong(cursor.getColumnIndexOrThrow(PodDBAdapter.REFILL_RULE_RULESET_ID));
+                        // Update ruleset timestamp synchronously
+                        ContentValues rulesetValues = new ContentValues();
+                        rulesetValues.put(PodDBAdapter.QUEUE_RULESET_UPDATED_AT, System.currentTimeMillis());
+                        adapter.updateQueueRuleset(rulesetId, rulesetValues);
+                    }
+                } finally {
+                    if (cursor != null) {
+                        cursor.close();
+                    }
+                }
+            } finally {
+                adapter.close();
+            }
+            return null;
+        });
+    }
+
+    /**
+     * Deletes a refill rule.
+     * T023: deleteRefillRule(long ruleId)
+     *
+     * @param ruleId The ID of the rule to delete
+     * @return Future
+     */
+    public static Future<Void> deleteRefillRule(final long ruleId) {
+        return dbExec.submit(() -> {
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                // Get ruleset ID before deletion
+                Cursor cursor = adapter.getRefillRuleByIdCursor(ruleId);
+                long rulesetId = -1;
+                try {
+                    if (cursor != null && cursor.moveToFirst()) {
+                        rulesetId = cursor.getLong(cursor.getColumnIndexOrThrow(PodDBAdapter.REFILL_RULE_RULESET_ID));
+                    }
+                } finally {
+                    if (cursor != null) {
+                        cursor.close();
+                    }
+                }
+
+                // Delete rule
+                adapter.deleteRefillRule(ruleId);
+
+                // Update ruleset timestamp synchronously
+                if (rulesetId > 0) {
+                    ContentValues rulesetValues = new ContentValues();
+                    rulesetValues.put(PodDBAdapter.QUEUE_RULESET_UPDATED_AT, System.currentTimeMillis());
+                    adapter.updateQueueRuleset(rulesetId, rulesetValues);
+                }
+            } finally {
+                adapter.close();
+            }
+            return null;
+        });
+    }
+
+    /**
+     * Reorders refill rules within a ruleset.
+     * T024: reorderRefillRules(rulesetId, rulePositions)
+     *
+     * @param rulesetId The ID of the ruleset
+     * @param rulePositions Map of rule ID to new position
+     * @return {@code Future} for async completion
+     */
+    public static Future<Void> reorderRefillRules(final long rulesetId,
+                                                   final Map<Long, Integer> rulePositions) {
+        return dbExec.submit(() -> {
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                // Check if CLEAR_QUEUE rule exists and is at position 0 - protect it (FR-033)
+                Cursor clearCursor = adapter.getClearQueueRuleCursor(rulesetId);
+                try {
+                    if (clearCursor != null && clearCursor.moveToFirst()) {
+                        long clearRuleId = clearCursor.getLong(clearCursor.getColumnIndexOrThrow(PodDBAdapter.REFILL_RULE_ID));
+                        int clearPosition = clearCursor.getInt(clearCursor.getColumnIndexOrThrow(PodDBAdapter.REFILL_RULE_POSITION));
+                        // If CLEAR_QUEUE is at position 0, ensure it stays there
+                        if (clearPosition == 0 && rulePositions.containsKey(clearRuleId)) {
+                            int newPosition = rulePositions.get(clearRuleId);
+                            if (newPosition != 0) {
+                                throw new IllegalArgumentException("CLEAR_QUEUE rule must remain at position 0 (FR-033)");
+                            }
+                        }
+                    }
+                } finally {
+                    if (clearCursor != null) {
+                        clearCursor.close();
+                    }
+                }
+
+                // Update positions
+                for (Map.Entry<Long, Integer> entry : rulePositions.entrySet()) {
+                    long ruleId = entry.getKey();
+                    int newPosition = entry.getValue();
+                    ContentValues values = new ContentValues();
+                    values.put(PodDBAdapter.REFILL_RULE_POSITION, newPosition);
+                    values.put(PodDBAdapter.REFILL_RULE_UPDATED_AT, System.currentTimeMillis());
+                    adapter.updateRefillRule(ruleId, values);
+                }
+
+                // Update ruleset timestamp synchronously
+                ContentValues rulesetValues = new ContentValues();
+                rulesetValues.put(PodDBAdapter.QUEUE_RULESET_UPDATED_AT, System.currentTimeMillis());
+                adapter.updateQueueRuleset(rulesetId, rulesetValues);
+            } finally {
+                adapter.close();
+            }
+            return null;
+        });
     }
 }

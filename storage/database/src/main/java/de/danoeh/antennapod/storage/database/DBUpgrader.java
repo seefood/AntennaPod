@@ -359,6 +359,10 @@ class DBUpgrader {
             Log.d("DBUpgrader", "Upgrading to version 3080100: Multiple Queues support");
             migrateToVersion3080100(db);
         }
+        if (oldVersion < 3080200) {
+            Log.d("DBUpgrader", "Upgrading to version 3080200: Smart Queues support");
+            migrateToVersion3080200(db);
+        }
     }
 
     /**
@@ -414,6 +418,35 @@ class DBUpgrader {
         } catch (Exception e) {
             Log.e("DBUpgrader", "Error during migration to version 3080100", e);
             throw e;
+        }
+    }
+
+    /**
+     * Migration to version 3080200: Add Smart Queues support
+     * Creates QueueRuleset and RefillRule tables with indexes
+     */
+    private static void migrateToVersion3080200(final SQLiteDatabase db) {
+        Log.d("DBUpgrader", "Starting migration to version 3080200: Smart Queues");
+
+        try {
+            // Step 1: Create QueueRuleset table
+            Log.d("DBUpgrader", "Creating QueueRuleset table...");
+            db.execSQL(PodDBAdapter.CREATE_TABLE_QUEUE_RULESET);
+
+            // Step 2: Create RefillRule table
+            Log.d("DBUpgrader", "Creating RefillRule table...");
+            db.execSQL(PodDBAdapter.CREATE_TABLE_REFILL_RULE);
+
+            // Step 3: Create indexes
+            Log.d("DBUpgrader", "Creating indexes for QueueRuleset and RefillRule...");
+            db.execSQL(PodDBAdapter.CREATE_INDEX_QUEUE_RULESET_QUEUE_ID);
+            db.execSQL(PodDBAdapter.CREATE_INDEX_REFILL_RULE_RULESET_ID);
+            db.execSQL(PodDBAdapter.CREATE_INDEX_REFILL_RULE_RULESET_POSITION);
+
+            Log.d("DBUpgrader", "Migration to version 3080200 completed successfully");
+        } catch (Exception e) {
+            Log.e("DBUpgrader", "Error during migration to version 3080200", e);
+            throw new RuntimeException("Failed to migrate database to version 3080200", e);
         }
     }
 

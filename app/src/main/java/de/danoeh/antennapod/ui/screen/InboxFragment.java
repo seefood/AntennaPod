@@ -62,7 +62,9 @@ public class InboxFragment extends EpisodesListFragment {
         super.onViewCreated(view, savedInstanceState);
 
         // Phase 7: Queue Color Gradient - Apply gradient to title bar
-        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
+        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity(),
+                ViewModelProvider.AndroidViewModelFactory.getInstance(requireActivity().getApplication()))
+                .get(QueueViewModel.class);
         queueViewModel.getCurrentQueueColor().observe(getViewLifecycleOwner(), color -> {
             if (color != null && toolbar != null) {
                 // Check for theme changes (but don't clear cache here to avoid infinite loop)
@@ -83,7 +85,9 @@ public class InboxFragment extends EpisodesListFragment {
         if (toolbar == null) {
             return;
         }
-        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
+        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity(),
+                ViewModelProvider.AndroidViewModelFactory.getInstance(requireActivity().getApplication()))
+                .get(QueueViewModel.class);
         Integer currentColor = queueViewModel.getCurrentQueueColor().getValue();
         if (currentColor != null) {
             // Clear cache without re-emitting (to avoid infinite loop)
@@ -97,7 +101,9 @@ public class InboxFragment extends EpisodesListFragment {
     public void onConfigurationChanged(@NonNull android.content.res.Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         // Recompute text color when theme changes (e.g., dark to light mode)
-        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity()).get(QueueViewModel.class);
+        QueueViewModel queueViewModel = new ViewModelProvider(requireActivity(),
+                ViewModelProvider.AndroidViewModelFactory.getInstance(requireActivity().getApplication()))
+                .get(QueueViewModel.class);
         Integer currentColor = queueViewModel.getCurrentQueueColor().getValue();
         if (currentColor != null && toolbar != null) {
             // Clear cache without re-emitting (to avoid infinite loop)
