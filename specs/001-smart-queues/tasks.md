@@ -88,11 +88,11 @@
 - [X] T033 [US1] Create QueueRulesetEditFragment in app/src/main/java/de/danoeh/antennapod/ui/screen/queue/QueueRulesetEditFragment.java
 - [X] T034 [US1] Implement rule list RecyclerView with drag-to-reorder in QueueRulesetEditFragment.java (prevent Clear queue reorder if at position 1, FR-033)
 - [X] T035 [US1] Implement add rule dialog in QueueRulesetEditFragment.java (hide Clear queue option if already exists, FR-032)
-- [ ] T036 [US1] Implement edit rule dialog in QueueRulesetEditFragment.java
+- [X] T036 [US1] Implement edit rule dialog in QueueRulesetEditFragment.java
 - [X] T037 [US1] Implement remove rule functionality in QueueRulesetEditFragment.java
 - [X] T038 [US1] Implement rule reordering with Clear queue protection in QueueRulesetEditFragment.java (FR-033)
-- [ ] T039 [US1] Implement rule insertion at top (position 2 if Clear queue exists, FR-035) in QueueRulesetEditFragment.java
-- [ ] T040 [US1] Implement rule appending at end in QueueRulesetEditFragment.java
+- [X] T039 [US1] Implement rule insertion at top (position 0) in QueueRulesetEditFragment.java
+- [X] T040 [US1] Implement rule appending at end in QueueRulesetEditFragment.java
 - [X] T041 [US1] Add "Edit Rules" button/menu item to QueueFragment in app/src/main/java/de/danoeh/antennapod/ui/screen/queue/QueueFragment.java
 - [X] T042 [US1] Add navigation from QueueFragment to QueueRulesetEditFragment in QueueFragment.java
 - [X] T043 [US1] Add string resources for ruleset editing UI in app/src/main/res/values/strings.xml
