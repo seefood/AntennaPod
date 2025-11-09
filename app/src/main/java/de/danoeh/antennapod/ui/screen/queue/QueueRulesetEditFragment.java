@@ -45,6 +45,7 @@ public class QueueRulesetEditFragment extends Fragment {
     private RecyclerView rulesList;
     private TextView emptyView;
     private FloatingActionButton addRuleButton;
+    private FloatingActionButton insertRuleButton;
     private MaterialToolbar toolbar;
     private RefillRuleAdapter adapter;
     private ItemTouchHelper itemTouchHelper;
@@ -70,6 +71,7 @@ public class QueueRulesetEditFragment extends Fragment {
         rulesList = view.findViewById(R.id.rules_list);
         emptyView = view.findViewById(R.id.empty_view);
         addRuleButton = view.findViewById(R.id.add_rule_button);
+        insertRuleButton = view.findViewById(R.id.insert_rule_button);
 
         // Setup toolbar with back navigation
         toolbar.setNavigationOnClickListener(v -> {
@@ -102,7 +104,7 @@ public class QueueRulesetEditFragment extends Fragment {
                 int fromPosition = viewHolder.getBindingAdapterPosition();
                 int toPosition = target.getBindingAdapterPosition();
 
-                // Prevent reordering Clear queue rule at position 1 (FR-033)
+                // Check if rules can be reordered
                 if (!adapter.canReorderRule(fromPosition) || !adapter.canReorderRule(toPosition)) {
                     return false;
                 }
@@ -157,9 +159,14 @@ public class QueueRulesetEditFragment extends Fragment {
         itemTouchHelper = new ItemTouchHelper(touchCallback);
         itemTouchHelper.attachToRecyclerView(rulesList);
 
-        // Setup add rule button
+        // Setup add rule button (append at end)
         addRuleButton.setOnClickListener(v -> {
-            showAddRuleDialog();
+            showAddRuleDialog(false);
+        });
+
+        // Setup insert rule button (insert at position 0)
+        insertRuleButton.setOnClickListener(v -> {
+            showAddRuleDialog(true);
         });
 
         // Apply queue color gradient to toolbar
@@ -193,9 +200,17 @@ public class QueueRulesetEditFragment extends Fragment {
             if (rules == null || rules.isEmpty()) {
                 emptyView.setVisibility(View.VISIBLE);
                 rulesList.setVisibility(View.GONE);
+                // Hide insert button when no rules (can't insert if list is empty)
+                if (insertRuleButton != null) {
+                    insertRuleButton.setVisibility(View.GONE);
+                }
             } else {
                 emptyView.setVisibility(View.GONE);
                 rulesList.setVisibility(View.VISIBLE);
+                // Show insert button when rules exist
+                if (insertRuleButton != null) {
+                    insertRuleButton.setVisibility(View.VISIBLE);
+                }
                 // Update adapter with new rules
                 if (adapter != null) {
                     adapter.updateRules(rules);
@@ -206,95 +221,32 @@ public class QueueRulesetEditFragment extends Fragment {
 
     /**
      * Show dialog for adding a new rule.
-     * Hides "Clear queue" option if it already exists as first rule (FR-032).
-     */
-    private void showAddRuleDialog() {
-        // Check if "Clear queue" rule already exists by checking cached rules
-        // This avoids I/O on main thread since rules are already loaded in ViewModel
-        java.util.List<RefillRule> rules = viewModel.getRulesValue();
-        boolean hasClearQueueRule = false;
-        if (rules != null && !rules.isEmpty()) {
-            // Check if first rule is CLEAR_QUEUE (it should be at position 0)
-            RefillRule firstRule = rules.get(0);
-            if (firstRule != null && firstRule.getRuleType() == RefillRule.RuleType.CLEAR_QUEUE) {
-                hasClearQueueRule = true;
-            }
-        }
-        showAddRuleDialogInternal(hasClearQueueRule);
-    }
-
-    /**
-     * Internal method to show the add rule dialog with the appropriate options.
+     * Only shows "Add Episodes" option (Clear queue is handled separately in QueueFragment).
      *
-     * @param hasClearQueueRule Whether a "Clear queue" rule already exists
+     * @param insertAtTop If true, insert at position 0; if false, append at end
      */
-    private void showAddRuleDialogInternal(boolean hasClearQueueRule) {
-        // Build rule type options
-        String[] ruleTypes;
-        RefillRule.RuleType[] ruleTypeValues;
-        if (hasClearQueueRule) {
-            // Hide "Clear queue" option if it already exists (FR-032)
-            ruleTypes = new String[]{"Add Episodes"};
-            ruleTypeValues = new RefillRule.RuleType[]{RefillRule.RuleType.ADD_EPISODES};
-        } else {
-            ruleTypes = new String[]{"Clear Queue", "Add Episodes"};
-            ruleTypeValues = new RefillRule.RuleType[]{
-                    RefillRule.RuleType.CLEAR_QUEUE,
-                    RefillRule.RuleType.ADD_EPISODES
-            };
-        }
-
+    private void showAddRuleDialog(boolean insertAtTop) {
+        // Only show "Add Episodes" option - Clear queue is handled in QueueFragment menu
         new MaterialAlertDialogBuilder(requireContext())
-                .setTitle(R.string.add_rule_label)
-                .setItems(ruleTypes, (dialog, which) -> {
-                    RefillRule.RuleType selectedType = ruleTypeValues[which];
-                    if (selectedType == RefillRule.RuleType.CLEAR_QUEUE) {
-                        // Create "Clear queue" rule at position 0
-                        createClearQueueRule();
-                    } else {
-                        // TODO: Show dialog for "Add Episodes" rule configuration
-                        // For now, just create a basic rule
-                        showAddEpisodesRuleDialog();
-                    }
+                .setTitle(insertAtTop ? R.string.insert_rule_label : R.string.add_rule_label)
+                .setItems(new String[]{"Add Episodes"}, (dialog, which) -> {
+                    // Show dialog for "Add Episodes" rule configuration
+                    showAddEpisodesRuleDialog(insertAtTop);
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }
 
     /**
-     * Create a "Clear queue" rule at position 0.
-     */
-    private void createClearQueueRule() {
-        QueueRuleset ruleset = viewModel.getRulesetValue();
-        executor.submit(() -> {
-            try {
-                long rulesetId;
-                if (ruleset == null) {
-                    // Create ruleset first if it doesn't exist
-                    long queueId = viewModel.getCurrentQueueId();
-                    rulesetId = DBWriter.createQueueRuleset(queueId).get();
-                } else {
-                    rulesetId = ruleset.getId();
-                }
-                // Create clear queue rule at position 0
-                DBWriter.createRefillRule(rulesetId, 0, RefillRule.RuleType.CLEAR_QUEUE,
-                        null, null, null, null).get();
-                // Refresh ruleset on main thread
-                requireActivity().runOnUiThread(() -> viewModel.refreshRuleset());
-            } catch (Exception e) {
-                android.util.Log.e(TAG, "Error creating clear queue rule", e);
-            }
-        });
-    }
-
-    /**
      * Show dialog for configuring "Add Episodes" rule.
      * TODO: Implement full configuration dialog (source, count, selection method)
+     *
+     * @param insertAtTop If true, insert at position 0; if false, append at end
      */
-    private void showAddEpisodesRuleDialog() {
+    private void showAddEpisodesRuleDialog(boolean insertAtTop) {
         // For now, show a simple message indicating this needs to be implemented
         new MaterialAlertDialogBuilder(requireContext())
-                .setTitle(R.string.add_rule_label)
+                .setTitle(insertAtTop ? R.string.insert_rule_label : R.string.add_rule_label)
                 .setMessage("Add Episodes rule configuration will be implemented in subsequent tasks.")
                 .setPositiveButton(android.R.string.ok, null)
                 .show();

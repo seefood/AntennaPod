@@ -344,6 +344,7 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
             FeedUpdateManager.getInstance().runOnceOrAsk(requireContext());
             return true;
         } else if (itemId == R.id.clear_queue) {
+            // Legacy clear queue option (kept for compatibility)
             // make sure the user really wants to clear the queue
             ConfirmationDialog conDialog = new ConfirmationDialog(getActivity(),
                     R.string.clear_queue_label,
@@ -839,4 +840,27 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
         }
 
     }
+
+    /**
+     * Refill the queue using the configured ruleset.
+     * If clearQueue is true, clears the queue first before refilling.
+     *
+     * @param clearQueue If true, clear queue before refilling; if false, append to existing queue
+     */
+    private void refillQueue(boolean clearQueue) {
+        // TODO: Implement refill logic (will be implemented in User Story 2)
+        // For now, show a placeholder message
+        if (clearQueue) {
+            // Clear queue first
+            DBWriter.clearQueue();
+        }
+        // TODO: Process ruleset and add episodes to queue
+        // This will be implemented when QueueRefillEngine is created in User Story 2
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.refill_queue_label)
+                .setMessage("Queue refill functionality will be implemented in User Story 2.")
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
+    }
+
 }

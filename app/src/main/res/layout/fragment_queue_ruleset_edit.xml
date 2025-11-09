@@ -42,17 +42,29 @@
                 android:padding="32dp"
                 android:visibility="gone" />
 
+            <!-- Top plus button for inserting rules at position 0 -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/insert_rule_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginBottom="8dp"
+                android:src="@drawable/ic_add"
+                android:contentDescription="@string/insert_rule_label" />
+
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rules_list"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:clipToPadding="false" />
 
+            <!-- Bottom plus button for appending rules at end -->
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/add_rule_button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="end|bottom"
+                android:layout_marginTop="8dp"
                 android:layout_margin="16dp"
                 android:src="@drawable/ic_add"
                 android:contentDescription="@string/add_rule_label" />

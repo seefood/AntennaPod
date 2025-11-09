@@ -158,21 +158,14 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
 
     /**
      * Check if a rule at the given position can be reordered.
-     * Clear queue rule at position 1 cannot be reordered (FR-033).
+     * All rules can be reordered (no special cases after redesign).
      *
      * @param position Position to check
      * @return true if rule can be reordered, false otherwise
      */
     public boolean canReorderRule(int position) {
         RefillRule rule = getRuleAt(position);
-        if (rule == null) {
-            return false;
-        }
-        // Clear queue rule at position 1 cannot be reordered (FR-033)
-        if (rule.getRuleType() == RefillRule.RuleType.CLEAR_QUEUE && rule.getPosition() == 0) {
-            return false;
-        }
-        return true;
+        return rule != null;
     }
 
     @NonNull
@@ -232,12 +225,8 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
             // Show/hide drag handle based on reorder capability
             dragHandle.setVisibility(canReorder ? View.VISIBLE : View.GONE);
 
-            // Set rule icon based on rule type
-            if (rule.getRuleType() == RefillRule.RuleType.CLEAR_QUEUE) {
-                ruleIcon.setImageResource(android.R.drawable.ic_menu_delete);
-            } else {
-                ruleIcon.setImageResource(android.R.drawable.ic_menu_add);
-            }
+            // Set rule icon (all rules are ADD_EPISODES after redesign)
+            ruleIcon.setImageResource(android.R.drawable.ic_menu_add);
 
             // Set rule description
             String description = formatRuleDescription(rule);
@@ -269,16 +258,12 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
          * @return Formatted description string
          */
         private String formatRuleDescription(RefillRule rule) {
-            if (rule.getRuleType() == RefillRule.RuleType.CLEAR_QUEUE) {
-                return itemView.getContext().getString(R.string.clear_queue_rule_description);
-            } else {
-                // Format: "Add X episodes from SOURCE (METHOD)"
-                String sourceName = formatSourceName(rule);
-                String methodName = formatSelectionMethod(rule);
-                int count = rule.getCount() != null ? rule.getCount() : 0;
-                return itemView.getContext().getString(R.string.add_episodes_rule_description,
-                        count, sourceName, methodName);
-            }
+            // Format: "Add X episodes from SOURCE (METHOD)"
+            String sourceName = formatSourceName(rule);
+            String methodName = formatSelectionMethod(rule);
+            int count = rule.getCount() != null ? rule.getCount() : 0;
+            return itemView.getContext().getString(R.string.add_episodes_rule_description,
+                    count, sourceName, methodName);
         }
 
         /**

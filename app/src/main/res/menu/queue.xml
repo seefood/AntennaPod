@@ -31,6 +31,18 @@
         custom:showAsAction="never" />
 
     <item
+        android:id="@+id/queue_refill"
+        android:title="@string/refill_queue_label"
+        android:menuCategory="container"
+        custom:showAsAction="never" />
+
+    <item
+        android:id="@+id/queue_clear_and_refill"
+        android:title="@string/clear_and_refill_queue_label"
+        android:menuCategory="container"
+        custom:showAsAction="never" />
+
+    <item
         android:id="@+id/clear_queue"
         android:title="@string/clear_queue_label"
         custom:showAsAction="collapseActionView"
