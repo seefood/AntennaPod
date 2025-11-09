@@ -7,57 +7,58 @@
     android:padding="16dp">
 
     <!-- Source Type Selection -->
-    <com.google.android.material.textfield.TextInputLayout
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="4dp"
+        android:text="@string/rule_source_type_label"
+        android:textStyle="bold"
+        android:textSize="14sp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/rule_source_type_button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="12dp"
-        android:hint="@string/rule_source_type_label"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
-        <AutoCompleteTextView
-            android:id="@+id/rule_source_type_input"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="none"
-            android:focusable="true"
-            android:clickable="true" />
-    </com.google.android.material.textfield.TextInputLayout>
+        android:text="Feed"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
     <!-- Source Selection (Feed/Tag) -->
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/rule_source_input_layout"
+    <TextView
+        android:id="@+id/rule_source_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="4dp"
+        android:text="@string/rule_source_label"
+        android:textStyle="bold"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/rule_source_button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="12dp"
-        android:hint="@string/rule_source_label"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-        android:visibility="gone">
-
-        <AutoCompleteTextView
-            android:id="@+id/rule_source_input"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="none"
-            android:focusable="true"
-            android:clickable="true" />
-    </com.google.android.material.textfield.TextInputLayout>
+        android:text=""
+        android:visibility="gone"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
     <!-- Selection Method -->
-    <com.google.android.material.textfield.TextInputLayout
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="4dp"
+        android:text="@string/rule_selection_method_label"
+        android:textStyle="bold"
+        android:textSize="14sp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/rule_selection_method_button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="12dp"
-        android:hint="@string/rule_selection_method_label"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
-        <AutoCompleteTextView
-            android:id="@+id/rule_selection_method_input"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="none"
-            android:focusable="true"
-            android:clickable="true" />
-    </com.google.android.material.textfield.TextInputLayout>
+        android:text="Oldest First"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
     <!-- Count -->
     <TextView

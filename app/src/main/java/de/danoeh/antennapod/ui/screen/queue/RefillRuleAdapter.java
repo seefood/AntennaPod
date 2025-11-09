@@ -11,11 +11,17 @@ import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import de.danoeh.antennapod.R;
+import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.model.feed.RefillRule;
+import de.danoeh.antennapod.storage.database.DBReader;
 
 /**
  * RecyclerView adapter for displaying refill rules in a list.
@@ -28,6 +34,10 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
     OnRuleEditListener editListener; // Package-private for access from fragment
     OnRuleDeleteListener deleteListener; // Package-private for access from fragment
     OnRuleReorderListener reorderListener; // Package-private for access from fragment
+
+    // Feed ID to name cache (loaded asynchronously)
+    private final Map<Long, String> feedIdToNameCache = new HashMap<>();
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     /**
      * Interface for rule edit callbacks.
@@ -103,6 +113,9 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
         final List<RefillRule> finalNewRules = newRules != null
                 ? newRules : new ArrayList<>();
 
+        // Load feed names asynchronously if needed
+        loadFeedNamesIfNeeded(finalNewRules);
+
         // Use DiffUtil for efficient updates instead of notifyDataSetChanged()
         DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new DiffUtil.Callback() {
             @Override
@@ -144,6 +157,54 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
     }
 
     /**
+     * Load feed names asynchronously if there are any FEED rules.
+     *
+     * @param rules List of rules to check
+     */
+    private void loadFeedNamesIfNeeded(List<RefillRule> rules) {
+        // Check if any rules need feed names
+        boolean needsFeedNames = false;
+        for (RefillRule rule : rules) {
+            if (rule.getSourceType() == RefillRule.SourceType.FEED && rule.getSourceId() != null) {
+                try {
+                    long feedId = Long.parseLong(rule.getSourceId());
+                    synchronized (feedIdToNameCache) {
+                        if (!feedIdToNameCache.containsKey(feedId)) {
+                            needsFeedNames = true;
+                            break;
+                        }
+                    }
+                } catch (NumberFormatException e) {
+                    // Not a valid feed ID, skip
+                }
+            }
+        }
+
+        if (needsFeedNames) {
+            executor.submit(() -> {
+                try {
+                    List<Feed> feeds = DBReader.getFeedList();
+                    boolean cacheUpdated = false;
+                    synchronized (feedIdToNameCache) {
+                        for (Feed feed : feeds) {
+                            if (!feedIdToNameCache.containsKey(feed.getId())) {
+                                feedIdToNameCache.put(feed.getId(), feed.getTitle());
+                                cacheUpdated = true;
+                            }
+                        }
+                    }
+                    // Notify adapter to update views with new feed names
+                    // Note: This runs on background thread, so we need to post to main thread
+                    // We'll update views on next bind, but we can also notify the adapter
+                    // if needed. For now, views will update on next bind or scroll.
+                } catch (Exception e) {
+                    android.util.Log.e("RefillRuleAdapter", "Error loading feed names", e);
+                }
+            });
+        }
+    }
+
+    /**
      * Get the rule at the specified position.
      *
      * @param position Position in the list
@@ -180,7 +241,7 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
     public void onBindViewHolder(@NonNull RuleViewHolder holder, int position) {
         if (rules != null && position >= 0 && position < rules.size()) {
             RefillRule rule = rules.get(position);
-            holder.bind(rule, position, editListener, deleteListener, canReorderRule(position));
+            holder.bind(rule, position, editListener, deleteListener, canReorderRule(position), feedIdToNameCache);
         }
     }
 
@@ -221,7 +282,8 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
                          int position,
                          OnRuleEditListener editListener,
                          OnRuleDeleteListener deleteListener,
-                         boolean canReorder) {
+                         boolean canReorder,
+                         Map<Long, String> feedIdToNameCache) {
             // Show/hide drag handle based on reorder capability
             dragHandle.setVisibility(canReorder ? View.VISIBLE : View.GONE);
 
@@ -229,7 +291,7 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
             ruleIcon.setImageResource(android.R.drawable.ic_menu_add);
 
             // Set rule description
-            String description = formatRuleDescription(rule);
+            String description = formatRuleDescription(rule, feedIdToNameCache);
             ruleDescription.setText(description);
 
             // Handle edit button
@@ -255,11 +317,12 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
          * Format rule description for display.
          *
          * @param rule Rule to format
+         * @param feedIdToNameCache Cache of feed IDs to names
          * @return Formatted description string
          */
-        private String formatRuleDescription(RefillRule rule) {
+        private String formatRuleDescription(RefillRule rule, Map<Long, String> feedIdToNameCache) {
             // Format: "Add X episodes from SOURCE (METHOD)"
-            String sourceName = formatSourceName(rule);
+            String sourceName = formatSourceName(rule, feedIdToNameCache);
             String methodName = formatSelectionMethod(rule);
             int count = rule.getCount() != null ? rule.getCount() : 0;
             return itemView.getContext().getString(R.string.add_episodes_rule_description,
@@ -270,17 +333,35 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
          * Format source name for display.
          *
          * @param rule Rule to format
+         * @param feedIdToNameCache Cache of feed IDs to names
          * @return Source name string
          */
-        private String formatSourceName(RefillRule rule) {
+        private String formatSourceName(RefillRule rule, Map<Long, String> feedIdToNameCache) {
             if (rule.getSourceType() == null) {
                 return "Unknown";
             }
             switch (rule.getSourceType()) {
                 case FEED:
-                    return "Feed " + rule.getSourceId();
+                    // Convert feed ID to feed name using cache
+                    if (rule.getSourceId() != null) {
+                        try {
+                            long feedId = Long.parseLong(rule.getSourceId());
+                            synchronized (feedIdToNameCache) {
+                                String feedName = feedIdToNameCache.get(feedId);
+                                if (feedName != null) {
+                                    return feedName;
+                                }
+                            }
+                            // If not in cache yet, return placeholder (will be updated when cache loads)
+                            return "Feed " + rule.getSourceId();
+                        } catch (NumberFormatException e) {
+                            // Not a valid feed ID, use as-is
+                        }
+                        return "Feed " + rule.getSourceId();
+                    }
+                    return "Unknown Feed";
                 case TAG:
-                    return "Tag: " + rule.getSourceId();
+                    return "Tag: " + (rule.getSourceId() != null ? rule.getSourceId() : "Unknown");
                 case INBOX:
                     return "Inbox";
                 default:

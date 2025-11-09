@@ -6,10 +6,10 @@ import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
 import android.widget.NumberPicker;
 import android.widget.TextView;
+
+import com.google.android.material.button.MaterialButton;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -259,11 +259,10 @@ public class QueueRulesetEditFragment extends Fragment {
         View dialogView = LayoutInflater.from(requireContext())
                 .inflate(R.layout.dialog_refill_rule_edit, null);
 
-        final AutoCompleteTextView sourceTypeInput = dialogView.findViewById(R.id.rule_source_type_input);
-        final com.google.android.material.textfield.TextInputLayout sourceInputLayout =
-                dialogView.findViewById(R.id.rule_source_input_layout);
-        final AutoCompleteTextView sourceInput = dialogView.findViewById(R.id.rule_source_input);
-        final AutoCompleteTextView selectionMethodInput = dialogView.findViewById(R.id.rule_selection_method_input);
+        final MaterialButton sourceTypeButton = dialogView.findViewById(R.id.rule_source_type_button);
+        final TextView sourceLabel = dialogView.findViewById(R.id.rule_source_label);
+        final MaterialButton sourceButton = dialogView.findViewById(R.id.rule_source_button);
+        final MaterialButton selectionMethodButton = dialogView.findViewById(R.id.rule_selection_method_button);
         final NumberPicker countInput = dialogView.findViewById(R.id.rule_count_input);
 
         // Setup NumberPicker (1-20 range)
@@ -271,45 +270,106 @@ public class QueueRulesetEditFragment extends Fragment {
         countInput.setMaxValue(20);
         countInput.setValue(10);
 
-        // Setup source type dropdown
+        // Setup source type selection
         String[] sourceTypes = {
                 requireContext().getString(R.string.source_type_feed),
                 requireContext().getString(R.string.source_type_tag),
                 requireContext().getString(R.string.source_type_inbox)
         };
-        RefillRule.SourceType[] sourceTypeValues = {
+        final RefillRule.SourceType[] sourceTypeValues = {
                 RefillRule.SourceType.FEED,
                 RefillRule.SourceType.TAG,
                 RefillRule.SourceType.INBOX
         };
-        ArrayAdapter<String> sourceTypeAdapter = new ArrayAdapter<>(requireContext(),
-                android.R.layout.simple_dropdown_item_1line, sourceTypes);
-        sourceTypeInput.setAdapter(sourceTypeAdapter);
-        sourceTypeInput.setThreshold(1); // Show dropdown after 1 character
-        sourceTypeInput.setOnItemClickListener((parent, view, position, id) -> {
-            RefillRule.SourceType selectedType = sourceTypeValues[position];
-            updateSourceInputVisibility(sourceInputLayout, sourceInput, selectedType);
-        });
-        // Show dropdown when clicked
-        sourceTypeInput.setOnClickListener(v -> sourceTypeInput.showDropDown());
+        final RefillRule.SourceType[] selectedSourceType = {RefillRule.SourceType.FEED};
 
-        // Setup selection method dropdown
+        sourceTypeButton.setOnClickListener(v -> {
+            new MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(R.string.rule_source_type_label)
+                    .setItems(sourceTypes, (dialog, which) -> {
+                        selectedSourceType[0] = sourceTypeValues[which];
+                        sourceTypeButton.setText(sourceTypes[which]);
+                        updateSourceButtonVisibility(sourceLabel, sourceButton, selectedSourceType[0]);
+                    })
+                    .show();
+        });
+
+        // Setup selection method selection
         String[] selectionMethods = {
                 requireContext().getString(R.string.selection_method_oldest),
                 requireContext().getString(R.string.selection_method_newest),
                 requireContext().getString(R.string.selection_method_random)
         };
-        RefillRule.SelectionMethod[] selectionMethodValues = {
+        final RefillRule.SelectionMethod[] selectionMethodValues = {
                 RefillRule.SelectionMethod.OLDEST,
                 RefillRule.SelectionMethod.NEWEST,
                 RefillRule.SelectionMethod.RANDOM
         };
-        ArrayAdapter<String> selectionMethodAdapter = new ArrayAdapter<>(requireContext(),
-                android.R.layout.simple_dropdown_item_1line, selectionMethods);
-        selectionMethodInput.setAdapter(selectionMethodAdapter);
-        selectionMethodInput.setThreshold(1); // Show dropdown after 1 character
-        // Show dropdown when clicked
-        selectionMethodInput.setOnClickListener(v -> selectionMethodInput.showDropDown());
+        final RefillRule.SelectionMethod[] selectedSelectionMethod = {RefillRule.SelectionMethod.OLDEST};
+
+        selectionMethodButton.setOnClickListener(v -> {
+            new MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(R.string.rule_selection_method_label)
+                    .setItems(selectionMethods, (dialog, which) -> {
+                        selectedSelectionMethod[0] = selectionMethodValues[which];
+                        selectionMethodButton.setText(selectionMethods[which]);
+                    })
+                    .show();
+        });
+
+        // Store selected values
+        final String[] selectedSourceName = {""};
+        final String[] selectedSourceId = {""};
+
+        // Setup source button click handler
+        sourceButton.setOnClickListener(v -> {
+            RefillRule.SourceType currentType = selectedSourceType[0];
+            if (currentType == RefillRule.SourceType.INBOX) {
+                // Inbox doesn't need source selection
+                return;
+            }
+
+            // Load feeds/tags on background thread
+            executor.submit(() -> {
+                try {
+                    java.util.List<String> items = new java.util.ArrayList<>();
+                    if (currentType == RefillRule.SourceType.FEED) {
+                        java.util.List<Feed> feeds = DBReader.getFeedList();
+                        for (Feed feed : feeds) {
+                            items.add(feed.getTitle());
+                        }
+                    } else if (currentType == RefillRule.SourceType.TAG) {
+                        FeedOrder feedOrder = UserPreferences.getFeedOrder();
+                        FeedCounter feedCounter = UserPreferences.getFeedCounterSetting();
+                        de.danoeh.antennapod.storage.database.NavDrawerData navData =
+                                DBReader.getNavDrawerData(null, feedOrder, feedCounter, 0);
+                        if (navData != null && navData.tags != null) {
+                            for (de.danoeh.antennapod.storage.database.NavDrawerData.TagItem tag : navData.tags) {
+                                if (tag != null && tag.getTitle() != null
+                                        && !tag.getTitle().equals(FeedPreferences.TAG_ROOT)
+                                        && !tag.getTitle().equals(FeedPreferences.TAG_UNTAGGED)) {
+                                    items.add(tag.getTitle());
+                                }
+                            }
+                        }
+                    }
+
+                    final String[] itemsArray = items.toArray(new String[0]);
+                    requireActivity().runOnUiThread(() -> {
+                        new MaterialAlertDialogBuilder(requireContext())
+                                .setTitle(R.string.rule_source_label)
+                                .setItems(itemsArray, (dialog, which) -> {
+                                    selectedSourceName[0] = itemsArray[which];
+                                    selectedSourceId[0] = itemsArray[which];
+                                    sourceButton.setText(itemsArray[which]);
+                                })
+                                .show();
+                    });
+                } catch (Exception e) {
+                    android.util.Log.e(TAG, "Error loading sources", e);
+                }
+            });
+        });
 
         // Pre-populate fields if editing
         if (rule != null) {
@@ -318,12 +378,13 @@ public class QueueRulesetEditFragment extends Fragment {
             for (int i = 0; i < sourceTypeValues.length; i++) {
                 if (sourceTypeValues[i] == rule.getSourceType()) {
                     sourceTypeIndex = i;
+                    selectedSourceType[0] = rule.getSourceType();
                     break;
                 }
             }
             if (sourceTypeIndex >= 0) {
-                sourceTypeInput.setText(sourceTypes[sourceTypeIndex], false);
-                updateSourceInputVisibility(sourceInputLayout, sourceInput, rule.getSourceType());
+                sourceTypeButton.setText(sourceTypes[sourceTypeIndex]);
+                updateSourceButtonVisibility(sourceLabel, sourceButton, rule.getSourceType());
             }
 
             // Set source (feed/tag) - need to convert feed ID to name for display
@@ -340,7 +401,9 @@ public class QueueRulesetEditFragment extends Fragment {
                                     if (feed.getId() == feedId) {
                                         String feedName = feed.getTitle();
                                         requireActivity().runOnUiThread(() -> {
-                                            sourceInput.setText(feedName);
+                                            selectedSourceName[0] = feedName;
+                                            selectedSourceId[0] = feedIdStr;
+                                            sourceButton.setText(feedName);
                                         });
                                         break;
                                     }
@@ -348,7 +411,9 @@ public class QueueRulesetEditFragment extends Fragment {
                             } catch (NumberFormatException e) {
                                 // Not a valid feed ID, use as-is
                                 requireActivity().runOnUiThread(() -> {
-                                    sourceInput.setText(rule.getSourceId());
+                                    selectedSourceName[0] = rule.getSourceId();
+                                    selectedSourceId[0] = rule.getSourceId();
+                                    sourceButton.setText(rule.getSourceId());
                                 });
                             }
                         } catch (Exception e) {
@@ -357,7 +422,9 @@ public class QueueRulesetEditFragment extends Fragment {
                     });
                 } else {
                     // Tag or other - use sourceId as-is
-                    sourceInput.setText(rule.getSourceId());
+                    selectedSourceName[0] = rule.getSourceId();
+                    selectedSourceId[0] = rule.getSourceId();
+                    sourceButton.setText(rule.getSourceId());
                 }
             }
 
@@ -366,11 +433,12 @@ public class QueueRulesetEditFragment extends Fragment {
             for (int i = 0; i < selectionMethodValues.length; i++) {
                 if (selectionMethodValues[i] == rule.getSelectionMethod()) {
                     selectionMethodIndex = i;
+                    selectedSelectionMethod[0] = rule.getSelectionMethod();
                     break;
                 }
             }
             if (selectionMethodIndex >= 0) {
-                selectionMethodInput.setText(selectionMethods[selectionMethodIndex], false);
+                selectionMethodButton.setText(selectionMethods[selectionMethodIndex]);
             }
 
             // Set count
@@ -384,89 +452,14 @@ public class QueueRulesetEditFragment extends Fragment {
             }
         } else {
             // Default values for new rule
-            sourceTypeInput.setText(sourceTypes[0], false); // FEED
-            selectionMethodInput.setText(selectionMethods[0], false); // OLDEST
+            sourceTypeButton.setText(sourceTypes[0]); // FEED
+            selectionMethodButton.setText(selectionMethods[0]); // OLDEST
             countInput.setValue(10); // Default count
-            updateSourceInputVisibility(sourceInputLayout, sourceInput, RefillRule.SourceType.FEED);
+            updateSourceButtonVisibility(sourceLabel, sourceButton, RefillRule.SourceType.FEED);
         }
 
         // Store feed name to ID mapping for later use
         final Map<String, Long>[] feedNameToIdRef = new Map[]{new HashMap<>()};
-        final Map<Long, String>[] feedIdToNameRef = new Map[]{new HashMap<>()};
-
-        // Load feeds/tags for source dropdown (on background thread)
-        executor.submit(() -> {
-            try {
-                java.util.List<Feed> feeds = DBReader.getFeedList();
-                java.util.List<String> feedNames = new java.util.ArrayList<>();
-                feedNameToIdRef[0] = new HashMap<>();
-                feedIdToNameRef[0] = new HashMap<>();
-                for (Feed feed : feeds) {
-                    String feedName = feed.getTitle();
-                    feedNames.add(feedName);
-                    feedNameToIdRef[0].put(feedName, feed.getId());
-                    feedIdToNameRef[0].put(feed.getId(), feedName);
-                }
-
-                // Get tags from NavDrawerData
-                FeedOrder feedOrder = UserPreferences.getFeedOrder();
-                FeedCounter feedCounter = UserPreferences.getFeedCounterSetting();
-                de.danoeh.antennapod.storage.database.NavDrawerData navData =
-                        DBReader.getNavDrawerData(null, feedOrder, feedCounter, 0);
-                java.util.List<String> tagNames = new java.util.ArrayList<>();
-                if (navData != null && navData.tags != null) {
-                    for (de.danoeh.antennapod.storage.database.NavDrawerData.TagItem tag : navData.tags) {
-                        if (tag != null && tag.getTitle() != null
-                                && !tag.getTitle().equals(FeedPreferences.TAG_ROOT)
-                                && !tag.getTitle().equals(FeedPreferences.TAG_UNTAGGED)) {
-                            tagNames.add(tag.getTitle());
-                        }
-                    }
-                }
-
-                requireActivity().runOnUiThread(() -> {
-                    // Setup source dropdown based on source type
-                    sourceTypeInput.setOnItemClickListener((parent, view, position, id) -> {
-                        RefillRule.SourceType selectedType = sourceTypeValues[position];
-                        updateSourceInputVisibility(sourceInputLayout, sourceInput, selectedType);
-
-                        // Update source dropdown based on type
-                        if (selectedType == RefillRule.SourceType.FEED) {
-                            ArrayAdapter<String> feedAdapter = new ArrayAdapter<>(requireContext(),
-                                    android.R.layout.simple_dropdown_item_1line, feedNames);
-                            sourceInput.setAdapter(feedAdapter);
-                            sourceInput.setThreshold(1);
-                            sourceInput.setOnClickListener(v -> sourceInput.showDropDown());
-                        } else if (selectedType == RefillRule.SourceType.TAG) {
-                            ArrayAdapter<String> tagAdapter = new ArrayAdapter<>(requireContext(),
-                                    android.R.layout.simple_dropdown_item_1line, tagNames);
-                            sourceInput.setAdapter(tagAdapter);
-                            sourceInput.setThreshold(1);
-                            sourceInput.setOnClickListener(v -> sourceInput.showDropDown());
-                        }
-                    });
-
-                    // Trigger initial source dropdown setup
-                    RefillRule.SourceType currentType = rule != null && rule.getSourceType() != null
-                            ? rule.getSourceType() : RefillRule.SourceType.FEED;
-                    if (currentType == RefillRule.SourceType.FEED) {
-                        ArrayAdapter<String> feedAdapter = new ArrayAdapter<>(requireContext(),
-                                android.R.layout.simple_dropdown_item_1line, feedNames);
-                        sourceInput.setAdapter(feedAdapter);
-                        sourceInput.setThreshold(1);
-                        sourceInput.setOnClickListener(v -> sourceInput.showDropDown());
-                    } else if (currentType == RefillRule.SourceType.TAG) {
-                        ArrayAdapter<String> tagAdapter = new ArrayAdapter<>(requireContext(),
-                                android.R.layout.simple_dropdown_item_1line, tagNames);
-                        sourceInput.setAdapter(tagAdapter);
-                        sourceInput.setThreshold(1);
-                        sourceInput.setOnClickListener(v -> sourceInput.showDropDown());
-                    }
-                });
-            } catch (Exception e) {
-                android.util.Log.e(TAG, "Error loading feeds/tags", e);
-            }
-        });
 
         // Build dialog
         MaterialAlertDialogBuilder dialogBuilder = new MaterialAlertDialogBuilder(requireContext())
@@ -474,11 +467,10 @@ public class QueueRulesetEditFragment extends Fragment {
                         : (insertAtTop ? R.string.insert_rule_label : R.string.add_rule_label))
                 .setView(dialogView)
                 .setPositiveButton(android.R.string.ok, (dialog, which) -> {
-                    // Validate and save rule (feedNameToId will be populated by background thread)
-                    // Use a callback to ensure feedNameToId is available
+                    // Validate and save rule
                     executor.submit(() -> {
                         try {
-                            // Wait for feeds to load if not already loaded
+                            // Load feeds to get name-to-ID mapping
                             if (feedNameToIdRef[0].isEmpty()) {
                                 java.util.List<Feed> feeds = DBReader.getFeedList();
                                 feedNameToIdRef[0] = new HashMap<>();
@@ -487,9 +479,9 @@ public class QueueRulesetEditFragment extends Fragment {
                                 }
                             }
                             requireActivity().runOnUiThread(() -> {
-                                saveRuleFromDialog(rule, insertAtTop, sourceTypeInput, sourceInput,
-                                        selectionMethodInput, countInput, sourceTypeValues, selectionMethodValues,
-                                        feedNameToIdRef[0]);
+                                saveRuleFromDialog(rule, insertAtTop, selectedSourceType[0],
+                                        selectedSourceName[0], selectedSourceId[0], selectedSelectionMethod[0],
+                                        countInput.getValue(), feedNameToIdRef[0]);
                             });
                         } catch (Exception e) {
                             android.util.Log.e(TAG, "Error loading feeds for validation", e);
@@ -502,21 +494,23 @@ public class QueueRulesetEditFragment extends Fragment {
     }
 
     /**
-     * Update source input visibility based on source type.
+     * Update source button visibility based on source type.
      *
-     * @param sourceInputLayout Layout for source input
-     * @param sourceInput Source input field
+     * @param sourceLabel Label for source input
+     * @param sourceButton Source button
      * @param sourceType Selected source type
      */
-    private void updateSourceInputVisibility(
-            com.google.android.material.textfield.TextInputLayout sourceInputLayout,
-            AutoCompleteTextView sourceInput,
+    private void updateSourceButtonVisibility(
+            TextView sourceLabel,
+            MaterialButton sourceButton,
             RefillRule.SourceType sourceType) {
         if (sourceType == RefillRule.SourceType.INBOX) {
-            sourceInputLayout.setVisibility(View.GONE);
-            sourceInput.setText("");
+            sourceLabel.setVisibility(View.GONE);
+            sourceButton.setVisibility(View.GONE);
+            sourceButton.setText("");
         } else {
-            sourceInputLayout.setVisibility(View.VISIBLE);
+            sourceLabel.setVisibility(View.VISIBLE);
+            sourceButton.setVisibility(View.VISIBLE);
         }
     }
 
@@ -525,62 +519,27 @@ public class QueueRulesetEditFragment extends Fragment {
      *
      * @param existingRule Existing rule to update (null for new rule)
      * @param insertAtTop If true, insert at position 0; if false, append at end (only for new rules)
-     * @param sourceTypeInput Source type input
-     * @param sourceInput Source input
-     * @param selectionMethodInput Selection method input
-     * @param countInput Count input
-     * @param sourceTypeValues Source type enum values
-     * @param selectionMethodValues Selection method enum values
+     * @param sourceType Selected source type
+     * @param sourceName Selected source name (for display/validation)
+     * @param sourceId Selected source ID (may be name for FEED, will be converted to ID)
+     * @param selectionMethod Selected selection method
+     * @param count Selected count
      * @param feedNameToId Map of feed names to feed IDs (for FEED source type)
      */
     private void saveRuleFromDialog(@Nullable RefillRule existingRule,
                                      boolean insertAtTop,
-                                     AutoCompleteTextView sourceTypeInput,
-                                     AutoCompleteTextView sourceInput,
-                                     AutoCompleteTextView selectionMethodInput,
-                                     NumberPicker countInput,
-                                     RefillRule.SourceType[] sourceTypeValues,
-                                     RefillRule.SelectionMethod[] selectionMethodValues,
+                                     RefillRule.SourceType sourceType,
+                                     String sourceName,
+                                     String sourceId,
+                                     RefillRule.SelectionMethod selectionMethod,
+                                     int count,
                                      Map<String, Long> feedNameToId) {
-        // Validate inputs
-        String sourceTypeText = sourceTypeInput.getText().toString();
-        String selectionMethodText = selectionMethodInput.getText().toString();
-        int count = countInput.getValue();
-
-        // Find selected source type
-        RefillRule.SourceType sourceType = null;
-        String[] sourceTypeStrings = {
-                requireContext().getString(R.string.source_type_feed),
-                requireContext().getString(R.string.source_type_tag),
-                requireContext().getString(R.string.source_type_inbox)
-        };
-        for (int i = 0; i < sourceTypeStrings.length; i++) {
-            if (sourceTypeStrings[i].equals(sourceTypeText)) {
-                sourceType = sourceTypeValues[i];
-                break;
-            }
-        }
-
-        // Find selected selection method
-        RefillRule.SelectionMethod selectionMethod = null;
-        String[] selectionMethodStrings = {
-                requireContext().getString(R.string.selection_method_oldest),
-                requireContext().getString(R.string.selection_method_newest),
-                requireContext().getString(R.string.selection_method_random)
-        };
-        for (int i = 0; i < selectionMethodStrings.length; i++) {
-            if (selectionMethodStrings[i].equals(selectionMethodText)) {
-                selectionMethod = selectionMethodValues[i];
-                break;
-            }
-        }
-
         // Count is already validated by NumberPicker (1-20 range)
 
         // Validate source (required for FEED and TAG)
-        String sourceId = sourceInput.getText().toString().trim();
+        String finalSourceId = sourceId;
         if (sourceType == RefillRule.SourceType.FEED) {
-            if (TextUtils.isEmpty(sourceId)) {
+            if (TextUtils.isEmpty(sourceName)) {
                 new MaterialAlertDialogBuilder(requireContext())
                         .setTitle(R.string.edit_rule_label)
                         .setMessage(R.string.rule_source_required)
@@ -589,16 +548,16 @@ public class QueueRulesetEditFragment extends Fragment {
                 return;
             }
             // Convert feed name to feed ID
-            Long feedId = feedNameToId != null ? feedNameToId.get(sourceId) : null;
+            Long feedId = feedNameToId != null ? feedNameToId.get(sourceName) : null;
             if (feedId == null) {
                 new MaterialAlertDialogBuilder(requireContext())
                         .setTitle(R.string.edit_rule_label)
-                        .setMessage("Feed not found: " + sourceId)
+                        .setMessage("Feed not found: " + sourceName)
                         .setPositiveButton(android.R.string.ok, null)
                         .show();
                 return;
             }
-            sourceId = String.valueOf(feedId);
+            finalSourceId = String.valueOf(feedId);
         } else if (sourceType == RefillRule.SourceType.TAG) {
             if (TextUtils.isEmpty(sourceId)) {
                 new MaterialAlertDialogBuilder(requireContext())
@@ -610,16 +569,16 @@ public class QueueRulesetEditFragment extends Fragment {
             }
             // Tag name is stored as-is
         } else if (sourceType == RefillRule.SourceType.INBOX) {
-            sourceId = null;
+            finalSourceId = null;
         }
 
         // Save rule
         if (existingRule != null) {
             // Update existing rule
-            updateRule(existingRule, sourceType, sourceId, selectionMethod, count);
+            updateRule(existingRule, sourceType, finalSourceId, selectionMethod, count);
         } else {
             // Create new rule
-            createRule(insertAtTop, sourceType, sourceId, selectionMethod, count);
+            createRule(insertAtTop, sourceType, finalSourceId, selectionMethod, count);
         }
     }
 
