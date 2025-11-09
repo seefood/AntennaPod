@@ -183,6 +183,7 @@ Uses GreenRobot EventBus with annotation processor (generates `ApEventBusIndex`)
 3. All lint errors must be fixed (warnings treated as errors)
 4. XML layout files must be formatted with android-xml-formatter
 5. Tests must pass for the variant you're modifying
+6. **NEVER use `git commit --no-verify`** - all lint issues must be addressed before committing
 
 **Lint Configuration:**
 - `warningsAsErrors = true`

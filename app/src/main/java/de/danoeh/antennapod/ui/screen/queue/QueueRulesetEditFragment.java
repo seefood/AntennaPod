@@ -39,7 +39,7 @@ import de.danoeh.antennapod.ui.common.QueueViewModel;
  * that determine how a queue is automatically refilled.
  */
 public class QueueRulesetEditFragment extends Fragment {
-    public static final String TAG = "QueueRulesetEditFragment";
+    public static final String TAG = "QueueRulesetEditFrag";
 
     private QueueRulesetViewModel viewModel;
     private RecyclerView rulesList;

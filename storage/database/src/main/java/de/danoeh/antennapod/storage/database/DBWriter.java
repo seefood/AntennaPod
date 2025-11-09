@@ -1258,7 +1258,14 @@ public class DBWriter {
                     // Switch to source queue and check if item is in queue
                     UserPreferences.setCurrentQueueId(sourceQueueId);
                     List<FeedItem> sourceQueue = DBReader.getQueue();
-                    boolean inSourceQueue = sourceQueue.stream().anyMatch(i -> i.getId() == feedItemId);
+                    // Use traditional loop instead of stream() for API 21 compatibility
+                    boolean inSourceQueue = false;
+                    for (FeedItem queueItem : sourceQueue) {
+                        if (queueItem.getId() == feedItemId) {
+                            inSourceQueue = true;
+                            break;
+                        }
+                    }
                     if (!inSourceQueue) {
                         throw new Exception("Episode not in source queue");
                     }
@@ -1408,7 +1415,14 @@ public class DBWriter {
                 List<FeedItem> itemsToRemove = new ArrayList<>();
                 for (FeedItem item : items) {
                     if (!skipped.contains(item.getId())) {
-                        boolean inSourceQueue = sourceQueue.stream().anyMatch(i -> i.getId() == item.getId());
+                        // Use traditional loop instead of stream() for API 21 compatibility
+                        boolean inSourceQueue = false;
+                        for (FeedItem queueItem : sourceQueue) {
+                            if (queueItem.getId() == item.getId()) {
+                                inSourceQueue = true;
+                                break;
+                            }
+                        }
                         if (inSourceQueue) {
                             itemsToRemove.add(item);
                         } else {
@@ -1421,7 +1435,11 @@ public class DBWriter {
 
                 // Remove items from source queue (this posts QueueEvent.removed for each)
                 if (!itemsToRemove.isEmpty()) {
-                    long[] itemIdsToRemove = itemsToRemove.stream().mapToLong(FeedItem::getId).toArray();
+                    // Use traditional loop instead of stream() for API 21 compatibility
+                    long[] itemIdsToRemove = new long[itemsToRemove.size()];
+                    for (int i = 0; i < itemsToRemove.size(); i++) {
+                        itemIdsToRemove[i] = itemsToRemove.get(i).getId();
+                    }
                     removeQueueItemSynchronous(null, false, itemIdsToRemove);
                 }
 
@@ -1529,46 +1547,6 @@ public class DBWriter {
 
             return new CopyResult(copiedCount, skipped.size(), skipped, reasons);
         });
-    }
-
-    /**
-     * Synchronous helper method to remove a queue item from a specific queue.
-     * Does NOT trigger events (caller is responsible).
-     *
-     * @param context Application context (nullable for internal use)
-     * @param performAutoDownload Whether to perform auto-download after removal
-     * @param feedItemId The feed item ID to remove
-     * @param queueId The queue ID to remove from
-     * @throws Exception if removal fails
-     */
-    private static void removeQueueItemSynchronous(@Nullable Context context, boolean performAutoDownload, long feedItemId, long queueId) throws Exception {
-        PodDBAdapter adapter = PodDBAdapter.getInstance();
-        adapter.open();
-        try {
-            // Get current queue items
-            List<FeedItem> queue = DBReader.getQueue(queueId);
-
-            // Check if item is in the queue
-            boolean found = false;
-            // Remove the item from the list (API 21 compatible)
-            for (int i = queue.size() - 1; i >= 0; i--) {
-                if (queue.get(i).getId() == feedItemId) {
-                    queue.remove(i);
-                    found = true;
-                    break;
-                }
-            }
-
-            // Throw exception if item not found in source queue
-            if (!found) {
-                throw new Exception("Episode not in source queue");
-            }
-
-            // Update the queue
-            adapter.setQueue(queue, queueId);
-        } finally {
-            adapter.close();
-        }
     }
 
     /**

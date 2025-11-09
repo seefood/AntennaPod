@@ -1020,7 +1020,8 @@ public final class DBReader {
         PodDBAdapter adapter = PodDBAdapter.getInstance();
         adapter.open();
         try (Cursor cursor = adapter.getQueueRulesetByQueueIdCursor(queueId)) {
-            return cursor != null && cursor.getCount() > 0;
+            // Cursor from try-with-resources is guaranteed to be non-null
+            return cursor.getCount() > 0;
         } finally {
             adapter.close();
         }
@@ -1083,7 +1084,8 @@ public final class DBReader {
         PodDBAdapter adapter = PodDBAdapter.getInstance();
         adapter.open();
         try (Cursor cursor = adapter.getClearQueueRuleCursor(rulesetId)) {
-            return cursor != null && cursor.getCount() > 0;
+            // Cursor from try-with-resources is guaranteed to be non-null
+            return cursor.getCount() > 0;
         } finally {
             adapter.close();
         }
