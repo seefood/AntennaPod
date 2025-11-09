@@ -7,6 +7,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -14,6 +16,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -43,6 +46,8 @@ public class QueueRulesetEditFragment extends Fragment {
     private TextView emptyView;
     private FloatingActionButton addRuleButton;
     private MaterialToolbar toolbar;
+    private RefillRuleAdapter adapter;
+    private ItemTouchHelper itemTouchHelper;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     @Override
@@ -73,8 +78,84 @@ public class QueueRulesetEditFragment extends Fragment {
 
         // Setup RecyclerView
         rulesList.setLayoutManager(new LinearLayoutManager(requireContext()));
-        // TODO: Create and set adapter for rules list
-        // rulesList.setAdapter(new RefillRuleAdapter(Collections.emptyList()));
+        adapter = new RefillRuleAdapter();
+        rulesList.setAdapter(adapter);
+
+        // Setup adapter callbacks
+        adapter.setOnRuleEditListener(rule -> {
+            showEditRuleDialog(rule);
+        });
+        adapter.setOnRuleDeleteListener(rule -> {
+            showDeleteRuleConfirmation(rule);
+        });
+        adapter.setOnRuleReorderListener((fromPosition, toPosition) -> {
+            reorderRules(fromPosition, toPosition);
+        });
+
+        // Setup drag-to-reorder with ItemTouchHelper
+        ItemTouchHelper.SimpleCallback touchCallback = new ItemTouchHelper.SimpleCallback(
+                ItemTouchHelper.UP | ItemTouchHelper.DOWN, 0) {
+            @Override
+            public boolean onMove(@NonNull RecyclerView recyclerView,
+                                  @NonNull RecyclerView.ViewHolder viewHolder,
+                                  @NonNull RecyclerView.ViewHolder target) {
+                int fromPosition = viewHolder.getBindingAdapterPosition();
+                int toPosition = target.getBindingAdapterPosition();
+
+                // Prevent reordering Clear queue rule at position 1 (FR-033)
+                if (!adapter.canReorderRule(fromPosition) || !adapter.canReorderRule(toPosition)) {
+                    return false;
+                }
+
+                // Move in adapter - update adapter immediately for visual feedback
+                RefillRule fromRule = adapter.getRuleAt(fromPosition);
+                if (fromRule != null) {
+                    // Update adapter list for immediate visual feedback
+                    java.util.List<RefillRule> currentRules = new java.util.ArrayList<>(adapter.rules);
+                    currentRules.remove(fromPosition);
+                    currentRules.add(toPosition, fromRule);
+                    adapter.updateRules(currentRules);
+
+                    // Trigger reorder callback to update database
+                    if (adapter.reorderListener != null) {
+                        adapter.reorderListener.onRuleReordered(fromPosition, toPosition);
+                    }
+                    return true;
+                }
+                return false;
+            }
+
+            @Override
+            public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
+                // No swipe actions for rules
+            }
+
+            @Override
+            public boolean isLongPressDragEnabled() {
+                return true;
+            }
+
+            @Override
+            public void onSelectedChanged(RecyclerView.ViewHolder viewHolder, int actionState) {
+                super.onSelectedChanged(viewHolder, actionState);
+                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+                    // Visual feedback during drag
+                    if (viewHolder != null) {
+                        viewHolder.itemView.setAlpha(0.7f);
+                    }
+                }
+            }
+
+            @Override
+            public void clearView(@NonNull RecyclerView recyclerView,
+                                 @NonNull RecyclerView.ViewHolder viewHolder) {
+                super.clearView(recyclerView, viewHolder);
+                viewHolder.itemView.setAlpha(1.0f);
+            }
+        };
+
+        itemTouchHelper = new ItemTouchHelper(touchCallback);
+        itemTouchHelper.attachToRecyclerView(rulesList);
 
         // Setup add rule button
         addRuleButton.setOnClickListener(v -> {
@@ -115,8 +196,10 @@ public class QueueRulesetEditFragment extends Fragment {
             } else {
                 emptyView.setVisibility(View.GONE);
                 rulesList.setVisibility(View.VISIBLE);
-                // TODO: Update adapter with new rules
-                // adapter.updateRules(rules);
+                // Update adapter with new rules
+                if (adapter != null) {
+                    adapter.updateRules(rules);
+                }
             }
         });
     }
@@ -217,9 +300,99 @@ public class QueueRulesetEditFragment extends Fragment {
                 .show();
     }
 
+    /**
+     * Show dialog for editing an existing rule.
+     *
+     * @param rule Rule to edit
+     */
+    private void showEditRuleDialog(RefillRule rule) {
+        // TODO: Implement edit rule dialog (T036)
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.edit_rule_label)
+                .setMessage("Edit rule dialog will be implemented in task T036.")
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
+    }
+
+    /**
+     * Show confirmation dialog before deleting a rule.
+     *
+     * @param rule Rule to delete
+     */
+    private void showDeleteRuleConfirmation(RefillRule rule) {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.delete_rule_label)
+                .setMessage("Are you sure you want to delete this rule?")
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    deleteRule(rule);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /**
+     * Delete a rule from the ruleset.
+     *
+     * @param rule Rule to delete
+     */
+    private void deleteRule(RefillRule rule) {
+        executor.submit(() -> {
+            try {
+                DBWriter.deleteRefillRule(rule.getId()).get();
+                // Refresh ruleset on main thread
+                requireActivity().runOnUiThread(() -> viewModel.refreshRuleset());
+            } catch (Exception e) {
+                android.util.Log.e(TAG, "Error deleting rule", e);
+            }
+        });
+    }
+
+    /**
+     * Reorder rules after drag-and-drop.
+     * Updates rule positions in the database.
+     *
+     * @param fromPosition Original position
+     * @param toPosition New position
+     */
+    private void reorderRules(int fromPosition, int toPosition) {
+        if (adapter == null) {
+            return;
+        }
+
+        // Get current rules from adapter (already reordered by ItemTouchHelper)
+        java.util.List<RefillRule> rules = new java.util.ArrayList<>(adapter.rules);
+
+        // Build position map for reordering - map each rule ID to its new position
+        Map<Long, Integer> positionMap = new HashMap<>();
+        for (int i = 0; i < rules.size(); i++) {
+            RefillRule rule = rules.get(i);
+            if (rule != null) {
+                // Position in list is the new position
+                positionMap.put(rule.getId(), i);
+            }
+        }
+
+        // Update positions in database
+        QueueRuleset ruleset = viewModel.getRulesetValue();
+        if (ruleset != null) {
+            executor.submit(() -> {
+                try {
+                    DBWriter.reorderRefillRules(ruleset.getId(), positionMap).get();
+                    // Refresh ruleset on main thread
+                    requireActivity().runOnUiThread(() -> viewModel.refreshRuleset());
+                } catch (Exception e) {
+                    android.util.Log.e(TAG, "Error reordering rules", e);
+                }
+            });
+        }
+    }
+
     @Override
     public void onDestroy() {
         super.onDestroy();
+        if (itemTouchHelper != null) {
+            itemTouchHelper.attachToRecyclerView(null);
+        }
         executor.shutdown();
     }
 }

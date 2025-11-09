@@ -374,6 +374,10 @@
     <string name="add_rule_label">Add Rule</string>
     <string name="edit_rule_label">Edit Rule</string>
     <string name="delete_rule_label">Delete Rule</string>
+    <string name="drag_to_reorder">Drag to reorder</string>
+    <string name="rule_type">Rule type</string>
+    <string name="clear_queue_rule_description">Clear queue</string>
+    <string name="add_episodes_rule_description">Add %1$d episodes from %2$s (%3$s)</string>
     <string name="queue_empty_name_error">Queue name cannot be empty</string>
     <string name="queue_color_label">Choose Color</string>
     <string name="queue_color_picker_title">Pick Color</string>

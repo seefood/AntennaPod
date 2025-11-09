@@ -83,19 +83,19 @@
 - [X] T028 [US1] Implement DBReader.getRefillRule() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java
 - [X] T029 [US1] Implement DBReader.hasClearQueueRule() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java
 - [X] T030 [US1] Implement DBReader.getClearQueueRule() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java
-- [ ] T031 [US1] Create QueueRulesetViewModel in ui/common/src/main/java/de/danoeh/antennapod/ui/common/QueueRulesetViewModel.java
-- [ ] T032 [US1] Create QueueRulesetEditFragment layout XML in app/src/main/res/layout/fragment_queue_ruleset_edit.xml
-- [ ] T033 [US1] Create QueueRulesetEditFragment in app/src/main/java/de/danoeh/antennapod/ui/screen/queue/QueueRulesetEditFragment.java
-- [ ] T034 [US1] Implement rule list RecyclerView with drag-to-reorder in QueueRulesetEditFragment.java (prevent Clear queue reorder if at position 1, FR-033)
-- [ ] T035 [US1] Implement add rule dialog in QueueRulesetEditFragment.java (hide Clear queue option if already exists, FR-032)
+- [X] T031 [US1] Create QueueRulesetViewModel in ui/common/src/main/java/de/danoeh/antennapod/ui/common/QueueRulesetViewModel.java
+- [X] T032 [US1] Create QueueRulesetEditFragment layout XML in app/src/main/res/layout/fragment_queue_ruleset_edit.xml
+- [X] T033 [US1] Create QueueRulesetEditFragment in app/src/main/java/de/danoeh/antennapod/ui/screen/queue/QueueRulesetEditFragment.java
+- [X] T034 [US1] Implement rule list RecyclerView with drag-to-reorder in QueueRulesetEditFragment.java (prevent Clear queue reorder if at position 1, FR-033)
+- [X] T035 [US1] Implement add rule dialog in QueueRulesetEditFragment.java (hide Clear queue option if already exists, FR-032)
 - [ ] T036 [US1] Implement edit rule dialog in QueueRulesetEditFragment.java
-- [ ] T037 [US1] Implement remove rule functionality in QueueRulesetEditFragment.java
-- [ ] T038 [US1] Implement rule reordering with Clear queue protection in QueueRulesetEditFragment.java (FR-033)
+- [X] T037 [US1] Implement remove rule functionality in QueueRulesetEditFragment.java
+- [X] T038 [US1] Implement rule reordering with Clear queue protection in QueueRulesetEditFragment.java (FR-033)
 - [ ] T039 [US1] Implement rule insertion at top (position 2 if Clear queue exists, FR-035) in QueueRulesetEditFragment.java
 - [ ] T040 [US1] Implement rule appending at end in QueueRulesetEditFragment.java
-- [ ] T041 [US1] Add "Edit Rules" button/menu item to QueueFragment in app/src/main/java/de/danoeh/antennapod/ui/screen/queue/QueueFragment.java
-- [ ] T042 [US1] Add navigation from QueueFragment to QueueRulesetEditFragment in QueueFragment.java
-- [ ] T043 [US1] Add string resources for ruleset editing UI in app/src/main/res/values/strings.xml
+- [X] T041 [US1] Add "Edit Rules" button/menu item to QueueFragment in app/src/main/java/de/danoeh/antennapod/ui/screen/queue/QueueFragment.java
+- [X] T042 [US1] Add navigation from QueueFragment to QueueRulesetEditFragment in QueueFragment.java
+- [X] T043 [US1] Add string resources for ruleset editing UI in app/src/main/res/values/strings.xml
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
