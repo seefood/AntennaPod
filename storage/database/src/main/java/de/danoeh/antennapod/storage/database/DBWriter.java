@@ -1981,7 +1981,16 @@ public class DBWriter {
                     }
                 }
 
-                // Update positions
+                // Update positions using temporary negative positions to avoid UNIQUE constraint violations
+                // Step 1: Update all positions to temporary negative values (-(ruleId + 1000))
+                for (long ruleId : rulePositions.keySet()) {
+                    ContentValues tempValues = new ContentValues();
+                    tempValues.put(PodDBAdapter.REFILL_RULE_POSITION, -(ruleId + 1000));
+                    tempValues.put(PodDBAdapter.REFILL_RULE_UPDATED_AT, System.currentTimeMillis());
+                    adapter.updateRefillRule(ruleId, tempValues);
+                }
+
+                // Step 2: Update all positions from temporary to final values
                 for (Map.Entry<Long, Integer> entry : rulePositions.entrySet()) {
                     long ruleId = entry.getKey();
                     int newPosition = entry.getValue();
@@ -1999,6 +2008,110 @@ public class DBWriter {
                 adapter.close();
             }
             return null;
+        });
+    }
+
+    /**
+     * T068: refillQueue(long queueId, boolean clearQueue)
+     *
+     * <p>Wrapper method for QueueRefillEngine.processRuleset().
+     * Posts QueueEvent.refilled() after completion.
+     *
+     * @param queueId Queue ID to refill
+     * @param clearQueue If true, clear existing episodes before refilling
+     * @return Future with RefillResult
+     */
+    /* TODO: Uncomment when QueueRefillEngine is implemented
+    public static Future<RefillResult> refillQueue(final long queueId, final boolean clearQueue) {
+        return dbExec.submit(() -> {
+            QueueRefillEngine engine = new QueueRefillEngine();
+            RefillResult result = engine.processRuleset(queueId, clearQueue);
+
+            // Post QueueEvent.refilled() with actual queue items (not null)
+            List<FeedItem> queue = DBReader.getQueue(queueId);
+            EventBus.getDefault().post(QueueEvent.setQueue(queue));
+
+            return result;
+        });
+    }
+    */
+    public static Future<RefillResult> refillQueue(final long queueId, final boolean clearQueue) {
+        throw new UnsupportedOperationException("Queue refill engine not yet implemented");
+    }
+
+    /**
+     * Add queue items to a specific queue (for refill engine).
+     *
+     * @param queueId Target queue ID
+     * @param items FeedItems to add
+     * @return Future
+     */
+    public static Future<?> addQueueItemsToQueue(final long queueId, final FeedItem... items) {
+        return runOnDbThread(() -> {
+            if (items.length < 1) {
+                return;
+            }
+
+            final PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            final List<FeedItem> queue = DBReader.getQueue(queueId);
+
+            LongList markAsUnplayedIds = new LongList();
+            List<QueueEvent> events = new ArrayList<>();
+            List<FeedItem> updatedItems = new ArrayList<>();
+
+            // Add items to end of queue
+            for (FeedItem item : items) {
+                if (itemListContains(queue, item.getId())) {
+                    continue; // Skip duplicates
+                } else if (!item.hasMedia()) {
+                    continue; // Skip items without media
+                }
+                queue.add(item);
+                events.add(QueueEvent.added(item, queue.size() - 1));
+
+                item.addTag(FeedItem.TAG_QUEUE);
+                updatedItems.add(item);
+                if (item.isNew()) {
+                    markAsUnplayedIds.add(item.getId());
+                }
+            }
+
+            if (!updatedItems.isEmpty()) {
+                adapter.setQueue(queue, queueId);
+                for (QueueEvent event : events) {
+                    EventBus.getDefault().post(event);
+                }
+                EventBus.getDefault().post(FeedItemEvent.updated(updatedItems));
+                if (markAsUnplayedIds.size() > 0) {
+                    DBWriter.markItemPlayed(FeedItem.UNPLAYED, markAsUnplayedIds.toArray());
+                }
+            }
+            adapter.close();
+        });
+    }
+
+    /**
+     * Clear a specific queue (for refill engine).
+     *
+     * @param queueId Queue ID to clear
+     * @return Future
+     */
+    public static Future<?> clearQueue(final long queueId) {
+        return runOnDbThread(() -> {
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            adapter.clearQueue(queueId);
+
+            // Clear the currently_playing_feedmedia_id since queue is now empty
+            ContentValues values = new ContentValues();
+            values.put(PodDBAdapter.QUEUE_METADATA_CURRENTLY_PLAYING_FEEDMEDIA_ID, -1);
+            values.put(PodDBAdapter.QUEUE_METADATA_CURRENTLY_PLAYING_FEED_ID, -1);
+            adapter.updateQueueMetadata(queueId, values);
+
+            adapter.close();
+
+            EventBus.getDefault().post(QueueEvent.cleared());
         });
     }
 }
