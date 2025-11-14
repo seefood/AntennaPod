@@ -8,6 +8,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.DiffUtil;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
@@ -33,7 +34,7 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
     List<RefillRule> rules = new ArrayList<>(); // Package-private for access from fragment
     OnRuleEditListener editListener; // Package-private for access from fragment
     OnRuleDeleteListener deleteListener; // Package-private for access from fragment
-    OnRuleReorderListener reorderListener; // Package-private for access from fragment
+    ItemTouchHelper itemTouchHelper; // Package-private for access from fragment
 
     // Feed ID to name cache (loaded asynchronously)
     private final Map<Long, String> feedIdToNameCache = new HashMap<>();
@@ -64,19 +65,6 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
     }
 
     /**
-     * Interface for rule reorder callbacks.
-     */
-    public interface OnRuleReorderListener {
-        /**
-         * Called when rules are reordered via drag-and-drop.
-         *
-         * @param fromPosition Original position
-         * @param toPosition New position
-         */
-        void onRuleReordered(int fromPosition, int toPosition);
-    }
-
-    /**
      * Set the callback for rule edit requests.
      *
      * @param listener OnRuleEditListener callback
@@ -95,12 +83,12 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
     }
 
     /**
-     * Set the callback for rule reorder events.
+     * Set ItemTouchHelper for drag handle access.
      *
-     * @param listener OnRuleReorderListener callback
+     * @param itemTouchHelper ItemTouchHelper instance
      */
-    public void setOnRuleReorderListener(OnRuleReorderListener listener) {
-        this.reorderListener = listener;
+    public void setItemTouchHelper(ItemTouchHelper itemTouchHelper) {
+        this.itemTouchHelper = itemTouchHelper;
     }
 
     /**
@@ -242,6 +230,26 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
         if (rules != null && position >= 0 && position < rules.size()) {
             RefillRule rule = rules.get(position);
             holder.bind(rule, position, editListener, deleteListener, canReorderRule(position), feedIdToNameCache);
+
+            // Setup drag handle touch listener (matches queue item behavior)
+            if (itemTouchHelper != null && holder.dragHandle != null) {
+                holder.dragHandle.setOnTouchListener((v, event) -> {
+                    if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                        itemTouchHelper.startDrag(holder);
+                        return true;
+                    }
+                    return false;
+                });
+            }
+        }
+    }
+
+    @Override
+    public void onViewRecycled(@NonNull RuleViewHolder holder) {
+        super.onViewRecycled(holder);
+        // Clear touch listener to prevent leaks
+        if (holder.dragHandle != null) {
+            holder.dragHandle.setOnTouchListener(null);
         }
     }
 
@@ -254,7 +262,7 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
      * ViewHolder for refill rule list items.
      */
     public static class RuleViewHolder extends RecyclerView.ViewHolder {
-        private final ImageView dragHandle;
+        final ImageView dragHandle; // Package-private for access from fragment
         private final ImageView ruleIcon;
         private final TextView ruleDescription;
         private final ImageView editButton;
@@ -284,8 +292,8 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
                          OnRuleDeleteListener deleteListener,
                          boolean canReorder,
                          Map<Long, String> feedIdToNameCache) {
-            // Show/hide drag handle based on reorder capability
-            dragHandle.setVisibility(canReorder ? View.VISIBLE : View.GONE);
+            // Always show drag handle (matches queue item behavior)
+            dragHandle.setVisibility(View.VISIBLE);
 
             // Set rule icon (all rules are ADD_EPISODES after redesign)
             ruleIcon.setImageResource(android.R.drawable.ic_menu_add);
@@ -311,6 +319,9 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
                     }
                 });
             }
+
+            // Clear any previous touch listener
+            dragHandle.setOnTouchListener(null);
         }
 
         /**

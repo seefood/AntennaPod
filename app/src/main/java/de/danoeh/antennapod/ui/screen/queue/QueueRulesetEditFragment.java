@@ -60,6 +60,8 @@ public class QueueRulesetEditFragment extends Fragment {
     private RefillRuleAdapter adapter;
     private ItemTouchHelper itemTouchHelper;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private int dragFrom = -1; // Track drag start position
+    private int dragTo = -1;   // Track drag end position
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -100,11 +102,8 @@ public class QueueRulesetEditFragment extends Fragment {
         adapter.setOnRuleDeleteListener(rule -> {
             showDeleteRuleConfirmation(rule);
         });
-        adapter.setOnRuleReorderListener((fromPosition, toPosition) -> {
-            reorderRules(fromPosition, toPosition);
-        });
 
-        // Setup drag-to-reorder with ItemTouchHelper
+        // Setup drag-to-reorder with ItemTouchHelper (matches queue item behavior)
         ItemTouchHelper.SimpleCallback touchCallback = new ItemTouchHelper.SimpleCallback(
                 ItemTouchHelper.UP | ItemTouchHelper.DOWN, 0) {
             @Override
@@ -114,24 +113,19 @@ public class QueueRulesetEditFragment extends Fragment {
                 int fromPosition = viewHolder.getBindingAdapterPosition();
                 int toPosition = target.getBindingAdapterPosition();
 
-                // Check if rules can be reordered
-                if (!adapter.canReorderRule(fromPosition) || !adapter.canReorderRule(toPosition)) {
-                    return false;
+                // Track positions for database update
+                if (dragFrom == -1) {
+                    dragFrom = fromPosition;
                 }
+                dragTo = toPosition;
 
-                // Move in adapter - update adapter immediately for visual feedback
+                // Move in adapter immediately for visual feedback
                 RefillRule fromRule = adapter.getRuleAt(fromPosition);
                 if (fromRule != null) {
-                    // Update adapter list for immediate visual feedback
                     java.util.List<RefillRule> currentRules = new java.util.ArrayList<>(adapter.rules);
                     currentRules.remove(fromPosition);
                     currentRules.add(toPosition, fromRule);
                     adapter.updateRules(currentRules);
-
-                    // Trigger reorder callback to update database
-                    if (adapter.reorderListener != null) {
-                        adapter.reorderListener.onRuleReordered(fromPosition, toPosition);
-                    }
                     return true;
                 }
                 return false;
@@ -144,7 +138,7 @@ public class QueueRulesetEditFragment extends Fragment {
 
             @Override
             public boolean isLongPressDragEnabled() {
-                return true;
+                return false; // Disable long press - use drag handle instead
             }
 
             @Override
@@ -163,11 +157,21 @@ public class QueueRulesetEditFragment extends Fragment {
                                  @NonNull RecyclerView.ViewHolder viewHolder) {
                 super.clearView(recyclerView, viewHolder);
                 viewHolder.itemView.setAlpha(1.0f);
+
+                // After drag ends, check if actually moved and update database
+                if (dragFrom != -1 && dragTo != -1 && dragFrom != dragTo) {
+                    reallyMoved(dragFrom, dragTo);
+                }
+                dragFrom = dragTo = -1;
             }
+
         };
 
         itemTouchHelper = new ItemTouchHelper(touchCallback);
         itemTouchHelper.attachToRecyclerView(rulesList);
+
+        // Set ItemTouchHelper in adapter for drag handle access
+        adapter.setItemTouchHelper(itemTouchHelper);
 
         // Setup add rule button (append at end)
         addRuleButton.setOnClickListener(v -> {
@@ -596,51 +600,42 @@ public class QueueRulesetEditFragment extends Fragment {
                              String sourceId,
                              RefillRule.SelectionMethod selectionMethod,
                              int count) {
-        QueueRuleset ruleset = viewModel.getRulesetValue();
+        // Get queue ID from UserPreferences
+        long queueId = UserPreferences.getCurrentQueueId();
         executor.submit(() -> {
             try {
                 long rulesetId;
+                // Create ruleset if it doesn't exist
+                QueueRuleset ruleset = DBReader.getQueueRuleset(queueId);
                 if (ruleset == null) {
-                    // Create ruleset first if it doesn't exist
-                    long queueId = viewModel.getCurrentQueueId();
                     rulesetId = DBWriter.createQueueRuleset(queueId).get();
                 } else {
                     rulesetId = ruleset.getId();
                 }
 
-                // Determine position
-                int position;
-                if (insertAtTop) {
-                    // Insert at position 0 - shift existing rules up
-                    position = 0;
-                    java.util.List<RefillRule> existingRules = DBReader.getRefillRules(rulesetId);
-                    if (!existingRules.isEmpty()) {
+                // Load existing rules
+                java.util.List<RefillRule> existingRules = DBReader.getRefillRules(rulesetId);
+
+                // If inserting at top, shift all existing rules first to make room
+                if (insertAtTop && !existingRules.isEmpty()) {
+                    Map<Long, Integer> positionMap = new HashMap<>();
+                    for (RefillRule rule : existingRules) {
                         // Shift all existing rules up by 1
-                        Map<Long, Integer> positionMap = new HashMap<>();
-                        for (RefillRule rule : existingRules) {
-                            positionMap.put(rule.getId(), rule.getPosition() + 1);
-                        }
-                        DBWriter.reorderRefillRules(rulesetId, positionMap).get();
+                        positionMap.put(rule.getId(), rule.getPosition() + 1);
                     }
-                } else {
-                    // Append at end - find highest position and add 1
-                    java.util.List<RefillRule> existingRules = DBReader.getRefillRules(rulesetId);
-                    if (existingRules.isEmpty()) {
-                        position = 0;
-                    } else {
-                        int maxPosition = -1;
-                        for (RefillRule rule : existingRules) {
-                            if (rule.getPosition() > maxPosition) {
-                                maxPosition = rule.getPosition();
-                            }
-                        }
-                        position = maxPosition + 1;
-                    }
+                    // Apply shift before creating new rule
+                    DBWriter.reorderRefillRules(rulesetId, positionMap).get();
                 }
 
-                // Create rule
-                DBWriter.createRefillRule(rulesetId, position, RefillRule.RuleType.ADD_EPISODES,
+                // Now create rule at determined position (0 for top, size for append)
+                int insertPosition = insertAtTop ? 0 : existingRules.size();
+                long ruleId = DBWriter.createRefillRule(rulesetId, insertPosition, RefillRule.RuleType.ADD_EPISODES,
                         selectionMethod, count, sourceType, sourceId).get();
+
+                if (ruleId <= 0) {
+                    android.util.Log.e(TAG, "Failed to create rule - ruleId is " + ruleId);
+                    return;
+                }
 
                 // Refresh ruleset on main thread
                 requireActivity().runOnUiThread(() -> viewModel.refreshRuleset());
@@ -711,13 +706,13 @@ public class QueueRulesetEditFragment extends Fragment {
     }
 
     /**
-     * Reorder rules after drag-and-drop.
-     * Updates rule positions in the database.
+     * Update database after rules are reordered via drag-and-drop.
+     * Maps current adapter positions to rule IDs for database update.
      *
      * @param fromPosition Original position
      * @param toPosition New position
      */
-    private void reorderRules(int fromPosition, int toPosition) {
+    private void reallyMoved(int fromPosition, int toPosition) {
         if (adapter == null) {
             return;
         }
@@ -725,29 +720,29 @@ public class QueueRulesetEditFragment extends Fragment {
         // Get current rules from adapter (already reordered by ItemTouchHelper)
         java.util.List<RefillRule> rules = new java.util.ArrayList<>(adapter.rules);
 
-        // Build position map for reordering - map each rule ID to its new position
+        // Build position map - map each rule ID to its new position index
         Map<Long, Integer> positionMap = new HashMap<>();
         for (int i = 0; i < rules.size(); i++) {
             RefillRule rule = rules.get(i);
             if (rule != null) {
-                // Position in list is the new position
                 positionMap.put(rule.getId(), i);
             }
         }
 
-        // Update positions in database
-        QueueRuleset ruleset = viewModel.getRulesetValue();
-        if (ruleset != null) {
-            executor.submit(() -> {
-                try {
+        // Update positions in database on background thread
+        long queueId = UserPreferences.getCurrentQueueId();
+        executor.submit(() -> {
+            try {
+                QueueRuleset ruleset = DBReader.getQueueRuleset(queueId);
+                if (ruleset != null) {
                     DBWriter.reorderRefillRules(ruleset.getId(), positionMap).get();
-                    // Refresh ruleset on main thread
+                    // Refresh ruleset on main thread to ensure UI is in sync
                     requireActivity().runOnUiThread(() -> viewModel.refreshRuleset());
-                } catch (Exception e) {
-                    android.util.Log.e(TAG, "Error reordering rules", e);
                 }
-            });
-        }
+            } catch (Exception e) {
+                android.util.Log.e(TAG, "Error reordering rules", e);
+            }
+        });
     }
 
     @Override
