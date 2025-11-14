@@ -9,6 +9,8 @@ import de.danoeh.antennapod.storage.database.DBWriter;
 import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedItemFilter;
 import org.greenrobot.eventbus.EventBus;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class RemoveFromQueueSwipeAction implements SwipeAction {
 
@@ -34,14 +36,21 @@ public class RemoveFromQueueSwipeAction implements SwipeAction {
 
     @Override
     public void performAction(FeedItem item, Fragment fragment, FeedItemFilter filter) {
-        int position = DBReader.getQueueIDList().indexOf(item.getId());
-        DBWriter.removeQueueItem(fragment.requireActivity(), true, item);
-        if (willRemove(filter, item)) {
-            EventBus.getDefault().post(new MessageEvent(
-                    fragment.getResources().getQuantityString(R.plurals.removed_from_queue_message, 1, 1),
-                    context -> DBWriter.addQueueItemAt(fragment.requireActivity(), item.getId(), position),
-                    fragment.getString(R.string.undo)));
-        }
+        // Get queue position on background thread to avoid I/O on main thread
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.submit(() -> {
+            int position = DBReader.getQueueIDList().indexOf(item.getId());
+            DBWriter.removeQueueItem(fragment.requireActivity(), true, item);
+            if (willRemove(filter, item)) {
+                fragment.requireActivity().runOnUiThread(() ->
+                        EventBus.getDefault().post(new MessageEvent(
+                                fragment.getResources().getQuantityString(R.plurals.removed_from_queue_message, 1, 1),
+                                context -> DBWriter.addQueueItemAt(fragment.requireActivity(), item.getId(), position),
+                                fragment.getString(R.string.undo)))
+                );
+            }
+        });
+        executor.shutdown();
     }
 
     @Override
