@@ -55,7 +55,7 @@ public class DbWriterTest {
     private static final String TAG = "DBWriterTest";
     private static final String TEST_FOLDER = "testDBWriter";
     private static final long TIMEOUT = 5L;
-    
+
     private Context context;
 
     @Before
@@ -360,7 +360,7 @@ public class DbWriterTest {
         adapter.open();
         adapter.setQueue(queue);
 
-        Cursor queueCursor = adapter.getQueueIDCursor();
+        Cursor queueCursor = adapter.getQueueIDCursor(UserPreferences.getCurrentQueueId());
         assertEquals(queue.size(), queueCursor.getCount());
         queueCursor.close();
 
@@ -562,7 +562,7 @@ public class DbWriterTest {
 
         adapter = PodDBAdapter.getInstance();
         adapter.open();
-        Cursor cursor = adapter.getQueueIDCursor();
+        Cursor cursor = adapter.getQueueIDCursor(UserPreferences.getCurrentQueueId());
         assertTrue(cursor.moveToFirst());
         assertEquals(item.getId(), cursor.getLong(0));
         cursor.close();
@@ -587,7 +587,7 @@ public class DbWriterTest {
 
         adapter = PodDBAdapter.getInstance();
         adapter.open();
-        Cursor cursor = adapter.getQueueIDCursor();
+        Cursor cursor = adapter.getQueueIDCursor(UserPreferences.getCurrentQueueId());
         assertTrue(cursor.moveToFirst());
         assertEquals(item.getId(), cursor.getLong(0));
         cursor.close();
@@ -596,7 +596,7 @@ public class DbWriterTest {
         DBWriter.addQueueItem(context, item).get(TIMEOUT, TimeUnit.SECONDS);
         adapter = PodDBAdapter.getInstance();
         adapter.open();
-        cursor = adapter.getQueueIDCursor();
+        cursor = adapter.getQueueIDCursor(UserPreferences.getCurrentQueueId());
         assertTrue(cursor.moveToFirst());
         assertEquals(item.getId(), cursor.getLong(0));
         assertEquals(1, cursor.getCount());
@@ -612,7 +612,7 @@ public class DbWriterTest {
         feed = queueTestSetupMultipleItems(numItems);
         PodDBAdapter adapter = PodDBAdapter.getInstance();
         adapter.open();
-        Cursor cursor = adapter.getQueueIDCursor();
+        Cursor cursor = adapter.getQueueIDCursor(UserPreferences.getCurrentQueueId());
         assertTrue(cursor.moveToFirst());
         assertEquals(numItems, cursor.getCount());
         for (int i = 0; i < numItems; i++) {
@@ -631,7 +631,7 @@ public class DbWriterTest {
         DBWriter.clearQueue().get(TIMEOUT, TimeUnit.SECONDS);
         PodDBAdapter adapter = PodDBAdapter.getInstance();
         adapter.open();
-        Cursor cursor = adapter.getQueueIDCursor();
+        Cursor cursor = adapter.getQueueIDCursor(UserPreferences.getCurrentQueueId());
         assertFalse(cursor.moveToFirst());
         cursor.close();
         adapter.close();
@@ -652,7 +652,7 @@ public class DbWriterTest {
             DBWriter.removeQueueItem(context, false, item).get(TIMEOUT, TimeUnit.SECONDS);
             adapter = PodDBAdapter.getInstance();
             adapter.open();
-            Cursor queue = adapter.getQueueIDCursor();
+            Cursor queue = adapter.getQueueIDCursor(UserPreferences.getCurrentQueueId());
             assertEquals(numItems - 1, queue.getCount());
             for (int i = 0; i < queue.getCount(); i++) {
                 assertTrue(queue.moveToPosition(i));
@@ -740,7 +740,7 @@ public class DbWriterTest {
                 DBWriter.moveQueueItem(from, to, false).get(TIMEOUT, TimeUnit.SECONDS);
                 adapter = PodDBAdapter.getInstance();
                 adapter.open();
-                Cursor queue = adapter.getQueueIDCursor();
+                Cursor queue = adapter.getQueueIDCursor(UserPreferences.getCurrentQueueId());
                 assertEquals(numItems, queue.getCount());
                 assertTrue(queue.moveToPosition(from));
                 assertNotEquals(fromID, queue.getLong(0));

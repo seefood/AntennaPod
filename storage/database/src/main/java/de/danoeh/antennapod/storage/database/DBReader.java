@@ -577,9 +577,10 @@ public final class DBReader {
 
     @NonNull
     public static List<FeedItem> getPausedQueue(int limit) {
+        long activeQueueId = UserPreferences.getCurrentQueueId();
         PodDBAdapter adapter = PodDBAdapter.getInstance();
         adapter.open();
-        try (FeedItemCursor cursor = new FeedItemCursor(adapter.getPausedQueueCursor(limit))) {
+        try (FeedItemCursor cursor = new FeedItemCursor(adapter.getPausedQueueCursor(activeQueueId, limit))) {
             List<FeedItem> items = extractItemlistFromCursor(cursor);
             loadAdditionalFeedItemListData(items);
             return items;
@@ -887,7 +888,8 @@ public final class DBReader {
         }
 
         Collections.sort(feeds, comparator);
-        final int queueSize = adapter.getQueueSize();
+        long activeQueueId = UserPreferences.getCurrentQueueId();
+        final int queueSize = adapter.getQueueSize(activeQueueId);
         final int numNewItems = getTotalEpisodeCount(new FeedItemFilter(FeedItemFilter.NEW));
         final int numDownloadedItems = getTotalEpisodeCount(new FeedItemFilter(FeedItemFilter.DOWNLOADED));
 

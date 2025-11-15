@@ -2,6 +2,7 @@ package de.danoeh.antennapod.storage.database.mapper;
 
 import de.danoeh.antennapod.model.feed.FeedItemFilter;
 import de.danoeh.antennapod.storage.database.PodDBAdapter;
+import de.danoeh.antennapod.storage.preferences.UserPreferences;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +30,8 @@ public class FeedItemFilterQuery {
         String keyFeedItem = PodDBAdapter.KEY_FEEDITEM;
         String tableQueue = PodDBAdapter.TABLE_NAME_QUEUE;
         String tableFavorites = PodDBAdapter.TABLE_NAME_FAVORITES;
+        String keyQueueId = PodDBAdapter.KEY_QUEUE_ID;
+        long activeQueueId = UserPreferences.getCurrentQueueId();
 
         List<String> statements = new ArrayList<>();
         if (filter.showPlayed) {
@@ -44,9 +47,11 @@ public class FeedItemFilterQuery {
             statements.add(" (" + keyPosition + " IS NULL OR " + keyPosition + " = 0 " + ") ");
         }
         if (filter.showQueued) {
-            statements.add(keyItemId + " IN (SELECT " + keyFeedItem + " FROM " + tableQueue + ") ");
+            statements.add(keyItemId + " IN (SELECT " + keyFeedItem + " FROM " + tableQueue
+                    + " WHERE " + keyQueueId + " = " + activeQueueId + ") ");
         } else if (filter.showNotQueued) {
-            statements.add(keyItemId + " NOT IN (SELECT " + keyFeedItem + " FROM " + tableQueue + ") ");
+            statements.add(keyItemId + " NOT IN (SELECT " + keyFeedItem + " FROM " + tableQueue
+                    + " WHERE " + keyQueueId + " = " + activeQueueId + ") ");
         }
         if (filter.showDownloaded) {
             statements.add(keyDownloaded + " > 0 ");

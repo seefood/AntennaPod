@@ -1199,8 +1199,9 @@ public class PodDBAdapter {
         return db.rawQuery(query, null);
     }
 
-    public Cursor getQueueIDCursor() {
-        return db.query(TABLE_NAME_QUEUE, new String[]{KEY_FEEDITEM}, null, null, null, null, KEY_ID + " ASC", null);
+    public Cursor getQueueIDCursor(long queueId) {
+        return db.query(TABLE_NAME_QUEUE, new String[]{KEY_FEEDITEM}, KEY_QUEUE_ID + " = ?",
+                new String[]{String.valueOf(queueId)}, null, null, KEY_ID + " ASC", null);
     }
 
     /**
@@ -1455,7 +1456,7 @@ public class PodDBAdapter {
         return db.rawQuery(query, null);
     }
 
-    public final Cursor getPausedQueueCursor(int limit) {
+    public final Cursor getPausedQueueCursor(long queueId, int limit) {
         final String hasPositionOrRecentlyPlayed = TABLE_NAME_FEED_MEDIA + "."  + KEY_POSITION + " >= 1000"
                 + " OR " + TABLE_NAME_FEED_MEDIA + "." + KEY_LAST_PLAYED_TIME_STATISTICS
                 + " >= " + (System.currentTimeMillis() - 30000);
@@ -1464,6 +1465,7 @@ public class PodDBAdapter {
                 + " INNER JOIN " + TABLE_NAME_FEED_ITEMS
                 + " ON " + SELECT_KEY_ITEM_ID + " = " + TABLE_NAME_QUEUE + "." + KEY_FEEDITEM
                 +  JOIN_FEED_ITEM_AND_MEDIA
+                + " WHERE " + TABLE_NAME_QUEUE + "." + KEY_QUEUE_ID + " = " + queueId
                 + " ORDER BY (CASE WHEN " + hasPositionOrRecentlyPlayed + " THEN "
                     + TABLE_NAME_FEED_MEDIA + "." + KEY_LAST_PLAYED_TIME_STATISTICS + " ELSE 0 END) DESC , "
                 + TABLE_NAME_QUEUE + "." + KEY_ID
@@ -1673,8 +1675,9 @@ public class PodDBAdapter {
         return db.rawQuery(query, null);
     }
 
-    public int getQueueSize() {
-        final String query = String.format("SELECT COUNT(%s) FROM %s", KEY_ID, TABLE_NAME_QUEUE);
+    public int getQueueSize(long queueId) {
+        final String query = "SELECT COUNT(" + KEY_ID + ") FROM " + TABLE_NAME_QUEUE
+                + " WHERE " + KEY_QUEUE_ID + " = " + queueId;
         Cursor c = db.rawQuery(query, null);
         int result = 0;
         if (c.moveToFirst()) {
