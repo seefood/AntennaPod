@@ -183,6 +183,28 @@ public class QueueRulesetEditFragment extends Fragment {
             showAddRuleDialog(true);
         });
 
+        // Observe refilling state and disable edits during refill (FR-036)
+        viewModel.getIsRefilling().observe(getViewLifecycleOwner(), isRefilling -> {
+            boolean enabled = !isRefilling;
+            addRuleButton.setEnabled(enabled);
+            insertRuleButton.setEnabled(enabled);
+            rulesList.setEnabled(enabled);
+            // Set adapter items to non-clickable during refill
+            if (adapter != null) {
+                adapter.setEditable(enabled);
+            }
+            // Show message if refill is in progress
+            if (isRefilling) {
+                // Temporarily disable UI feedback
+                if (emptyView != null) {
+                    emptyView.setText(R.string.queue_refilling_message);
+                }
+            } else if (emptyView != null) {
+                // Update empty view message after refill completes
+                refreshEmptyViewMessage();
+            }
+        });
+
         // Apply queue color gradient to toolbar
         QueueViewModel queueViewModel = new ViewModelProvider(requireActivity(),
                 ViewModelProvider.AndroidViewModelFactory.getInstance(requireActivity().getApplication()))
@@ -231,6 +253,16 @@ public class QueueRulesetEditFragment extends Fragment {
                 }
             }
         });
+    }
+
+    /**
+     * Refresh the empty view message to show "no rules" state.
+     * Called when refill completes to restore the proper empty view message.
+     */
+    private void refreshEmptyViewMessage() {
+        if (emptyView != null) {
+            emptyView.setText(R.string.no_queue_rules_message);
+        }
     }
 
     /**

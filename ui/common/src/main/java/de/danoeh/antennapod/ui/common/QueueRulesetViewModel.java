@@ -37,6 +37,7 @@ public class QueueRulesetViewModel extends AndroidViewModel {
     private final MutableLiveData<QueueRuleset> rulesetLiveData = new MutableLiveData<>();
     private final MutableLiveData<List<RefillRule>> rulesLiveData = new MutableLiveData<>();
     private final MutableLiveData<String> errorMessageLiveData = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> isRefilling = new MutableLiveData<>(false);
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r);
@@ -141,6 +142,24 @@ public class QueueRulesetViewModel extends AndroidViewModel {
     }
 
     /**
+     * Get refilling state LiveData.
+     *
+     * @return LiveData indicating if refill is in progress
+     */
+    public LiveData<Boolean> getIsRefilling() {
+        return isRefilling;
+    }
+
+    /**
+     * Set refilling state (used to block/unblock edits during refill).
+     *
+     * @param refilling true if refill is in progress, false otherwise
+     */
+    public void setIsRefilling(boolean refilling) {
+        isRefilling.postValue(refilling);
+    }
+
+    /**
      * Refresh ruleset data from database.
      * Called when ruleset changes occur.
      */
@@ -156,6 +175,11 @@ public class QueueRulesetViewModel extends AndroidViewModel {
         // Refresh ruleset data when queue switches or ruleset changes
         if (event.action == QueueEvent.Action.QUEUE_SWITCHED) {
             refreshRuleset();
+        }
+        // Detect refill start/completion from QueueEvent actions (FR-036)
+        if (event.action == QueueEvent.Action.REFILLED) {
+            // Refill completed - re-enable edits
+            setIsRefilling(false);
         }
     }
 

@@ -30,7 +30,9 @@ public class QueueEvent {
         QUEUE_COLOR_CHANGED,
         QUEUE_DELETED,
         QUEUE_SWITCHED,
-        CURRENTLY_PLAYING_UPDATED
+        CURRENTLY_PLAYING_UPDATED,
+        // Queue refill operations (T068, T073)
+        REFILLED
     }
 
     public final Action action;
@@ -206,6 +208,6 @@ public class QueueEvent {
      * @param queueId The ID of the refilled queue
      */
     public static QueueEvent refilled(long queueId) {
-        return new QueueEvent(Action.SET_QUEUE, null, null, -1, queueId);
+        return new QueueEvent(Action.REFILLED, null, null, -1, queueId);
     }
 }
