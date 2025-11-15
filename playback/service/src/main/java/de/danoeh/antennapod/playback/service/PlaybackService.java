@@ -833,8 +833,13 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         // Load media object with autoresume disabled to keep it paused
         mediaPlayer.playMediaObject(playable, stream, true, false);
         PlaybackPreferences.writeMediaPlaying(playable);
+
+        // Update service state to ensure miniplayer shows episode and notification updates
+        stateManager.validStartCommandWasReceived();
+        stateManager.startForeground(R.id.notification_playing, notificationBuilder.build());
         recreateMediaSessionIfNeeded();
         updateNotificationAndMediaSession(playable);
+        addPlayableToQueue(playable);
     }
 
     /**
