@@ -816,6 +816,28 @@ public class PlaybackService extends MediaBrowserServiceCompat {
     }
 
     /**
+     * Loads a playable into the media player in paused state.
+     * Used when switching queues to load the new queue's last played episode
+     * without auto-playing it.
+     *
+     * @param playable The media to load and pause
+     */
+    private void loadPlayableInPausedState(Playable playable) {
+        boolean localFeed = URLUtil.isContentUrl(playable.getStreamUrl());
+        boolean stream = !playable.localFileAvailable() || localFeed;
+
+        if (!playable.getIdentifier().equals(PlaybackPreferences.getCurrentlyPlayingFeedMediaId())) {
+            PlaybackPreferences.clearCurrentlyPlayingTemporaryPlaybackSettings();
+        }
+
+        // Load media object with autoresume disabled to keep it paused
+        mediaPlayer.playMediaObject(playable, stream, true, false);
+        PlaybackPreferences.writeMediaPlaying(playable);
+        recreateMediaSessionIfNeeded();
+        updateNotificationAndMediaSession(playable);
+    }
+
+    /**
      * Called by a mediaplayer Activity as soon as it has prepared its
      * mediaplayer.
      */
@@ -1755,6 +1777,13 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         if (event.action == QueueEvent.Action.QUEUE_SWITCHED) {
             Log.d(TAG, "Queue switched to: " + event.queueId);
 
+            // Pause any currently playing media before switching queues
+            // This ensures Queue A's episode is paused and saved before loading Queue B
+            if (getStatus() == PlayerStatus.PLAYING) {
+                Log.d(TAG, "Pausing current playback before queue switch");
+                mediaPlayer.pause(true, true);
+            }
+
             // QueueViewModel has already updated PlaybackPreferences with the new queue's saved episode
             long feedMediaId = PlaybackPreferences.getCurrentlyPlayingFeedMediaId();
             if (feedMediaId < 0) {
@@ -1768,16 +1797,16 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                 return;
             }
 
-            // Load the new queue's last played episode and start playing it
-            // This mimics what happens when user clicks play on an episode
-            Log.d(TAG, "Loading and playing episode for new queue: " + feedMediaId);
+            // Load the new queue's last played episode in paused state
+            // User should manually resume playback instead of auto-playing
+            Log.d(TAG, "Loading episode for new queue (paused): " + feedMediaId);
 
             // Synchronous DB read (safe for single row) to avoid race conditions
             FeedMedia playable = DBReader.getFeedMedia(feedMediaId);
             if (playable != null) {
-                // Load media into player and start playing (same as clicking play on episode)
-                startPlaying(playable, false);
-                Log.d(TAG, "Started playing queue episode: " + playable.getEpisodeTitle());
+                // Load media into player but keep paused (don't auto-play on queue switch)
+                loadPlayableInPausedState(playable);
+                Log.d(TAG, "Loaded queue episode (paused): " + playable.getEpisodeTitle());
             } else {
                 Log.e(TAG, "Could not load playable from queue (media not found)");
                 mediaPlayer.pause(true, true);
