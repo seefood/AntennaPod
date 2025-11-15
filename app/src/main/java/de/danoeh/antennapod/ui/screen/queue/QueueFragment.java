@@ -43,9 +43,15 @@ import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.activity.MainActivity;
+import de.danoeh.antennapod.model.feed.QueueRuleset;
+import de.danoeh.antennapod.storage.database.DBReader;
+import de.danoeh.antennapod.storage.database.DBWriter;
+import de.danoeh.antennapod.storage.database.RefillResult;
 import de.danoeh.antennapod.ui.episodeslist.EpisodeItemListAdapter;
 import de.danoeh.antennapod.ui.common.ConfirmationDialog;
 import de.danoeh.antennapod.ui.common.QueueColorGradient;
@@ -110,6 +116,7 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
 
     private FloatingSelectMenu floatingSelectMenu;
     private ProgressBar progressBar;
+    private ExecutorService executor = Executors.newSingleThreadExecutor();
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -339,6 +346,14 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
         } else if (itemId == R.id.queue_edit_rules) {
             // Navigate to queue rules editor
             ((MainActivity) getActivity()).loadChildFragment(new QueueRulesetEditFragment());
+            return true;
+        } else if (itemId == R.id.queue_refill) {
+            // Refill queue (append episodes)
+            refillQueue(false);
+            return true;
+        } else if (itemId == R.id.queue_clear_and_refill) {
+            // Clear and refill queue
+            refillQueue(true);
             return true;
         } else if (itemId == R.id.refresh_item) {
             FeedUpdateManager.getInstance().runOnceOrAsk(requireContext());
@@ -842,25 +857,72 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
     }
 
     /**
-     * Refill the queue using the configured ruleset.
-     * If clearQueue is true, clears the queue first before refilling.
+     * Refill queue using rules.
      *
-     * @param clearQueue If true, clear queue before refilling; if false, append to existing queue
+     * @param clearQueue If true, clear existing episodes before refilling
      */
     private void refillQueue(boolean clearQueue) {
-        // TODO: Implement refill logic (will be implemented in User Story 2)
-        // For now, show a placeholder message
-        if (clearQueue) {
-            // Clear queue first
-            DBWriter.clearQueue();
-        }
-        // TODO: Process ruleset and add episodes to queue
-        // This will be implemented when QueueRefillEngine is created in User Story 2
-        new MaterialAlertDialogBuilder(requireContext())
-                .setTitle(R.string.refill_queue_label)
-                .setMessage("Queue refill functionality will be implemented in User Story 2.")
-                .setPositiveButton(android.R.string.ok, null)
-                .show();
+        long queueId = UserPreferences.getCurrentQueueId();
+
+        // Refill queue on background thread
+        executor.submit(() -> {
+            try {
+                // Check if ruleset exists (on background thread)
+                QueueRuleset ruleset = DBReader.getQueueRuleset(queueId);
+                if (ruleset == null) {
+                    // No ruleset - show message on main thread
+                    requireActivity().runOnUiThread(() -> {
+                        new MaterialAlertDialogBuilder(requireContext())
+                                .setTitle(R.string.refill_queue_label)
+                                .setMessage("No rules configured. Please add rules first.")
+                                .setPositiveButton(android.R.string.ok, null)
+                                .show();
+                    });
+                    return;
+                }
+
+                // Process refill
+                RefillResult result = DBWriter.refillQueue(queueId, clearQueue).get();
+
+                // Show result on main thread
+                requireActivity().runOnUiThread(() -> {
+                    if (result.episodesAdded > 0) {
+                        // Show success message
+                        String message = "Added " + result.episodesAdded + " episodes";
+                        if (result.episodesRemoved > 0) {
+                            message += ", removed " + result.episodesRemoved + " episodes";
+                        }
+                        new MaterialAlertDialogBuilder(requireContext())
+                                .setTitle(R.string.refill_queue_label)
+                                .setMessage(message)
+                                .setPositiveButton(android.R.string.ok, null)
+                                .show();
+
+                        // Start playback from first episode if queue was empty
+                        if (queue == null || queue.isEmpty()) {
+                            // TODO: Start playback from first episode (FR-017)
+                            // This will be implemented in User Story 3
+                        }
+                    } else {
+                        // No episodes added
+                        new MaterialAlertDialogBuilder(requireContext())
+                                .setTitle(R.string.refill_queue_label)
+                                .setMessage("No episodes matched the rules.")
+                                .setPositiveButton(android.R.string.ok, null)
+                                .show();
+                    }
+                });
+            } catch (Exception e) {
+                android.util.Log.e(TAG, "Error refilling queue", e);
+                requireActivity().runOnUiThread(() -> {
+                    new MaterialAlertDialogBuilder(requireContext())
+                            .setTitle(R.string.refill_queue_label)
+                            .setMessage("Error refilling queue: " + e.getMessage())
+                            .setPositiveButton(android.R.string.ok, null)
+                            .show();
+                });
+            }
+        });
     }
 
 }

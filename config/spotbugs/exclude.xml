@@ -68,6 +68,10 @@
         <Bug pattern="BC_VACUOUS_INSTANCEOF"/>
         <Class name="de.danoeh.antennapod.ui.cleaner.PlainTextLinksConverter$LinkConvertingVisitor"/>
     </Match>
+    <Match>
+        <Bug pattern="URF_UNREAD_FIELD"/>
+        <Class name="de.danoeh.antennapod.ui.screen.queue.RefillRuleAdapter"/>
+    </Match>
 
     <Match><Package name="~.*\.databinding"/></Match>
 

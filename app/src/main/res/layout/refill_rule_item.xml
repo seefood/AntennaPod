@@ -10,12 +10,16 @@
     <!-- Drag handle icon (only visible for reorderable items) -->
     <ImageView
         android:id="@+id/rule_item_drag_handle"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="16dp"
+        android:layout_height="match_parent"
         android:layout_gravity="center_vertical"
+        android:importantForAccessibility="no"
         android:contentDescription="@string/drag_to_reorder"
-        android:src="@android:drawable/ic_menu_sort_by_size"
-        android:visibility="gone" />
+        android:scaleType="fitCenter"
+        android:paddingStart="0dp"
+        android:paddingEnd="4dp"
+        app:srcCompat="?attr/dragview_background"
+        android:visibility="visible" />
 
     <!-- Rule icon/indicator -->
     <ImageView

@@ -190,4 +190,22 @@ public class QueueEvent {
     public static QueueEvent currentlyPlayingUpdated(long queueId) {
         return new QueueEvent(Action.CURRENTLY_PLAYING_UPDATED, null, null, -1, queueId);
     }
+
+    /**
+     * Fired when a queue is cleared (for refill engine).
+     *
+     * @param queueId The ID of the cleared queue
+     */
+    public static QueueEvent cleared(long queueId) {
+        return new QueueEvent(Action.CLEARED, null, null, -1, queueId);
+    }
+
+    /**
+     * Fired when a queue is refilled (for refill engine).
+     *
+     * @param queueId The ID of the refilled queue
+     */
+    public static QueueEvent refilled(long queueId) {
+        return new QueueEvent(Action.SET_QUEUE, null, null, -1, queueId);
+    }
 }

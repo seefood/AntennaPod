@@ -52,7 +52,7 @@ public class EpisodeItemListAdapter extends SelectableAdapter<EpisodeItemViewHol
     }
 
     public void updateItems(List<FeedItem> items) {
-        episodes = items;
+        episodes = items != null ? items : new ArrayList<>();
         notifyDataSetChanged();
         onSelectedItemsUpdated();
     }

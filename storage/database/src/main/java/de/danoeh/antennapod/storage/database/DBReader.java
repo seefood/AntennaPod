@@ -1112,4 +1112,170 @@ public final class DBReader {
             adapter.close();
         }
     }
+
+    /**
+     * T056-T060: Get episodes matching a refill rule criteria.
+     * Reuses existing DBReader methods (getFeedItemList, getEpisodes, FeedItemFilter) per FR-024.
+     *
+     * @param rule Rule to get episodes for
+     * @param excludeQueueIds Episode IDs to exclude (already in queue, for duplicate prevention)
+     * @return List of FeedItems matching rule criteria
+     */
+    @NonNull
+    public static List<FeedItem> getEpisodesForRule(@NonNull RefillRule rule,
+                                                      @Nullable List<Long> excludeQueueIds) {
+        Log.d(TAG, "getEpisodesForRule() called with rule=" + rule);
+
+        if (rule.getRuleType() != RefillRule.RuleType.ADD_EPISODES) {
+            return new ArrayList<>();
+        }
+
+        List<FeedItem> episodes = new ArrayList<>();
+
+        try {
+            switch (rule.getSourceType()) {
+                case FEED:
+                    // Get feed by ID
+                    long feedId = Long.parseLong(rule.getSourceId());
+                    Feed feed = getFeedById(feedId);
+                    if (feed == null) {
+                        // Feed doesn't exist (deleted) - return empty list (FR-028)
+                        return new ArrayList<>();
+                    }
+
+                    // Create filter excluding 100% played episodes (FR-012)
+                    FeedItemFilter filter = new FeedItemFilter(FeedItemFilter.UNPLAYED);
+
+                    // Get sort order based on selection method
+                    SortOrder sortOrder = getSortOrderForSelectionMethod(rule.getSelectionMethod());
+
+                    // Get more episodes first (to account for filtering out queue items)
+                    // Then filter, then limit to count
+                    int requestedCount = rule.getCount() != null ? rule.getCount() : 0;
+                    // Get more episodes to account for items already in queue
+                    int fetchCount = excludeQueueIds != null && !excludeQueueIds.isEmpty()
+                            ? requestedCount + excludeQueueIds.size() : requestedCount;
+                    episodes = getFeedItemList(feed, filter, sortOrder, 0, fetchCount);
+                    break;
+
+                case TAG:
+                    // Get episodes by tag using FeedItemFilter
+                    FeedItemFilter tagFilter = new FeedItemFilter(FeedItemFilter.UNPLAYED);
+                    // TODO: Add tag filtering to FeedItemFilter or use existing tag query
+                    // For now, get all episodes and filter by tag
+                    SortOrder tagSortOrder = getSortOrderForSelectionMethod(rule.getSelectionMethod());
+                    // Get more to account for tag filtering
+                    episodes = getEpisodes(0, rule.getCount() * 2, tagFilter, tagSortOrder);
+                    // Filter by tag name
+                    episodes = filterByTag(episodes, rule.getSourceId());
+                    // Limit to count
+                    if (rule.getCount() != null && episodes.size() > rule.getCount()) {
+                        episodes = episodes.subList(0, rule.getCount());
+                    }
+                    break;
+
+                case INBOX:
+                    // Get inbox episodes (unplayed episodes from all feeds)
+                    FeedItemFilter inboxFilter = new FeedItemFilter(FeedItemFilter.UNPLAYED);
+                    SortOrder inboxSortOrder = getSortOrderForSelectionMethod(rule.getSelectionMethod());
+                    // Get more episodes to account for items already in queue
+                    int inboxRequestedCount = rule.getCount() != null ? rule.getCount() : 0;
+                    int inboxFetchCount = excludeQueueIds != null && !excludeQueueIds.isEmpty()
+                            ? inboxRequestedCount + excludeQueueIds.size() : inboxRequestedCount;
+                    episodes = getEpisodes(0, inboxFetchCount, inboxFilter, inboxSortOrder);
+                    break;
+
+                default:
+                    return new ArrayList<>();
+            }
+
+            // Filter out episodes already in queue (duplicate prevention)
+            if (excludeQueueIds != null && !excludeQueueIds.isEmpty()) {
+                List<FeedItem> filtered = new ArrayList<>();
+                for (FeedItem item : episodes) {
+                    boolean inQueue = false;
+                    for (Long queueItemId : excludeQueueIds) {
+                        if (item.getId() == queueItemId) {
+                            inQueue = true;
+                            break;
+                        }
+                    }
+                    if (!inQueue) {
+                        filtered.add(item);
+                    }
+                }
+                episodes = filtered;
+            }
+
+            // Limit to count (partial fulfillment handled by caller)
+            if (rule.getCount() != null && episodes.size() > rule.getCount()) {
+                episodes = episodes.subList(0, rule.getCount());
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting episodes for rule", e);
+            return new ArrayList<>();
+        }
+
+        return episodes;
+    }
+
+    /**
+     * Convert selection method to SortOrder.
+     *
+     * @param selectionMethod Selection method (OLDEST, NEWEST, RANDOM)
+     * @return SortOrder enum value
+     */
+    private static SortOrder getSortOrderForSelectionMethod(RefillRule.SelectionMethod selectionMethod) {
+        if (selectionMethod == null) {
+            return SortOrder.DATE_NEW_OLD;
+        }
+        switch (selectionMethod) {
+            case OLDEST:
+                return SortOrder.DATE_OLD_NEW;
+            case NEWEST:
+                return SortOrder.DATE_NEW_OLD;
+            case RANDOM:
+                return SortOrder.RANDOM;
+            default:
+                return SortOrder.DATE_NEW_OLD;
+        }
+    }
+
+    /**
+     * Filter episodes by tag name.
+     *
+     * @param episodes List of episodes to filter
+     * @param tagName Tag name to filter by
+     * @return Filtered list of episodes
+     */
+    private static List<FeedItem> filterByTag(List<FeedItem> episodes, String tagName) {
+        List<FeedItem> filtered = new ArrayList<>();
+        for (FeedItem item : episodes) {
+            if (item.getFeed() != null && item.getFeed().getPreferences() != null) {
+                java.util.Set<String> tags = item.getFeed().getPreferences().getTags();
+                if (tags != null && tags.contains(tagName)) {
+                    filtered.add(item);
+                }
+            }
+        }
+        return filtered;
+    }
+
+    /**
+     * Get feed by ID.
+     *
+     * @param feedId Feed ID
+     * @return Feed object, or null if not found
+     */
+    @Nullable
+    private static Feed getFeedById(long feedId) {
+        List<Feed> feeds = getFeedList();
+        for (Feed feed : feeds) {
+            if (feed.getId() == feedId) {
+                return feed;
+            }
+        }
+        return null;
+    }
 }

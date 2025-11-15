@@ -111,13 +111,13 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T044 [P] [US2] Create unit test for QueueRefillEngine.processRuleset() with single rule in storage/database/src/test/java/de/danoeh/antennapod/storage/database/QueueRefillEngineTest.java
-- [ ] T045 [P] [US2] Create unit test for QueueRefillEngine.processRuleset() with multiple rules in storage/database/src/test/java/de/danoeh/antennapod/storage/database/QueueRefillEngineTest.java
-- [ ] T046 [P] [US2] Create unit test for QueueRefillEngine.processRuleset() with Clear queue rule in storage/database/src/test/java/de/danoeh/antennapod/storage/database/QueueRefillEngineTest.java
-- [ ] T047 [P] [US2] Create unit test for QueueRefillEngine partial fulfillment (FR-027) in storage/database/src/test/java/de/danoeh/antennapod/storage/database/QueueRefillEngineTest.java
-- [ ] T048 [P] [US2] Create unit test for QueueRefillEngine deleted feed/tag handling (FR-028) in storage/database/src/test/java/de/danoeh/antennapod/storage/database/QueueRefillEngineTest.java
-- [ ] T049 [P] [US2] Create unit test for QueueRefillEngine duplicate prevention (FR-013) in storage/database/src/test/java/de/danoeh/antennapod/storage/database/QueueRefillEngineTest.java
-- [ ] T050 [P] [US2] Create unit test for QueueRefillEngine empty queue scenario (FR-029) in storage/database/src/test/java/de/danoeh/antennapod/storage/database/QueueRefillEngineTest.java
+- [X] T044 [P] [US2] Create unit test for QueueRefillEngine.processRuleset() with single rule in storage/database/src/test/java/de/danoeh/antennapod/storage/database/QueueRefillEngineTest.java
+- [X] T045 [P] [US2] Create unit test for QueueRefillEngine.processRuleset() with multiple rules in storage/database/src/test/java/de/danoeh/antennapod/storage/database/QueueRefillEngineTest.java
+- [X] T046 [P] [US2] Create unit test for QueueRefillEngine.processRuleset() with Clear queue rule in storage/database/src/test/java/de/danoeh/antennapod/storage/database/QueueRefillEngineTest.java
+- [X] T047 [P] [US2] Create unit test for QueueRefillEngine partial fulfillment (FR-027) in storage/database/src/test/java/de/danoeh/antennapod/storage/database/QueueRefillEngineTest.java
+- [X] T048 [P] [US2] Create unit test for QueueRefillEngine deleted feed/tag handling (FR-028) in storage/database/src/test/java/de/danoeh/antennapod/storage/database/QueueRefillEngineTest.java
+- [X] T049 [P] [US2] Create unit test for QueueRefillEngine duplicate prevention (FR-013) in storage/database/src/test/java/de/danoeh/antennapod/storage/database/QueueRefillEngineTest.java
+- [X] T050 [P] [US2] Create unit test for QueueRefillEngine empty queue scenario (FR-029) in storage/database/src/test/java/de/danoeh/antennapod/storage/database/QueueRefillEngineTest.java
 - [ ] T051 [P] [US2] Create unit test for DBReader.getEpisodesForRule() for FEED source in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBReaderQueueRulesetTest.java
 - [ ] T052 [P] [US2] Create unit test for DBReader.getEpisodesForRule() for TAG source in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBReaderQueueRulesetTest.java
 - [ ] T053 [P] [US2] Create unit test for DBReader.getEpisodesForRule() for INBOX source in storage/database/src/test/java/de/danoeh/antennapod/storage/database/DBReaderQueueRulesetTest.java
@@ -126,23 +126,23 @@
 
 ### Implementation for User Story 2
 
-- [ ] T056 [US2] Implement DBReader.getEpisodesForRule() for FEED source in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java (reuse DBReader.getFeedItemList(), FR-024)
-- [ ] T057 [US2] Implement DBReader.getEpisodesForRule() for TAG source in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java (reuse FeedItemFilter, FR-024)
-- [ ] T058 [US2] Implement DBReader.getEpisodesForRule() for INBOX source in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java (reuse DBReader.getInboxItemList(), FR-024)
-- [ ] T059 [US2] Implement episode selection method (oldest/newest/random) in DBReader.getEpisodesForRule() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java
-- [ ] T060 [US2] Implement episode filtering to exclude 100% played episodes (FR-012) in DBReader.getEpisodesForRule() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java
-- [ ] T061 [US2] Create QueueRefillEngine class in storage/database/src/main/java/de/danoeh/antennapod/storage/database/QueueRefillEngine.java
-- [ ] T062 [US2] Implement QueueRefillEngine.processRuleset() rule processing loop in storage/database/src/main/java/de/danoeh/antennapod/storage/database/QueueRefillEngine.java
-- [ ] T063 [US2] Implement QueueRefillEngine Clear queue handling (FR-002, FR-038) in QueueRefillEngine.java
-- [ ] T064 [US2] Implement QueueRefillEngine episode selection and duplicate prevention (FR-013) in QueueRefillEngine.java
-- [ ] T065 [US2] Implement QueueRefillEngine partial fulfillment (FR-027) in QueueRefillEngine.java
-- [ ] T066 [US2] Implement QueueRefillEngine deleted feed/tag handling (FR-028) in QueueRefillEngine.java
-- [ ] T067 [US2] Implement QueueRefillEngine empty queue scenario (FR-029) in QueueRefillEngine.java
-- [ ] T068 [US2] Implement DBWriter.refillQueue() wrapper method in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
-- [ ] T069 [US2] Add refill button to QueueFragment layout in app/src/main/res/layout/fragment_queue.xml
-- [ ] T070 [US2] Implement refill button click handler in QueueFragment.java (calls DBWriter.refillQueue(), starts playback, FR-017)
-- [ ] T071 [US2] Add string resources for refill button in app/src/main/res/values/strings.xml
-- [ ] T072 [US2] Post QueueEvent.setQueue() or new QueueEvent.REFILLED action after refill completes in DBWriter.refillQueue() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
+- [X] T056 [US2] Implement DBReader.getEpisodesForRule() for FEED source in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java (reuse DBReader.getFeedItemList(), FR-024)
+- [X] T057 [US2] Implement DBReader.getEpisodesForRule() for TAG source in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java (reuse FeedItemFilter, FR-024)
+- [X] T058 [US2] Implement DBReader.getEpisodesForRule() for INBOX source in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java (reuse DBReader.getEpisodes(), FR-024)
+- [X] T059 [US2] Implement episode selection method (oldest/newest/random) in DBReader.getEpisodesForRule() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java
+- [X] T060 [US2] Implement episode filtering to exclude 100% played episodes (FR-012) in DBReader.getEpisodesForRule() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java
+- [X] T061 [US2] Create QueueRefillEngine class in storage/database/src/main/java/de/danoeh/antennapod/storage/database/QueueRefillEngine.java
+- [X] T062 [US2] Implement QueueRefillEngine.processRuleset() rule processing loop in storage/database/src/main/java/de/danoeh/antennapod/storage/database/QueueRefillEngine.java
+- [X] T063 [US2] Implement QueueRefillEngine Clear queue handling (FR-002, FR-038) in QueueRefillEngine.java
+- [X] T064 [US2] Implement QueueRefillEngine episode selection and duplicate prevention (FR-013) in QueueRefillEngine.java
+- [X] T065 [US2] Implement QueueRefillEngine partial fulfillment (FR-027) in QueueRefillEngine.java
+- [X] T066 [US2] Implement QueueRefillEngine deleted feed/tag handling (FR-028) in QueueRefillEngine.java
+- [X] T067 [US2] Implement QueueRefillEngine empty queue scenario (FR-029) in QueueRefillEngine.java
+- [X] T068 [US2] Implement DBWriter.refillQueue() wrapper method in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
+- [X] T069 [US2] Add refill button to QueueFragment layout in app/src/main/res/layout/fragment_queue.xml (already exists in queue.xml menu)
+- [X] T070 [US2] Implement refill button click handler in QueueFragment.java (calls DBWriter.refillQueue(), starts playback, FR-017)
+- [X] T071 [US2] Add string resources for refill button in app/src/main/res/values/strings.xml (already exists)
+- [X] T072 [US2] Post QueueEvent.refilled() action after refill completes in DBWriter.refillQueue() in storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java
 - [ ] T073 [US2] Implement edit mode blocking during refill operation in QueueRulesetEditFragment.java (disable edit mode or show message, FR-036)
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
