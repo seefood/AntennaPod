@@ -1801,20 +1801,27 @@ public class PlaybackService extends MediaBrowserServiceCompat {
             // User should manually resume playback instead of auto-playing
             Log.d(TAG, "Loading episode for new queue (paused): " + feedMediaId);
 
-            // Synchronous DB read (safe for single row) to avoid race conditions
-            FeedMedia playable = DBReader.getFeedMedia(feedMediaId);
-            if (playable != null) {
-                // Load media into player but keep paused (don't auto-play on queue switch)
-                loadPlayableInPausedState(playable);
-                Log.d(TAG, "Loaded queue episode (paused): " + playable.getEpisodeTitle());
-            } else {
-                Log.e(TAG, "Could not load playable from queue (media not found)");
-                mediaPlayer.pause(true, true);
-                PlaybackPreferences.writeNoMediaPlaying();
-                updateNotificationAndMediaSession(null);
-                IntentUtils.sendLocalBroadcast(getApplicationContext(), ACTION_PLAYER_STATUS_CHANGED);
-                EventBus.getDefault().post(new PlayerStatusEvent());
-            }
+            // Must do database read on background thread to avoid I/O on main thread error
+            Thread dbThread = new Thread(() -> {
+                FeedMedia playable = DBReader.getFeedMedia(feedMediaId);
+                if (playable != null) {
+                    // Post back to main thread to load media
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        loadPlayableInPausedState(playable);
+                        Log.d(TAG, "Loaded queue episode (paused): " + playable.getEpisodeTitle());
+                    });
+                } else {
+                    Log.e(TAG, "Could not load playable from queue (media not found)");
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        mediaPlayer.pause(true, true);
+                        PlaybackPreferences.writeNoMediaPlaying();
+                        updateNotificationAndMediaSession(null);
+                        IntentUtils.sendLocalBroadcast(getApplicationContext(), ACTION_PLAYER_STATUS_CHANGED);
+                        EventBus.getDefault().post(new PlayerStatusEvent());
+                    });
+                }
+            }, "QueueSwitch-DB-Reader");
+            dbThread.start();
         }
     }
 
