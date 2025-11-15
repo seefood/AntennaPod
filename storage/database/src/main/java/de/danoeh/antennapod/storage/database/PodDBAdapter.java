@@ -1448,6 +1448,8 @@ public class PodDBAdapter {
                 + " WHERE Queue.ID > (SELECT Queue.ID FROM Queue WHERE Queue.FeedItem = "
                 +  item.getId()
                 + ")"
+                + " AND " + TABLE_NAME_QUEUE + "." + KEY_QUEUE_ID + " = (SELECT " + KEY_QUEUE_ID
+                + " FROM " + TABLE_NAME_QUEUE + " WHERE " + KEY_FEEDITEM + " = " + item.getId() + ")"
                 + " ORDER BY Queue.ID"
                 + " LIMIT 1";
         return db.rawQuery(query, null);
