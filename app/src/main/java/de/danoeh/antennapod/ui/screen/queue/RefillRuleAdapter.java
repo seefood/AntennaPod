@@ -241,7 +241,8 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
     public void onBindViewHolder(@NonNull RuleViewHolder holder, int position) {
         if (rules != null && position >= 0 && position < rules.size()) {
             RefillRule rule = rules.get(position);
-            holder.bind(rule, position, editListener, deleteListener, canReorderRule(position), editable, feedIdToNameCache);
+            holder.bind(rule, position, editListener, deleteListener,
+                    canReorderRule(position), editable, feedIdToNameCache);
 
             // Setup drag handle touch listener (matches queue item behavior)
             if (itemTouchHelper != null && holder.dragHandle != null) {

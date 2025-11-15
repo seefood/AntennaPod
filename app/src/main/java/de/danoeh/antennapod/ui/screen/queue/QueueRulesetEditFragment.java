@@ -301,10 +301,10 @@ public class QueueRulesetEditFragment extends Fragment {
         final MaterialButton selectionMethodButton = dialogView.findViewById(R.id.rule_selection_method_button);
         final NumberPicker countInput = dialogView.findViewById(R.id.rule_count_input);
 
-        // Setup NumberPicker (1-20 range)
+        // Setup NumberPicker (1-10 range, default 2)
         countInput.setMinValue(1);
-        countInput.setMaxValue(20);
-        countInput.setValue(10);
+        countInput.setMaxValue(10);
+        countInput.setValue(2);
 
         // Setup source type selection
         String[] sourceTypes = {
@@ -480,17 +480,17 @@ public class QueueRulesetEditFragment extends Fragment {
             // Set count
             if (rule.getCount() != null) {
                 int count = rule.getCount();
-                if (count >= 1 && count <= 20) {
+                if (count >= 1 && count <= 10) {
                     countInput.setValue(count);
                 } else {
-                    countInput.setValue(10); // Default if out of range
+                    countInput.setValue(2); // Default if out of range
                 }
             }
         } else {
             // Default values for new rule
             sourceTypeButton.setText(sourceTypes[0]); // FEED
             selectionMethodButton.setText(selectionMethods[0]); // OLDEST
-            countInput.setValue(10); // Default count
+            countInput.setValue(2); // Default count
             updateSourceButtonVisibility(sourceLabel, sourceButton, RefillRule.SourceType.FEED);
         }
 
@@ -570,7 +570,7 @@ public class QueueRulesetEditFragment extends Fragment {
                                      RefillRule.SelectionMethod selectionMethod,
                                      int count,
                                      Map<String, Long> feedNameToId) {
-        // Count is already validated by NumberPicker (1-20 range)
+        // Count is already validated by NumberPicker (1-10 range)
 
         // Validate source (required for FEED and TAG)
         String finalSourceId = sourceId;
