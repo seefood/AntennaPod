@@ -1932,8 +1932,13 @@ public class PlaybackService extends MediaBrowserServiceCompat {
 
         Log.d(TAG, "Adding " + episodesToAdd.size() + " episodes to queue via automatic refill");
 
-        // Add episodes to queue
-        DBWriter.addQueueItemsToQueue(queueId, episodesToAdd.toArray(new de.danoeh.antennapod.model.feed.FeedItem[0]));
+        // Add episodes to queue and wait for completion (DBWriter runs on background thread)
+        try {
+            DBWriter.addQueueItemsToQueue(queueId, episodesToAdd.toArray(new de.danoeh.antennapod.model.feed.FeedItem[0])).get();
+        } catch (Exception e) {
+            Log.e(TAG, "Error adding episodes to queue during auto-refill", e);
+            return;
+        }
 
         // T080: Continue playback with first refilled episode (FR-017)
         List<FeedItem> updatedQueue = DBReader.getQueue(queueId);
