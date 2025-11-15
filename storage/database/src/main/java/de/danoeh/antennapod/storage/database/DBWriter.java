@@ -2016,25 +2016,12 @@ public class DBWriter {
      *
      * <p>Wrapper method for QueueRefillEngine.processRuleset().
      * Posts QueueEvent.refilled() after completion.
+     * Queue refill rules are being designed as part of the smart queues feature.
      *
      * @param queueId Queue ID to refill
      * @param clearQueue If true, clear existing episodes before refilling
      * @return Future with RefillResult
      */
-    /* TODO: Uncomment when QueueRefillEngine is implemented
-    public static Future<RefillResult> refillQueue(final long queueId, final boolean clearQueue) {
-        return dbExec.submit(() -> {
-            QueueRefillEngine engine = new QueueRefillEngine();
-            RefillResult result = engine.processRuleset(queueId, clearQueue);
-
-            // Post QueueEvent.refilled() with actual queue items (not null)
-            List<FeedItem> queue = DBReader.getQueue(queueId);
-            EventBus.getDefault().post(QueueEvent.setQueue(queue));
-
-            return result;
-        });
-    }
-    */
     public static Future<RefillResult> refillQueue(final long queueId, final boolean clearQueue) {
         throw new UnsupportedOperationException("Queue refill engine not yet implemented");
     }
