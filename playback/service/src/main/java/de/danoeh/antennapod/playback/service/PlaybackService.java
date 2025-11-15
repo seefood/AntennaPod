@@ -133,6 +133,14 @@ public class PlaybackService extends MediaBrowserServiceCompat {
     private static final String AVRCP_ACTION_PLAYER_STATUS_CHANGED = "com.android.music.playstatechanged";
     private static final String AVRCP_ACTION_META_CHANGED = "com.android.music.metachanged";
 
+    // Executor for database operations to avoid I/O on main thread
+    private static final java.util.concurrent.ExecutorService dbExecutor =
+            java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "PlaybackService-DB");
+                t.setPriority(Thread.MIN_PRIORITY);
+                return t;
+            });
+
     /**
      * Custom actions used by Android Wear, Android Auto, and Android (API 33+ only)
      */
@@ -1072,7 +1080,15 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         Log.d(TAG, "getNextInQueue()");
         FeedMedia media = (FeedMedia) currentMedia;
         if (media.getItem() == null) {
-            media.setItem(DBReader.getFeedItem(media.getItemId()));
+            // DBReader.getFeedItem() also performs I/O - run on background thread
+            try {
+                FeedItem feedItem = dbExecutor.submit(() -> DBReader.getFeedItem(media.getItemId())).get();
+                media.setItem(feedItem);
+            } catch (Exception e) {
+                Log.e(TAG, "Error loading feed item", e);
+                PlaybackPreferences.writeNoMediaPlaying();
+                return null;
+            }
         }
         FeedItem item = media.getItem();
         if (item == null) {
@@ -1081,7 +1097,14 @@ public class PlaybackService extends MediaBrowserServiceCompat {
             return null;
         }
         FeedItem nextItem;
-        nextItem = DBReader.getNextInQueue(item);
+        // DBReader.getNextInQueue() performs I/O - run on background thread
+        try {
+            nextItem = dbExecutor.submit(() -> DBReader.getNextInQueue(item)).get();
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting next item in queue", e);
+            PlaybackPreferences.writeNoMediaPlaying();
+            return null;
+        }
 
         if (nextItem == null || nextItem.getMedia() == null) {
             PlaybackPreferences.writeNoMediaPlaying();
