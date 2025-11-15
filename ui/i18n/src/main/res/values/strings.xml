@@ -391,8 +391,6 @@
     <string name="selection_method_newest">Newest First</string>
     <string name="selection_method_random">Random</string>
     <string name="rule_source_required">Source is required for Feed and Tag</string>
-    <string name="queue_refilling_message">Queue refilling… Edits disabled during refill</string>
-    <string name="no_queue_rules_message">No rules configured. Add a rule to automatically refill this queue.</string>
     <string name="queue_empty_name_error">Queue name cannot be empty</string>
     <string name="queue_color_label">Choose Color</string>
     <string name="queue_color_picker_title">Pick Color</string>

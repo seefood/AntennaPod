@@ -35,7 +35,6 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
     OnRuleEditListener editListener; // Package-private for access from fragment
     OnRuleDeleteListener deleteListener; // Package-private for access from fragment
     ItemTouchHelper itemTouchHelper; // Package-private for access from fragment
-    private boolean editable = true; // Track whether edits are allowed
 
     // Feed ID to name cache (loaded asynchronously)
     private final Map<Long, String> feedIdToNameCache = new HashMap<>();
@@ -92,16 +91,6 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
         this.itemTouchHelper = itemTouchHelper;
     }
 
-    /**
-     * Set whether items in the adapter are editable (FR-036).
-     * When false, disables edit and delete buttons to prevent modifications during refill.
-     *
-     * @param editable true to enable edits, false to disable
-     */
-    public void setEditable(boolean editable) {
-        this.editable = editable;
-        notifyDataSetChanged();
-    }
 
     /**
      * Update the rules list with efficient diffing.
@@ -242,12 +231,12 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
         if (rules != null && position >= 0 && position < rules.size()) {
             RefillRule rule = rules.get(position);
             holder.bind(rule, position, editListener, deleteListener,
-                    canReorderRule(position), editable, feedIdToNameCache);
+                    canReorderRule(position), feedIdToNameCache);
 
             // Setup drag handle touch listener (matches queue item behavior)
             if (itemTouchHelper != null && holder.dragHandle != null) {
                 holder.dragHandle.setOnTouchListener((v, event) -> {
-                    if (event.getAction() == android.view.MotionEvent.ACTION_DOWN && editable) {
+                    if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
                         itemTouchHelper.startDrag(holder);
                         return true;
                     }
@@ -304,7 +293,6 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
                          OnRuleEditListener editListener,
                          OnRuleDeleteListener deleteListener,
                          boolean canReorder,
-                         boolean editable,
                          Map<Long, String> feedIdToNameCache) {
             // Always show drag handle (matches queue item behavior)
             dragHandle.setVisibility(View.VISIBLE);
@@ -316,23 +304,19 @@ public class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.Ru
             String description = formatRuleDescription(rule, feedIdToNameCache);
             ruleDescription.setText(description);
 
-            // Handle edit button (disabled during refill - FR-036)
+            // Handle edit button
             if (editButton != null) {
-                editButton.setEnabled(editable);
-                editButton.setAlpha(editable ? 1.0f : 0.5f);
                 editButton.setOnClickListener(v -> {
-                    if (editable && editListener != null) {
+                    if (editListener != null) {
                         editListener.onRuleEdit(rule);
                     }
                 });
             }
 
-            // Handle delete button (disabled during refill - FR-036)
+            // Handle delete button
             if (deleteButton != null) {
-                deleteButton.setEnabled(editable);
-                deleteButton.setAlpha(editable ? 1.0f : 0.5f);
                 deleteButton.setOnClickListener(v -> {
-                    if (editable && deleteListener != null) {
+                    if (deleteListener != null) {
                         deleteListener.onRuleDelete(rule);
                     }
                 });
