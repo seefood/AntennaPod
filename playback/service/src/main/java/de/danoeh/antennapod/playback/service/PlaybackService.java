@@ -1890,78 +1890,41 @@ public class PlaybackService extends MediaBrowserServiceCompat {
     /**
      * T079-T081: Perform automatic queue refill when queue runs out
      *
-     * Checks if refill rules exist, executes them, and continues playback (FR-016, FR-017)
+     * <p>Uses DBWriter.refillQueue() to execute refill operation (single source of truth).
+     * After refill completes, continues playback with first episode (FR-016, FR-017).
      *
      * @param queueId Queue ID to refill
      */
     private void handleAutomaticQueueRefill(long queueId) {
-        // Get ruleset for current queue
-        de.danoeh.antennapod.model.feed.QueueRuleset ruleset = DBReader.getQueueRuleset(queueId);
+        Log.d(TAG, "Automatic refill triggered for queue " + queueId);
 
-        if (ruleset == null) {
-            Log.d(TAG, "No ruleset found for queue " + queueId + ", no automatic refill");
-            return;
-        }
+        // T079: Execute refill operation using DBWriter (single source of truth)
+        // DBWriter.refillQueue() handles: loading rules, processing them, adding episodes,
+        // and posting QueueEvent.refilled(). We just need to continue playback after.
+        try {
+            de.danoeh.antennapod.storage.database.RefillResult result = DBWriter.refillQueue(queueId, false).get();
 
-        // Get refill rules
-        java.util.List<de.danoeh.antennapod.model.feed.RefillRule> rules = DBReader.getRefillRules(ruleset.getId());
+            if (result.episodesAdded == 0) {
+                Log.d(TAG, "No episodes added by automatic refill (no rules or no matching episodes)");
+                return;
+            }
 
-        if (rules.isEmpty()) {
-            Log.d(TAG, "No refill rules configured for queue " + queueId + ", no automatic refill");
-            return;
-        }
+            Log.d(TAG, "Automatic refill added " + result.episodesAdded + " episodes to queue");
 
-        Log.d(TAG, "Automatic refill triggered for queue " + queueId + " with " + rules.size() + " rule(s)");
-
-        // T079: Execute refill operation - add episodes according to rules
-        java.util.List<de.danoeh.antennapod.model.feed.FeedItem> episodesToAdd = new java.util.ArrayList<>();
-        java.util.Set<Long> addedEpisodeIds = new java.util.HashSet<>();
-
-        for (de.danoeh.antennapod.model.feed.RefillRule rule : rules) {
-            // Build exclude list: episodes already added in this refill
-            java.util.List<Long> excludeIds = new java.util.ArrayList<>(addedEpisodeIds);
-
-            // Get episodes matching this rule (FR-013: prevent duplicates from multiple rules)
-            java.util.List<de.danoeh.antennapod.model.feed.FeedItem> matchingEpisodes = DBReader.getEpisodesForRule(rule, excludeIds);
-
-            if (matchingEpisodes != null) {
-                for (de.danoeh.antennapod.model.feed.FeedItem episode : matchingEpisodes) {
-                    // Prevent same episode from being added twice if multiple rules match it
-                    if (!addedEpisodeIds.contains(episode.getId())) {
-                        episodesToAdd.add(episode);
-                        addedEpisodeIds.add(episode.getId());
-                    }
+            // T080: Continue playback with first refilled episode (FR-017)
+            List<FeedItem> updatedQueue = DBReader.getQueue(queueId);
+            if (!updatedQueue.isEmpty()) {
+                FeedMedia nextMedia = updatedQueue.get(0).getMedia();
+                if (nextMedia != null) {
+                    Log.d(TAG, "Continuing playback with auto-refilled episode: " + nextMedia.getEpisodeTitle());
+                    startPlaying(nextMedia, false);
                 }
             }
-        }
 
-        if (episodesToAdd.isEmpty()) {
-            Log.d(TAG, "No episodes found matching refill rules");
-            return;
-        }
-
-        Log.d(TAG, "Adding " + episodesToAdd.size() + " episodes to queue via automatic refill");
-
-        // Add episodes to queue and wait for completion (DBWriter runs on background thread)
-        try {
-            DBWriter.addQueueItemsToQueue(queueId, episodesToAdd.toArray(new de.danoeh.antennapod.model.feed.FeedItem[0])).get();
+            // T081: QueueEvent.refilled() already posted by DBWriter.refillQueue()
         } catch (Exception e) {
-            Log.e(TAG, "Error adding episodes to queue during auto-refill", e);
-            return;
+            Log.e(TAG, "Error during automatic queue refill", e);
         }
-
-        // T080: Continue playback with first refilled episode (FR-017)
-        List<FeedItem> updatedQueue = DBReader.getQueue(queueId);
-        if (!updatedQueue.isEmpty()) {
-            FeedMedia nextMedia = updatedQueue.get(0).getMedia();
-            if (nextMedia != null) {
-                Log.d(TAG, "Continuing playback with auto-refilled episode: " + nextMedia.getEpisodeTitle());
-                startPlaying(nextMedia, false);
-            }
-        }
-
-        // T081: Post QueueEvent to notify UI of refill completion
-        EventBus.getDefault().post(QueueEvent.refilled(queueId));
     }
 
     public static MediaType getCurrentMediaType() {
