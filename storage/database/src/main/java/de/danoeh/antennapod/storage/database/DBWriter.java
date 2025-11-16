@@ -2033,76 +2033,81 @@ public class DBWriter {
         return dbExec.submit(() -> {
             Log.d(TAG, "Starting queue refill for queue " + queueId + ", clearQueue=" + clearQueue);
 
-            final PodDBAdapter adapter = PodDBAdapter.getInstance();
-            adapter.open();
             int episodesRemoved = 0;
 
-            try {
-                // CRITICAL: If clearQueue is true, CLEAR FIRST (before reading the queue)
-                // This ensures the duplicate prevention logic works correctly.
-                // If we read first, then the rule exclusion will skip the very episodes
-                // that should be refetched after clearing.
-                List<FeedItem> originalQueue = null;
-                if (clearQueue) {
-                    Log.d(TAG, "Step 1: Clearing queue before refill");
-                    originalQueue = DBReader.getQueue(queueId);
-                    episodesRemoved = originalQueue.size();
+            // CRITICAL: If clearQueue is true, CLEAR FIRST (before reading the queue)
+            // This ensures the duplicate prevention logic works correctly.
+            // If we read first, then the rule exclusion will skip the very episodes
+            // that should be refetched after clearing.
+            if (clearQueue) {
+                Log.d(TAG, "Step 1: Clearing queue before refill");
+                List<FeedItem> queueBefore = DBReader.getQueue(queueId);
+                episodesRemoved = queueBefore.size();
+
+                final PodDBAdapter adapter = PodDBAdapter.getInstance();
+                adapter.open();
+                try {
                     adapter.clearQueue(queueId);
+                } finally {
+                    adapter.close();
                 }
-
-                // Step 2: Get current queue items (empty if we cleared, otherwise original)
-                List<FeedItem> currentQueueItems = DBReader.getQueue(queueId);
-                Log.d(TAG, "Step 2: Current queue has " + currentQueueItems.size() + " items");
-
-                // Step 3: Get ruleset for this queue
-                QueueRuleset ruleset = DBReader.getQueueRuleset(queueId);
-                if (ruleset == null) {
-                    Log.d(TAG, "No ruleset found for queue " + queueId);
-                    return new RefillResult(0, 0, 0, 0);
-                }
-
-                // Step 4: Get all rules
-                List<RefillRule> rules = DBReader.getRefillRules(ruleset.getId());
-                Log.d(TAG, "Step 3: Queue has " + rules.size() + " refill rules");
-
-                // Step 5: Process ruleset using QueueRefillEngine
-                // This will now correctly exclude the current queue (empty if cleared, or original if not)
-                QueueRefillEngine.RefillOperation operation = QueueRefillEngine.processRuleset(
-                        rules,
-                        currentQueueItems
-                );
-
-                // Step 6: Handle CLEAR_QUEUE rule (if no explicit clearQueue parameter)
-                if (!clearQueue && operation.shouldClearQueue) {
-                    Log.d(TAG, "Step 4: CLEAR_QUEUE rule detected, clearing queue");
-                    originalQueue = DBReader.getQueue(queueId);
-                    episodesRemoved = originalQueue.size();
-                    adapter.clearQueue(queueId);
-                    // After clearing due to rule, re-read the queue (now empty)
-                    currentQueueItems = DBReader.getQueue(queueId);
-                }
-
-                // Step 7: Add new episodes to queue
-                if (!operation.episodesToAdd.isEmpty()) {
-                    Log.d(TAG, "Step 5: Adding " + operation.episodesToAdd.size() + " episodes to queue");
-                    addQueueItemsToQueue(queueId, operation.episodesToAdd.toArray(new FeedItem[0])).get();
-                }
-
-                // Step 8: Post event to notify UI and refresh display
-                EventBus.getDefault().post(QueueEvent.refilled(queueId));
-                Log.d(TAG, "Step 6: Queue refill complete");
-
-                // Return result with counts
-                return new RefillResult(
-                        operation.episodesToAdd.size(),
-                        episodesRemoved,
-                        operation.rulesProcessed,
-                        0,
-                        operation.errors
-                );
-            } finally {
-                adapter.close();
             }
+
+            // Step 2: Get current queue items (empty if we cleared, otherwise original)
+            List<FeedItem> currentQueueItems = DBReader.getQueue(queueId);
+            Log.d(TAG, "Step 2: Current queue has " + currentQueueItems.size() + " items");
+
+            // Step 3: Get ruleset for this queue
+            QueueRuleset ruleset = DBReader.getQueueRuleset(queueId);
+            if (ruleset == null) {
+                Log.d(TAG, "No ruleset found for queue " + queueId);
+                return new RefillResult(0, episodesRemoved, 0, 0);
+            }
+
+            // Step 4: Get all rules
+            List<RefillRule> rules = DBReader.getRefillRules(ruleset.getId());
+            Log.d(TAG, "Step 3: Queue has " + rules.size() + " refill rules");
+
+            // Step 5: Process ruleset using QueueRefillEngine
+            // This will now correctly exclude the current queue (empty if cleared, or original if not)
+            QueueRefillEngine.RefillOperation operation = QueueRefillEngine.processRuleset(
+                    rules,
+                    currentQueueItems
+            );
+
+            // Step 6: Handle CLEAR_QUEUE rule (if no explicit clearQueue parameter)
+            if (!clearQueue && operation.shouldClearQueue) {
+                Log.d(TAG, "Step 4: CLEAR_QUEUE rule detected, clearing queue");
+                List<FeedItem> queueBefore = DBReader.getQueue(queueId);
+                episodesRemoved = queueBefore.size();
+
+                final PodDBAdapter adapter = PodDBAdapter.getInstance();
+                adapter.open();
+                try {
+                    adapter.clearQueue(queueId);
+                } finally {
+                    adapter.close();
+                }
+            }
+
+            // Step 7: Add new episodes to queue
+            if (!operation.episodesToAdd.isEmpty()) {
+                Log.d(TAG, "Step 5: Adding " + operation.episodesToAdd.size() + " episodes to queue");
+                addQueueItemsToQueue(queueId, operation.episodesToAdd.toArray(new FeedItem[0])).get();
+            }
+
+            // Step 8: Post event to notify UI and refresh display
+            EventBus.getDefault().post(QueueEvent.refilled(queueId));
+            Log.d(TAG, "Step 6: Queue refill complete");
+
+            // Return result with counts
+            return new RefillResult(
+                    operation.episodesToAdd.size(),
+                    episodesRemoved,
+                    operation.rulesProcessed,
+                    0,
+                    operation.errors
+            );
         });
     }
 
