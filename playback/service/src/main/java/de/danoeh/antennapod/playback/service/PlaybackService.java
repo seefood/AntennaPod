@@ -1915,13 +1915,23 @@ public class PlaybackService extends MediaBrowserServiceCompat {
 
         // T079: Execute refill operation - add episodes according to rules
         java.util.List<de.danoeh.antennapod.model.feed.FeedItem> episodesToAdd = new java.util.ArrayList<>();
+        java.util.Set<Long> addedEpisodeIds = new java.util.HashSet<>();
 
         for (de.danoeh.antennapod.model.feed.RefillRule rule : rules) {
-            // Get episodes matching this rule
-            java.util.List<de.danoeh.antennapod.model.feed.FeedItem> matchingEpisodes = DBReader.getEpisodesForRule(rule, null);
+            // Build exclude list: episodes already added in this refill
+            java.util.List<Long> excludeIds = new java.util.ArrayList<>(addedEpisodeIds);
+
+            // Get episodes matching this rule (FR-013: prevent duplicates from multiple rules)
+            java.util.List<de.danoeh.antennapod.model.feed.FeedItem> matchingEpisodes = DBReader.getEpisodesForRule(rule, excludeIds);
 
             if (matchingEpisodes != null) {
-                episodesToAdd.addAll(matchingEpisodes);
+                for (de.danoeh.antennapod.model.feed.FeedItem episode : matchingEpisodes) {
+                    // Prevent same episode from being added twice if multiple rules match it
+                    if (!addedEpisodeIds.contains(episode.getId())) {
+                        episodesToAdd.add(episode);
+                        addedEpisodeIds.add(episode.getId());
+                    }
+                }
             }
         }
 
