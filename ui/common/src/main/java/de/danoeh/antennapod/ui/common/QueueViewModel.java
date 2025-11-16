@@ -272,60 +272,77 @@ public class QueueViewModel extends AndroidViewModel {
      * Saves the current playback state of the old queue, then switches to the new queue.
      * Updates UserPreferences and broadcasts QueueEvent.QUEUE_SWITCHED.
      *
+     * <p><b>CRITICAL: All operations are serialized to avoid race conditions.</b>
+     * The entire queue switch (save old state → fetch new state → update preferences →
+     * restore playback state → post event) happens atomically on a background thread.
+     * This prevents the old episode from being added to the new queue.
+     *
      * @param queueId ID of queue to switch to
      */
     public void switchActiveQueue(long queueId) {
-        long currentQueueId = getCurrentQueueId();
+        long oldQueueId = getCurrentQueueId();
 
-        // Save the current playback state for the old queue before switching
-        if (currentQueueId != queueId) {
-            long currentFeedMediaId = PlaybackPreferences.getCurrentlyPlayingFeedMediaId();
-            Log.d(TAG, "Saving playback state for queue " + currentQueueId + ": feedMediaId=" + currentFeedMediaId);
-            try {
-                DBWriter.updateQueuePlaybackState(currentQueueId, currentFeedMediaId).get();
-            } catch (Exception e) {
-                Log.e(TAG, "Failed to save playback state for queue " + currentQueueId, e);
-            }
+        if (oldQueueId == queueId) {
+            Log.d(TAG, "Already on queue " + queueId + ", skipping switch");
+            return;
         }
 
-        // Update the active queue preference
-        UserPreferences.setCurrentQueueId(queueId);
-        currentQueueIdLiveData.setValue(queueId);
-
-        // Fetch queue metadata and restore playback state on background thread
+        // CRITICAL: Execute ENTIRE queue switch operation on background thread
+        // to avoid race conditions between UserPreferences and PlaybackPreferences.
+        // All operations MUST complete serially before the event is posted.
         executor.submit(() -> {
             try {
-                QueueMetadata queue = DBReader.getQueueMetadataById(queueId);
-                final FeedMedia media;
+                // Step 1: Save current playback state for OLD queue (SYNCHRONOUS)
+                long currentFeedMediaId = PlaybackPreferences.getCurrentlyPlayingFeedMediaId();
+                Log.d(TAG, "Step 1: Saving playback state for queue " + oldQueueId
+                        + ": feedMediaId=" + currentFeedMediaId);
+                DBWriter.updateQueuePlaybackState(oldQueueId, currentFeedMediaId).get();
 
-                // Restore the saved playback state for this queue
-                if (queue != null && queue.getCurrentlyPlayingFeedMediaId() >= 0) {
-                    long savedFeedMediaId = queue.getCurrentlyPlayingFeedMediaId();
-                    Log.d(TAG, "Restoring playback state for queue " + queueId + ": feedMediaId=" + savedFeedMediaId);
-                    media = DBReader.getFeedMedia(savedFeedMediaId);
+                // Step 2: Fetch NEW queue metadata and playback state (SYNCHRONOUS)
+                QueueMetadata newQueue = DBReader.getQueueMetadataById(queueId);
+                final FeedMedia newMedia;
+                if (newQueue != null && newQueue.getCurrentlyPlayingFeedMediaId() >= 0) {
+                    long savedFeedMediaId = newQueue.getCurrentlyPlayingFeedMediaId();
+                    Log.d(TAG, "Step 2: Loading playback state for queue " + queueId
+                            + ": feedMediaId=" + savedFeedMediaId);
+                    newMedia = DBReader.getFeedMedia(savedFeedMediaId);
                 } else {
-                    media = null;
+                    Log.d(TAG, "Step 2: No playback state for queue " + queueId);
+                    newMedia = null;
                 }
 
+                // Step 3: ATOMIC UPDATE - All state changes happen together on main thread
+                // CRITICAL: UserPreferences AND PlaybackPreferences MUST be updated BEFORE
+                // posting QueueEvent. This prevents the race condition where code sees the
+                // new queue ID but the old episode is still "currently playing".
                 postToMainThread(() -> {
-                    // Update global PlaybackPreferences BEFORE posting event to avoid race condition
-                    // This ensures QueueFragment reads the correct episode when QueueEvent arrives
-                    // If media is null (queue has no playback history), this clears the preferences
-                    PlaybackPreferences.writeMediaPlaying(media);
-                    if (media != null) {
-                        Log.d(TAG, "Updated PlaybackPreferences to restore queue " + queueId
-                                + " episode: " + media.getEpisodeTitle());
+                    // 3a: Update active queue ID
+                    UserPreferences.setCurrentQueueId(queueId);
+                    currentQueueIdLiveData.setValue(queueId);
+                    Log.d(TAG, "Step 3a: Updated active queue ID to " + queueId);
+
+                    // 3b: Restore playback state for NEW queue
+                    PlaybackPreferences.writeMediaPlaying(newMedia);
+                    if (newMedia != null) {
+                        Log.d(TAG, "Step 3b: Restored PlaybackPreferences to queue " + queueId
+                                + " episode: " + newMedia.getEpisodeTitle());
                     } else {
-                        Log.d(TAG, "Cleared PlaybackPreferences for queue " + queueId
+                        Log.d(TAG, "Step 3b: Cleared PlaybackPreferences for queue " + queueId
                                 + " (no playback history)");
                     }
 
-                    currentQueueLiveData.setValue(queue);
-                    // Post event for other UI components to update
+                    // 3c: Update current queue metadata
+                    currentQueueLiveData.setValue(newQueue);
+
+                    // Step 4: NOW post event (after ALL state is consistent)
+                    Log.d(TAG, "Step 4: Posting QUEUE_SWITCHED event for queue " + queueId);
                     EventBus.getDefault().post(QueueEvent.queueSwitched(queueId));
                 });
             } catch (Exception e) {
-                Log.e(TAG, "Failed to load queue metadata or restore playback for ID: " + queueId, e);
+                Log.e(TAG, "Failed to switch to queue " + queueId, e);
+                postToMainThread(() -> {
+                    errorMessageLiveData.setValue("Failed to switch queue. Please try again.");
+                });
             }
         });
     }
