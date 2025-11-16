@@ -79,7 +79,13 @@ public class QueueRefillEngine {
             }
 
             // T064: Get episodes matching this rule
-            List<FeedItem> matchingEpisodes = DBReader.getEpisodesForRule(rule, null);
+            // Create combined exclude list: episodes already in queue + episodes added in this refill
+            List<Long> excludeIds = new ArrayList<>();
+            excludeIds.addAll(currentQueueEpisodeIds);
+            excludeIds.addAll(addedEpisodeIds);
+
+            // Get matching episodes, excluding duplicates (FR-013)
+            List<FeedItem> matchingEpisodes = DBReader.getEpisodesForRule(rule, excludeIds);
 
             if (matchingEpisodes == null || matchingEpisodes.isEmpty()) {
                 // T066: Handle scenario where feed/tag no longer exists
@@ -91,11 +97,8 @@ public class QueueRefillEngine {
             // T064: Add episodes without duplicates up to rule's count
             int addedCount = 0;
             for (FeedItem episode : matchingEpisodes) {
-                // Skip if already in queue or already added in this refill (FR-013)
-                if (currentQueueEpisodeIds.contains(episode.getId()) || addedEpisodeIds.contains(episode.getId())) {
-                    Log.d(TAG, "Skipping duplicate episode: " + episode.getTitle());
-                    continue;
-                }
+                // Episodes returned from DBReader already exclude current queue and added episodes
+                // No need to check for duplicates again
 
                 operation.episodesToAdd.add(episode);
                 addedEpisodeIds.add(episode.getId());
