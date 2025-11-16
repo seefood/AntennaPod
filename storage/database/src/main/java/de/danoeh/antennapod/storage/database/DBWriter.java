@@ -55,6 +55,7 @@ import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.model.feed.FeedPreferences;
 import de.danoeh.antennapod.model.feed.QueueMetadata;
 import de.danoeh.antennapod.model.feed.RefillRule;
+import de.danoeh.antennapod.model.feed.QueueRuleset;
 import de.danoeh.antennapod.model.feed.SortOrder;
 import de.danoeh.antennapod.model.MoveResult;
 import de.danoeh.antennapod.model.playback.Playable;
@@ -2016,14 +2017,77 @@ public class DBWriter {
      *
      * <p>Wrapper method for QueueRefillEngine.processRuleset().
      * Posts QueueEvent.refilled() after completion.
-     * Queue refill rules are being designed as part of the smart queues feature.
+     * Executes the following steps:
+     * 1. Get current queue items
+     * 2. Load ruleset and rules for the queue
+     * 3. Process rules using QueueRefillEngine
+     * 4. Clear queue if specified
+     * 5. Add new episodes
+     * 6. Post event to notify UI
      *
      * @param queueId Queue ID to refill
      * @param clearQueue If true, clear existing episodes before refilling
      * @return Future with RefillResult
      */
     public static Future<RefillResult> refillQueue(final long queueId, final boolean clearQueue) {
-        throw new UnsupportedOperationException("Queue refill engine not yet implemented");
+        return dbExec.submit(() -> {
+            Log.d(TAG, "Starting queue refill for queue " + queueId + ", clearQueue=" + clearQueue);
+
+            // Get current queue items
+            List<FeedItem> currentQueueItems = DBReader.getQueue(queueId);
+            Log.d(TAG, "Current queue has " + currentQueueItems.size() + " items");
+
+            // Get ruleset for this queue
+            QueueRuleset ruleset = DBReader.getQueueRuleset(queueId);
+            if (ruleset == null) {
+                Log.d(TAG, "No ruleset found for queue " + queueId);
+                return new RefillResult(0, 0, 0, 0);
+            }
+
+            // Get all rules
+            List<RefillRule> rules = DBReader.getRefillRules(ruleset.getId());
+            Log.d(TAG, "Queue has " + rules.size() + " refill rules");
+
+            // Process ruleset using QueueRefillEngine
+            QueueRefillEngine.RefillOperation operation = QueueRefillEngine.processRuleset(
+                    rules,
+                    currentQueueItems
+            );
+
+            int episodesRemoved = 0;
+
+            // Clear queue if specified (or if CLEAR_QUEUE rule was processed)
+            if (clearQueue || operation.shouldClearQueue) {
+                Log.d(TAG, "Clearing queue before refill");
+                episodesRemoved = currentQueueItems.size();
+                final PodDBAdapter adapter = PodDBAdapter.getInstance();
+                adapter.open();
+                try {
+                    adapter.clearQueue(queueId);
+                } finally {
+                    adapter.close();
+                }
+            }
+
+            // Add new episodes to queue
+            if (!operation.episodesToAdd.isEmpty()) {
+                Log.d(TAG, "Adding " + operation.episodesToAdd.size() + " episodes to queue");
+                addQueueItemsToQueue(queueId, operation.episodesToAdd.toArray(new FeedItem[0])).get();
+            }
+
+            // Post event to notify UI
+            EventBus.getDefault().post(QueueEvent.refilled(queueId));
+            Log.d(TAG, "Queue refill complete");
+
+            // Return result with counts
+            return new RefillResult(
+                    operation.episodesToAdd.size(),
+                    episodesRemoved,
+                    operation.rulesProcessed,
+                    0,
+                    operation.errors
+            );
+        });
     }
 
     /**
