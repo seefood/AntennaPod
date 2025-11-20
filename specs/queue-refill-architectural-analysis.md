@@ -112,12 +112,61 @@ This requires refactoring to avoid using DBReader methods during the transaction
 - Keep adapter open for entire refill operation
 - Only use DBReader for reads OUTSIDE the transaction
 
-## Current Status
-- Bugs #1, #3: Fixed and committed
-- Bug #2: Root cause identified, requires architectural refactor
-- Recommendation: Refactor refillQueue() to use single transaction before further queue operations
+## Current Status - RESOLVED ✓
+- Bug #1 (UI not refreshing): FIXED - Added REFILLED event handler in QueueFragment
+- Bug #2 (Transactional integrity): FIXED - Refactored refillQueue() to use single atomic transaction
+- Bug #3 (I/O on main thread): FIXED - Moved DBReader calls to background thread in PlaybackService
+- All architectural issues resolved (commit 0a93643428)
+
+## Refactoring Applied (Commit 0a93643428)
+
+### Solution: Single-Transaction Queue Refill Architecture
+
+The refillQueue() method has been completely refactored to operate as a single atomic transaction:
+
+**Key Changes:**
+1. **Single adapter.open()/close() cycle:**
+   ```java
+   PodDBAdapter adapter = PodDBAdapter.getInstance();
+   adapter.open();
+   try {
+       // ALL operations (clear, read, process rules, add) happen here
+   } finally {
+       adapter.close();
+   }
+   ```
+
+2. **New DBReader helper method:**
+   - `getQueueItemsWithOpenAdapter(PodDBAdapter adapter, long queueId)`
+   - Reads queue items from already-open adapter without opening/closing
+   - Eliminates nested adapter lifecycle issues
+
+3. **Eliminated nested open/close cycles:**
+   - Previously called DBReader.getQueue() inside adapter.open() context
+   - Now uses adapter methods directly
+   - All queue reads/writes happen with single adapter instance
+
+4. **Atomic event posting:**
+   - Individual QueueEvent.added() events posted within transaction
+   - REFILLED event posted AFTER adapter.close() (ensuring all DB changes committed)
+   - UI always sees consistent state when handling events
+
+### Architecture Principle Now Followed
+✓ **"All state changes complete atomically in a single transaction before notifying observers"**
+
+- State changes happen in one transaction
+- Transaction committed completely before any events posted
+- Observers see consistent final state
+- No race conditions between DB writes and event processing
+
+### Why This Fixes the Issue
+**Root Problem:** Database state not reflected in UI after refill operations
+- Cause: Multiple adapter.open()/close() cycles + events posted mid-transaction
+- Symptom: UI showed stale queue contents even after successful refill
+- Solution: Single transaction ensures DB commits before UI reacts to events
 
 ## Related Files
-- `/playback/service/src/main/java/de/danoeh/antennapod/playback/service/PlaybackService.java` (onQueueEvent fix)
-- `/app/src/main/java/de/danoeh/antennapod/ui/screen/queue/QueueFragment.java` (REFILLED handler)
-- `/storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java` (refillQueue method)
+- `/playback/service/src/main/java/de/danoeh/antennapod/playback/service/PlaybackService.java` (onQueueEvent fix - main thread I/O)
+- `/app/src/main/java/de/danoeh/antennapod/ui/screen/queue/QueueFragment.java` (REFILLED event handler)
+- `/storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java` (refillQueue - atomic transaction refactor)
+- `/storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBReader.java` (getQueueItemsWithOpenAdapter - new helper)
