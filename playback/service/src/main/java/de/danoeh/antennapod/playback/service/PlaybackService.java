@@ -1841,28 +1841,38 @@ public class PlaybackService extends MediaBrowserServiceCompat {
             if (removedMedia != null && removedMedia.getId() == currentlyPlayingId) {
                 Log.d(TAG, "Currently playing episode was removed from queue");
 
-                // Get the updated queue to see if there are more episodes
-                List<FeedItem> queue = DBReader.getQueue();
+                // CRITICAL: Move database read off main thread to avoid I/O crash
+                // Post to background thread to fetch updated queue
+                dbExecutor.execute(() -> {
+                    List<FeedItem> queue = DBReader.getQueue();
 
-                if (!queue.isEmpty()) {
-                    // Play the next episode (first in queue)
-                    FeedMedia nextMedia = queue.get(0).getMedia();
-                    if (nextMedia != null) {
-                        Log.d(TAG, "Playing next episode: " + nextMedia.getEpisodeTitle());
-                        startPlaying(nextMedia, false);
+                    if (!queue.isEmpty()) {
+                        // Play the next episode (first in queue)
+                        FeedMedia nextMedia = queue.get(0).getMedia();
+                        if (nextMedia != null) {
+                            Log.d(TAG, "Playing next episode: " + nextMedia.getEpisodeTitle());
+                            Handler mainHandler = new Handler(Looper.getMainLooper());
+                            mainHandler.post(() -> startPlaying(nextMedia, false));
+                        } else {
+                            Log.d(TAG, "Next episode has no media, stopping playback");
+                            Handler mainHandler = new Handler(Looper.getMainLooper());
+                            mainHandler.post(() -> {
+                                mediaPlayer.pause(true, true);
+                                PlaybackPreferences.writeNoMediaPlaying();
+                            });
+                        }
                     } else {
-                        Log.d(TAG, "Next episode has no media, stopping playback");
-                        mediaPlayer.pause(true, true);
-                        PlaybackPreferences.writeNoMediaPlaying();
+                        Log.d(TAG, "Queue is empty, stopping playback");
+                        Handler mainHandler = new Handler(Looper.getMainLooper());
+                        mainHandler.post(() -> {
+                            mediaPlayer.pause(true, true);
+                            PlaybackPreferences.writeNoMediaPlaying();
+                            updateNotificationAndMediaSession(null);
+                            IntentUtils.sendLocalBroadcast(getApplicationContext(), ACTION_PLAYER_STATUS_CHANGED);
+                            EventBus.getDefault().post(new PlayerStatusEvent());
+                        });
                     }
-                } else {
-                    Log.d(TAG, "Queue is empty, stopping playback");
-                    mediaPlayer.pause(true, true);
-                    PlaybackPreferences.writeNoMediaPlaying();
-                    updateNotificationAndMediaSession(null);
-                    IntentUtils.sendLocalBroadcast(getApplicationContext(), ACTION_PLAYER_STATUS_CHANGED);
-                    EventBus.getDefault().post(new PlayerStatusEvent());
-                }
+                });
             }
         }
     }

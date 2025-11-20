@@ -219,6 +219,12 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
                 queue.add(event.position, queue.remove(position));
                 recyclerAdapter.notifyItemMoved(position, event.position);
                 break;
+            case REFILLED:
+                // Queue was refilled (clear + add operations)
+                // Reload entire queue to ensure UI matches DB state
+                Log.d(TAG, "Queue refilled, reloading items");
+                loadItems();
+                return;
             default:
                 return;
         }
