@@ -257,6 +257,30 @@ public final class DBReader {
     }
 
     /**
+     * Loads queue items from an already-open adapter (internal use for refill operations).
+     *
+     * <p>This method is designed for use when the adapter is already open and should NOT be closed.
+     * It's used internally by refill operations to avoid nested adapter open/close cycles.
+     * For refill operations, we only need the basic FeedItem data; additional data (chapters, images)
+     * will be loaded separately when needed.
+     *
+     * @param adapter The already-open PodDBAdapter instance
+     * @param queueId The queue ID
+     * @return List of FeedItems in the queue (without additional data like chapters/images)
+     */
+    @NonNull
+    static List<FeedItem> getQueueItemsWithOpenAdapter(PodDBAdapter adapter, long queueId) {
+        Log.d(TAG, "getQueueItemsWithOpenAdapter() called with queueId=" + queueId);
+        try (FeedItemCursor cursor = new FeedItemCursor(adapter.getQueueItemsCursor(queueId))) {
+            List<FeedItem> items = extractItemlistFromCursor(cursor);
+            // IMPORTANT: Do NOT call loadAdditionalFeedItemListData here - that would open/close
+            // the adapter, creating a nested open/close situation which defeats the purpose.
+            // For refill operations, basic item data is sufficient.
+            return items;
+        }
+    }
+
+    /**
      * Loads metadata for a specific queue.
      *
      * @param queueId The ID of the queue to load
