@@ -2014,6 +2014,21 @@ public class DBWriter {
     }
 
     /**
+     * Helper method to clear a queue and count items removed (for refill operation).
+     * Used within the atomic transaction to avoid code duplication.
+     *
+     * @param adapter The already-open PodDBAdapter
+     * @param queueId The queue ID to clear
+     * @return Number of items that were in the queue before clearing
+     */
+    private static int clearQueueAndCountItems(PodDBAdapter adapter, long queueId) {
+        List<FeedItem> queueBefore = DBReader.getQueueItemsWithOpenAdapter(adapter, queueId);
+        int count = queueBefore.size();
+        adapter.clearQueue(queueId);
+        return count;
+    }
+
+    /**
      * T068: refillQueue(long queueId, boolean clearQueue)
      *
      * <p>Wrapper method for QueueRefillEngine.processRuleset().
@@ -2046,9 +2061,7 @@ public class DBWriter {
                 // We do this INSIDE the adapter transaction to ensure atomicity.
                 if (clearQueue) {
                     Log.d(TAG, "Step 1: Clearing queue before refill");
-                    List<FeedItem> queueBefore = DBReader.getQueueItemsWithOpenAdapter(adapter, queueId);
-                    episodesRemoved = queueBefore.size();
-                    adapter.clearQueue(queueId);
+                    episodesRemoved = clearQueueAndCountItems(adapter, queueId);
                 }
 
                 // Step 2: Get current queue items (empty if we cleared, otherwise original)
@@ -2078,9 +2091,7 @@ public class DBWriter {
                 // Step 6: Handle CLEAR_QUEUE rule (if no explicit clearQueue parameter)
                 if (!clearQueue && operation.shouldClearQueue) {
                     Log.d(TAG, "Step 4: CLEAR_QUEUE rule detected, clearing queue");
-                    List<FeedItem> queueBefore = DBReader.getQueueItemsWithOpenAdapter(adapter, queueId);
-                    episodesRemoved = queueBefore.size();
-                    adapter.clearQueue(queueId);
+                    episodesRemoved = clearQueueAndCountItems(adapter, queueId);
                     // Re-read queue after clearing (now empty)
                     currentQueueItems = DBReader.getQueueItemsWithOpenAdapter(adapter, queueId);
                 }
@@ -2150,12 +2161,17 @@ public class DBWriter {
     }
 
     /**
-     * Add queue items to a specific queue (for refill engine).
+     * Add queue items to a specific queue.
      *
      * @param queueId Target queue ID
      * @param items FeedItems to add
      * @return Future
+     *
+     * @deprecated This method has been replaced by refillQueue() which operates as a single
+     *             atomic transaction. Do not use for queue refill operations. This method
+     *             may be removed in a future version.
      */
+    @Deprecated
     public static Future<?> addQueueItemsToQueue(final long queueId, final FeedItem... items) {
         return runOnDbThread(() -> {
             if (items.length < 1) {
