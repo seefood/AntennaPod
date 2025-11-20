@@ -1845,31 +1845,33 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                 // Post to background thread to fetch updated queue
                 dbExecutor.execute(() -> {
                     List<FeedItem> queue = DBReader.getQueue();
+                    Handler mainHandler = new Handler(Looper.getMainLooper());
 
                     if (!queue.isEmpty()) {
                         // Play the next episode (first in queue)
                         FeedMedia nextMedia = queue.get(0).getMedia();
                         if (nextMedia != null) {
                             Log.d(TAG, "Playing next episode: " + nextMedia.getEpisodeTitle());
-                            Handler mainHandler = new Handler(Looper.getMainLooper());
                             mainHandler.post(() -> startPlaying(nextMedia, false));
                         } else {
                             Log.d(TAG, "Next episode has no media, stopping playback");
-                            Handler mainHandler = new Handler(Looper.getMainLooper());
                             mainHandler.post(() -> {
-                                mediaPlayer.pause(true, true);
-                                PlaybackPreferences.writeNoMediaPlaying();
+                                if (mediaPlayer != null) {
+                                    mediaPlayer.pause(true, true);
+                                    PlaybackPreferences.writeNoMediaPlaying();
+                                }
                             });
                         }
                     } else {
                         Log.d(TAG, "Queue is empty, stopping playback");
-                        Handler mainHandler = new Handler(Looper.getMainLooper());
                         mainHandler.post(() -> {
-                            mediaPlayer.pause(true, true);
-                            PlaybackPreferences.writeNoMediaPlaying();
-                            updateNotificationAndMediaSession(null);
-                            IntentUtils.sendLocalBroadcast(getApplicationContext(), ACTION_PLAYER_STATUS_CHANGED);
-                            EventBus.getDefault().post(new PlayerStatusEvent());
+                            if (mediaPlayer != null) {
+                                mediaPlayer.pause(true, true);
+                                PlaybackPreferences.writeNoMediaPlaying();
+                                updateNotificationAndMediaSession(null);
+                                IntentUtils.sendLocalBroadcast(getApplicationContext(), ACTION_PLAYER_STATUS_CHANGED);
+                                EventBus.getDefault().post(new PlayerStatusEvent());
+                            }
                         });
                     }
                 });
@@ -1886,15 +1888,17 @@ public class PlaybackService extends MediaBrowserServiceCompat {
     @Subscribe(threadMode = ThreadMode.MAIN)
     @SuppressWarnings("unused")
     public void onPlaybackHistoryEvent(de.danoeh.antennapod.event.playback.PlaybackHistoryEvent event) {
-        // T078: Check if queue is empty
+        // T078: Check if queue is empty - MUST run on background thread to avoid I/O crash
         long currentQueueId = UserPreferences.getCurrentQueueId();
-        List<FeedItem> queue = DBReader.getQueue(currentQueueId);
+        dbExecutor.execute(() -> {
+            List<FeedItem> queue = DBReader.getQueue(currentQueueId);
 
-        if (queue.isEmpty()) {
-            Log.d(TAG, "Queue is empty after playback history update, checking for auto-refill rules");
-            // T079: Trigger automatic refill if rules are configured (FR-016)
-            handleAutomaticQueueRefill(currentQueueId);
-        }
+            if (queue.isEmpty()) {
+                Log.d(TAG, "Queue is empty after playback history update, checking for auto-refill rules");
+                // T079: Trigger automatic refill if rules are configured (FR-016)
+                handleAutomaticQueueRefill(currentQueueId);
+            }
+        });
     }
 
     /**
@@ -1902,6 +1906,7 @@ public class PlaybackService extends MediaBrowserServiceCompat {
      *
      * <p>Uses DBWriter.refillQueue() to execute refill operation (single source of truth).
      * After refill completes, continues playback with first episode (FR-016, FR-017).
+     * This method MUST be called on the background thread (dbExecutor) to avoid blocking main thread.
      *
      * @param queueId Queue ID to refill
      */
@@ -1927,7 +1932,9 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                 FeedMedia nextMedia = updatedQueue.get(0).getMedia();
                 if (nextMedia != null) {
                     Log.d(TAG, "Continuing playback with auto-refilled episode: " + nextMedia.getEpisodeTitle());
-                    startPlaying(nextMedia, false);
+                    // Post back to main thread to call startPlaying
+                    Handler mainHandler = new Handler(Looper.getMainLooper());
+                    mainHandler.post(() -> startPlaying(nextMedia, false));
                 }
             }
 
