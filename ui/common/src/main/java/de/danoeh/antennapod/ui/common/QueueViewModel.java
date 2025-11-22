@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import de.danoeh.antennapod.event.QueueEvent;
+import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.model.feed.QueueMetadata;
 import de.danoeh.antennapod.storage.database.DBReader;
@@ -292,6 +293,10 @@ public class QueueViewModel extends AndroidViewModel {
         // All operations MUST complete serially before the event is posted.
         executor.submit(() -> {
             try {
+                // Rule 3a: Save current playback state (PLAYING or PAUSED)
+                int savedPlayerStatus = PlaybackPreferences.getCurrentPlayerStatus();
+                Log.d(TAG, "Rule 3a: Saved player status for queue switch: " + savedPlayerStatus);
+
                 // Step 1: Save current playback state for OLD queue (SYNCHRONOUS)
                 long currentFeedMediaId = PlaybackPreferences.getCurrentlyPlayingFeedMediaId();
                 Log.d(TAG, "Step 1: Saving playback state for queue " + oldQueueId
@@ -301,14 +306,30 @@ public class QueueViewModel extends AndroidViewModel {
                 // Step 2: Fetch NEW queue metadata and playback state (SYNCHRONOUS)
                 QueueMetadata newQueue = DBReader.getQueueMetadataById(queueId);
                 final FeedMedia newMedia;
+                final FeedMedia selectedMedia;
+
                 if (newQueue != null && newQueue.getCurrentlyPlayingFeedMediaId() >= 0) {
                     long savedFeedMediaId = newQueue.getCurrentlyPlayingFeedMediaId();
                     Log.d(TAG, "Step 2: Loading playback state for queue " + queueId
                             + ": feedMediaId=" + savedFeedMediaId);
                     newMedia = DBReader.getFeedMedia(savedFeedMediaId);
+
+                    // Rule 3d-2: Validate saved episode exists in queue and isn't fully played
+                    if (newMedia == null) {
+                        Log.d(TAG, "Rule 3d-2: Saved episode not found, selecting next unfinished");
+                        selectedMedia = selectNextEpisodeForNewQueue(queueId);
+                    } else if (newMedia.getPosition() >= newMedia.getDuration()) {
+                        // Episode is fully played
+                        Log.d(TAG, "Rule 3d-2: Saved episode fully played, selecting next unfinished");
+                        selectedMedia = selectNextEpisodeForNewQueue(queueId);
+                    } else {
+                        // Saved episode is valid and unfinished
+                        Log.d(TAG, "Rule 3d-2: Saved episode is valid: " + newMedia.getEpisodeTitle());
+                        selectedMedia = newMedia;
+                    }
                 } else {
                     Log.d(TAG, "Step 2: No playback state for queue " + queueId);
-                    newMedia = null;
+                    selectedMedia = selectNextEpisodeForNewQueue(queueId);
                 }
 
                 // Step 3: ATOMIC UPDATE - All state changes happen together on main thread
@@ -322,13 +343,24 @@ public class QueueViewModel extends AndroidViewModel {
                     Log.d(TAG, "Step 3a: Updated active queue ID to " + queueId);
 
                     // 3b: Restore playback state for NEW queue
-                    PlaybackPreferences.writeMediaPlaying(newMedia);
-                    if (newMedia != null) {
+                    PlaybackPreferences.writeMediaPlaying(selectedMedia);
+                    if (selectedMedia != null) {
                         Log.d(TAG, "Step 3b: Restored PlaybackPreferences to queue " + queueId
-                                + " episode: " + newMedia.getEpisodeTitle());
+                                + " episode: " + selectedMedia.getEpisodeTitle());
                     } else {
                         Log.d(TAG, "Step 3b: Cleared PlaybackPreferences for queue " + queueId
-                                + " (no playback history)");
+                                + " (queue is empty)");
+                    }
+
+                    // Rule 3e: Restore playing state (pause/play)
+                    // Only preserve the saved player status if we have a valid episode
+                    if (selectedMedia != null) {
+                        PlaybackPreferences.setCurrentPlayerStatus(savedPlayerStatus);
+                        Log.d(TAG, "Rule 3e: Restored player status: " + savedPlayerStatus);
+                    } else {
+                        // Queue is empty, set to OTHER state
+                        PlaybackPreferences.setCurrentPlayerStatus(PlaybackPreferences.PLAYER_STATUS_OTHER);
+                        Log.d(TAG, "Rule 3e: Queue is empty, setting player status to OTHER");
                     }
 
                     // 3c: Update current queue metadata
@@ -345,6 +377,53 @@ public class QueueViewModel extends AndroidViewModel {
                 });
             }
         });
+    }
+
+    /**
+     * Rule 3d-2 Helper: Select the next unfinished episode from a queue.
+     *
+     * <p>Implements the logic for finding the next unfinished episode when:
+     * - The saved episode no longer exists in the queue
+     * - The saved episode is fully played
+     *
+     * <p>Logic:
+     * 1. Find first episode with position < duration (unfinished)
+     * 2. If all episodes finished, loop back to first episode
+     * 3. If queue is empty, return null
+     *
+     * @param queueId The queue ID to search
+     * @return The next unfinished episode's FeedMedia, or null if queue is empty
+     */
+    private FeedMedia selectNextEpisodeForNewQueue(long queueId) {
+        // Get all episodes in the target queue
+        List<FeedItem> queueItems = DBReader.getQueue(queueId);
+
+        if (queueItems.isEmpty()) {
+            Log.d(TAG, "selectNextEpisodeForNewQueue: Queue " + queueId + " is empty");
+            return null;
+        }
+
+        // Find first unfinished episode (position < duration)
+        for (FeedItem item : queueItems) {
+            FeedMedia media = item.getMedia();
+            if (media != null && media.getPosition() < media.getDuration()) {
+                Log.d(TAG, "selectNextEpisodeForNewQueue: Found unfinished episode: "
+                        + media.getEpisodeTitle() + " (pos=" + media.getPosition()
+                        + ", dur=" + media.getDuration() + ")");
+                return media;
+            }
+        }
+
+        // All episodes finished, loop back to first episode
+        FeedItem firstItem = queueItems.get(0);
+        FeedMedia firstMedia = firstItem.getMedia();
+        if (firstMedia != null) {
+            Log.d(TAG, "selectNextEpisodeForNewQueue: All episodes finished, looping to: "
+                    + firstMedia.getEpisodeTitle());
+        } else {
+            Log.d(TAG, "selectNextEpisodeForNewQueue: First item has no media");
+        }
+        return firstMedia;
     }
 
     /**
