@@ -1833,37 +1833,29 @@ public class PlaybackService extends MediaBrowserServiceCompat {
     @Subscribe(threadMode = ThreadMode.MAIN)
     @SuppressWarnings("unused")
     public void onQueueEvent(QueueEvent event) {
-        // Handle removal of currently playing episode
+        // Handle removal of currently playing episode (implements Rule 1: Episode Removal)
         if (event.action == QueueEvent.Action.REMOVED && event.item != null) {
             long currentlyPlayingId = PlaybackPreferences.getCurrentlyPlayingFeedMediaId();
             FeedMedia removedMedia = event.item.getMedia();
 
             if (removedMedia != null && removedMedia.getId() == currentlyPlayingId) {
-                Log.d(TAG, "Currently playing episode was removed from queue");
+                Log.d(TAG, "Currently playing episode was removed from queue (Rule 1)");
 
-                // CRITICAL: Move database read off main thread to avoid I/O crash
-                // Post to background thread to fetch updated queue
+                // Rule 1a: Save the playing state (paused/playing)
+                PlayerStatus savedPlayerStatus = mediaPlayer.getPlayerStatus();
+                final boolean wasPlaying = (savedPlayerStatus == PlayerStatus.PLAYING);
+                Log.d(TAG, "Rule 1a: Saved player status = " + (wasPlaying ? "PLAYING" : "PAUSED"));
+
+                // Move database operations off main thread to avoid I/O crash
                 dbExecutor.execute(() -> {
                     List<FeedItem> queue = DBReader.getQueue();
                     Handler mainHandler = new Handler(Looper.getMainLooper());
 
-                    if (!queue.isEmpty()) {
-                        // Play the next episode (first in queue)
-                        FeedMedia nextMedia = queue.get(0).getMedia();
-                        if (nextMedia != null) {
-                            Log.d(TAG, "Playing next episode: " + nextMedia.getEpisodeTitle());
-                            mainHandler.post(() -> startPlaying(nextMedia, false));
-                        } else {
-                            Log.d(TAG, "Next episode has no media, stopping playback");
-                            mainHandler.post(() -> {
-                                if (mediaPlayer != null) {
-                                    mediaPlayer.pause(true, true);
-                                    PlaybackPreferences.writeNoMediaPlaying();
-                                }
-                            });
-                        }
-                    } else {
-                        Log.d(TAG, "Queue is empty, stopping playback");
+                    if (queue.isEmpty()) {
+                        // Rule 1d: Last episode removed with nowhere to loop
+                        // Rule 1e: Remove episode from player
+                        // Rule 1f: Player must be empty
+                        Log.d(TAG, "Rule 1d-1f: Queue now empty, stopping playback and clearing player");
                         mainHandler.post(() -> {
                             if (mediaPlayer != null) {
                                 mediaPlayer.pause(true, true);
@@ -1873,8 +1865,75 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                                 EventBus.getDefault().post(new PlayerStatusEvent());
                             }
                         });
+                    } else {
+                        // Rule 1b: Find next unfinished episode
+                        // Rule 1c: If no next, loop back to first
+                        FeedItem nextEpisode = findNextUnfinishedEpisode(queue);
+
+                        if (nextEpisode == null || nextEpisode.getMedia() == null) {
+                            Log.d(TAG, "Rule 1d-1f: No valid next episode, stopping playback");
+                            mainHandler.post(() -> {
+                                if (mediaPlayer != null) {
+                                    mediaPlayer.pause(true, true);
+                                    PlaybackPreferences.writeNoMediaPlaying();
+                                    updateNotificationAndMediaSession(null);
+                                    IntentUtils.sendLocalBroadcast(getApplicationContext(), ACTION_PLAYER_STATUS_CHANGED);
+                                    EventBus.getDefault().post(new PlayerStatusEvent());
+                                }
+                            });
+                        } else {
+                            FeedMedia nextMedia = nextEpisode.getMedia();
+                            Log.d(TAG, "Rule 1b-1c: Found next episode: " + nextMedia.getEpisodeTitle());
+
+                            // Rule 1g: Restore playing state after episode transition
+                            mainHandler.post(() -> restorePlaybackStateAndLoadEpisode(nextMedia, wasPlaying));
+                        }
                     }
                 });
+            }
+        }
+    }
+
+    /**
+     * Find the next unfinished episode in the queue.
+     * Returns the first episode that hasn't been fully played.
+     * If all are finished, returns the first episode (loop back).
+     * If queue is empty, returns null.
+     */
+    private FeedItem findNextUnfinishedEpisode(List<FeedItem> queue) {
+        if (queue.isEmpty()) {
+            return null;
+        }
+
+        // Find first unfinished episode (position < duration)
+        for (FeedItem episode : queue) {
+            FeedMedia media = episode.getMedia();
+            if (media != null && media.getPosition() < media.getDuration()) {
+                String msg = "Found unfinished episode: " + media.getEpisodeTitle();
+                String details = " (pos=" + media.getPosition() + ", dur=" + media.getDuration() + ")";
+                Log.d(TAG, msg + details);
+                return episode;
+            }
+        }
+
+        // All episodes finished, loop back to first
+        Log.d(TAG, "All episodes finished, looping back to first");
+        return queue.get(0);
+    }
+
+    /**
+     * Rule 1g: Restore playback state and load episode after removal.
+     * If was playing, resume playback; if paused, stay paused.
+     */
+    private void restorePlaybackStateAndLoadEpisode(FeedMedia nextMedia, boolean wasPlaying) {
+        if (wasPlaying) {
+            Log.d(TAG, "Rule 1g: Was playing, starting next episode");
+            startPlaying(nextMedia, false);
+        } else {
+            Log.d(TAG, "Rule 1g: Was paused, loading episode but staying paused");
+            startPlaying(nextMedia, false);  // Load and prepare episode
+            if (mediaPlayer != null) {
+                mediaPlayer.pause(true, false);  // Keep paused
             }
         }
     }
