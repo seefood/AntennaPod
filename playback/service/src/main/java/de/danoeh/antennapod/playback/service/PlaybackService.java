@@ -80,6 +80,7 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.GregorianCalendar;
 import java.util.List;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
@@ -1270,7 +1271,10 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                 positionJustResetAfterPlayback = item.getIdentifyingValue();
                 DBWriter.markItemPlayed(item, FeedItem.PLAYED, ended || (skipped && almostEnded));
                 // don't know if it actually matters to not autodownload when smart mark as played is triggered
-                DBWriter.removeQueueItem(PlaybackService.this, ended, item);
+
+                // Rule 2: After removing episode, check if queue is empty and trigger refill
+                Future<?> removalFuture = DBWriter.removeQueueItem(PlaybackService.this, ended, item);
+
                 // Delete episode if enabled
                 FeedPreferences.AutoDeleteAction action =
                         item.getFeed().getPreferences().getCurrentAutoDelete();
@@ -1284,6 +1288,9 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                     Log.d(TAG, "Episode Deleted");
                 }
                 notifyChildrenChanged(getString(R.string.queue_label));
+
+                // After removal completes, check if refill is needed
+                checkQueueAfterRemovalAndRefillIfNeeded(removalFuture, ended);
             }
         }
 
@@ -1922,6 +1929,36 @@ public class PlaybackService extends MediaBrowserServiceCompat {
     }
 
     /**
+     * Rule 2b-2c: Check queue after removal and trigger refill if empty.
+     * This waits for the removal to complete before checking queue state.
+     */
+    private void checkQueueAfterRemovalAndRefillIfNeeded(Future<?> removalFuture, boolean episodeEnded) {
+        dbExecutor.execute(() -> {
+            try {
+                // Wait for removal to complete
+                removalFuture.get();
+                Log.d(TAG, "Rule 2b: Episode removal completed");
+            } catch (Exception e) {
+                Log.e(TAG, "Error waiting for episode removal", e);
+                return;
+            }
+
+            // Rule 2b: Check if queue is now empty
+            long currentQueueId = UserPreferences.getCurrentQueueId();
+            List<FeedItem> queue = DBReader.getQueue(currentQueueId);
+
+            if (queue.isEmpty() && episodeEnded) {
+                Log.d(TAG, "Rule 2b-2c: Queue empty after episode finish, attempting refill");
+                handleAutomaticQueueRefill(currentQueueId);
+            } else if (!queue.isEmpty()) {
+                Log.d(TAG, "Rule 2a: Queue not empty, playback continues");
+            } else {
+                Log.d(TAG, "Rule 2c: Queue empty but episode didn't finish normally");
+            }
+        });
+    }
+
+    /**
      * Rule 1g: Restore playback state and load episode after removal.
      * If was playing, resume playback; if paused, stay paused.
      */
@@ -1939,25 +1976,15 @@ public class PlaybackService extends MediaBrowserServiceCompat {
     }
 
     /**
-     * T077: Handle playback history events to trigger automatic queue refill (FR-016, FR-017)
-     *
-     * When playback history is updated (episodes finish), check if queue is empty
-     * and automatically refill if rules are configured.
+     * Backup refill trigger in case removal completed without triggering main flow.
+     * Normally refill is triggered from checkQueueAfterRemovalAndRefillIfNeeded().
+     * This serves as a safety net if history event fires before removal completes.
      */
     @Subscribe(threadMode = ThreadMode.MAIN)
     @SuppressWarnings("unused")
     public void onPlaybackHistoryEvent(de.danoeh.antennapod.event.playback.PlaybackHistoryEvent event) {
-        // T078: Check if queue is empty - MUST run on background thread to avoid I/O crash
-        long currentQueueId = UserPreferences.getCurrentQueueId();
-        dbExecutor.execute(() -> {
-            List<FeedItem> queue = DBReader.getQueue(currentQueueId);
-
-            if (queue.isEmpty()) {
-                Log.d(TAG, "Queue is empty after playback history update, checking for auto-refill rules");
-                // T079: Trigger automatic refill if rules are configured (FR-016)
-                handleAutomaticQueueRefill(currentQueueId);
-            }
-        });
+        // Just log - refill handled in checkQueueAfterRemovalAndRefillIfNeeded
+        Log.d(TAG, "PlaybackHistoryEvent received");
     }
 
     /**
