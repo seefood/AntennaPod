@@ -879,6 +879,51 @@ public class DBWriter {
     }
 
     /**
+     * Ensures all FeedItems in a list have their Feed objects loaded.
+     *
+     * <p>Some sources of FeedItems (like QueueRefillEngine) may return episodes without
+     * Feed objects properly loaded. This method loads missing Feed objects from the database
+     * to ensure all items are ready for database operations that require feed IDs.
+     *
+     * <p>If a Feed cannot be found, a dummy Feed with error message is created to prevent
+     * NullPointerException during database writes.
+     *
+     * @param items List of FeedItems that may be missing Feed objects
+     */
+    private static void ensureFeedObjectsLoaded(List<FeedItem> items) {
+        // Identify items that need feed objects
+        List<FeedItem> itemsNeedingFeeds = new ArrayList<>();
+        for (FeedItem item : items) {
+            if (item.getFeed() == null && item.getFeedId() > 0) {
+                itemsNeedingFeeds.add(item);
+            }
+        }
+
+        if (itemsNeedingFeeds.isEmpty()) {
+            return;
+        }
+
+        // Load all feeds and create a map for quick lookup
+        List<Feed> feeds = DBReader.getFeedList();
+        android.util.ArrayMap<Long, Feed> feedMap = new android.util.ArrayMap<>(feeds.size());
+        for (Feed feed : feeds) {
+            feedMap.put(feed.getId(), feed);
+        }
+
+        // Set Feed objects on items that need them
+        for (FeedItem item : itemsNeedingFeeds) {
+            Feed feed = feedMap.get(item.getFeedId());
+            if (feed == null) {
+                Log.w(TAG, "No match found for item with ID " + item.getId()
+                        + ". Feed ID was " + item.getFeedId());
+                // Create dummy feed to prevent NullPointerException
+                feed = new Feed("", "", "Error: Item without feed");
+            }
+            item.setFeed(feed);
+        }
+    }
+
+    /**
      * Saves if a feed's last update failed
      *
      * @param lastUpdateFailed true if last update failed
@@ -2121,26 +2166,7 @@ public class DBWriter {
 
                     // Ensure all items in finalQueue have their Feed objects loaded
                     // This is necessary because episodes from QueueRefillEngine may not have feeds loaded
-                    List<FeedItem> itemsNeedingFeeds = new ArrayList<>();
-                    for (FeedItem item : finalQueue) {
-                        if (item.getFeed() == null && item.getFeedId() > 0) {
-                            itemsNeedingFeeds.add(item);
-                        }
-                    }
-                    if (!itemsNeedingFeeds.isEmpty()) {
-                        // Load all feeds and set them on items
-                        List<Feed> allFeeds = DBReader.getFeedList();
-                        Map<Long, Feed> feedMap = new java.util.HashMap<>(allFeeds.size());
-                        for (Feed feed : allFeeds) {
-                            feedMap.put(feed.getId(), feed);
-                        }
-                        for (FeedItem item : itemsNeedingFeeds) {
-                            Feed feed = feedMap.get(item.getFeedId());
-                            if (feed != null) {
-                                item.setFeed(feed);
-                            }
-                        }
-                    }
+                    ensureFeedObjectsLoaded(finalQueue);
 
                     // Set the complete queue in one operation
                     if (!updatedItems.isEmpty()) {
