@@ -2119,6 +2119,29 @@ public class DBWriter {
                         }
                     }
 
+                    // Ensure all items in finalQueue have their Feed objects loaded
+                    // This is necessary because episodes from QueueRefillEngine may not have feeds loaded
+                    List<FeedItem> itemsNeedingFeeds = new ArrayList<>();
+                    for (FeedItem item : finalQueue) {
+                        if (item.getFeed() == null && item.getFeedId() > 0) {
+                            itemsNeedingFeeds.add(item);
+                        }
+                    }
+                    if (!itemsNeedingFeeds.isEmpty()) {
+                        // Load all feeds and set them on items
+                        List<Feed> allFeeds = DBReader.getFeedList();
+                        Map<Long, Feed> feedMap = new java.util.HashMap<>(allFeeds.size());
+                        for (Feed feed : allFeeds) {
+                            feedMap.put(feed.getId(), feed);
+                        }
+                        for (FeedItem item : itemsNeedingFeeds) {
+                            Feed feed = feedMap.get(item.getFeedId());
+                            if (feed != null) {
+                                item.setFeed(feed);
+                            }
+                        }
+                    }
+
                     // Set the complete queue in one operation
                     if (!updatedItems.isEmpty()) {
                         adapter.setQueue(finalQueue, queueId);
