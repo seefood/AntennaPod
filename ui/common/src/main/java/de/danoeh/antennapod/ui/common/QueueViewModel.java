@@ -367,8 +367,11 @@ public class QueueViewModel extends AndroidViewModel {
                     currentQueueLiveData.setValue(newQueue);
 
                     // Step 4: NOW post event (after ALL state is consistent)
-                    Log.d(TAG, "Step 4: Posting QUEUE_SWITCHED event for queue " + queueId);
-                    EventBus.getDefault().post(QueueEvent.queueSwitched(queueId));
+                    // Pass target feedMediaId directly to avoid race condition with PlaybackPreferences
+                    long targetFeedMediaId = (selectedMedia != null) ? selectedMedia.getId() : -1;
+                    Log.d(TAG, "Step 4: Posting QUEUE_SWITCHED event for queue " + queueId
+                            + " with targetFeedMediaId=" + targetFeedMediaId);
+                    EventBus.getDefault().post(QueueEvent.queueSwitched(queueId, targetFeedMediaId));
                 });
             } catch (Exception e) {
                 Log.e(TAG, "Failed to switch to queue " + queueId, e);

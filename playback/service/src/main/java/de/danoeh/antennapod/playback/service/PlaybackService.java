@@ -1800,9 +1800,11 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                 mediaPlayer.pause(true, true);
             }
 
-            // QueueViewModel has already updated PlaybackPreferences with the new queue's saved episode
-            long feedMediaId = PlaybackPreferences.getCurrentlyPlayingFeedMediaId();
-            Log.d(TAG, "Rule 3f: Queue switch feedMediaId from preferences: " + feedMediaId);
+            // Rule 3f: Get target feedMediaId from event (NOT PlaybackPreferences to avoid race condition)
+            // QueueViewModel passes the target feedMediaId directly in the event to prevent the pause
+            // operation from overwriting PlaybackPreferences before we read it
+            long feedMediaId = event.targetFeedMediaId;
+            Log.d(TAG, "Rule 3f: Queue switch targetFeedMediaId from event: " + feedMediaId);
 
             if (feedMediaId < 0) {
                 Log.d(TAG, "No saved episode for this queue - stopping playback");
