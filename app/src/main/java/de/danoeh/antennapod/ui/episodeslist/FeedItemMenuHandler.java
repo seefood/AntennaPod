@@ -14,6 +14,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Executors;
 
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.event.MessageEvent;
@@ -341,15 +342,29 @@ public class FeedItemMenuHandler {
      * Shows QueueSelectionDialog and moves episode to selected queue.
      */
     private static void handleMoveToQueue(@NonNull Fragment fragment, @NonNull FeedItem item) {
-        // Get source queue ID (episode should be in exactly one queue for move)
-        List<Long> queueIds = DBReader.getQueueIdsForFeedItem(item.getId());
-        if (queueIds.isEmpty()) {
-            // Episode not in any queue - shouldn't happen if menu visibility is correct
-            return;
-        }
+        // Run database query on background thread to avoid I/O on main thread
+        Executors.newSingleThreadExecutor().execute(() -> {
+            // Get source queue ID (episode should be in exactly one queue for move)
+            List<Long> queueIds = DBReader.getQueueIdsForFeedItem(item.getId());
+            if (queueIds.isEmpty()) {
+                // Episode not in any queue - shouldn't happen if menu visibility is correct
+                return;
+            }
 
-        // Use first queue as source (in practice, episode should only be in one queue)
-        Long sourceQueueId = queueIds.get(0);
+            // Use first queue as source (in practice, episode should only be in one queue)
+            Long sourceQueueId = queueIds.get(0);
+
+            // Post UI work back to main thread
+            fragment.requireActivity().runOnUiThread(() -> showQueueSelectionDialog(fragment, item, sourceQueueId));
+        });
+    }
+
+    /**
+     * Show queue selection dialog for moving episode to another queue.
+     */
+    private static void showQueueSelectionDialog(@NonNull Fragment fragment,
+                                                  @NonNull FeedItem item,
+                                                  long sourceQueueId) {
 
         QueueSelectionDialog dialog = QueueSelectionDialog.newInstance(sourceQueueId, "move");
         dialog.setOnQueueSelectedListener(selectedQueue -> {
