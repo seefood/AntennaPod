@@ -103,7 +103,7 @@ public class QueueSelectionDialog extends androidx.fragment.app.DialogFragment {
                 .inflate(R.layout.dialog_queue_selection, null);
 
         setupViews(view);
-        loadQueues();
+        // Don't load queues here - do it asynchronously in onStart
 
         builder.setView(view)
                 .setTitle(R.string.queues);
@@ -128,6 +128,9 @@ public class QueueSelectionDialog extends androidx.fragment.app.DialogFragment {
         });
 
         EventBus.getDefault().register(this);
+
+        // Load queues on background thread to avoid I/O on main thread
+        java.util.concurrent.Executors.newSingleThreadExecutor().execute(this::loadQueuesAsync);
     }
 
     private void setupViews(View view) {
@@ -203,7 +206,11 @@ public class QueueSelectionDialog extends androidx.fragment.app.DialogFragment {
         cancelButton.setOnClickListener(v -> dismiss());
     }
 
-    private void loadQueues() {
+    /**
+     * Load queues on background thread and update UI on main thread.
+     * This method should be called from a background thread to avoid I/O on main thread.
+     */
+    private void loadQueuesAsync() {
         List<QueueMetadata> queues = DBReader.getAllQueues();
 
         // Filter out source queue for move operations
@@ -217,15 +224,22 @@ public class QueueSelectionDialog extends androidx.fragment.app.DialogFragment {
             }
         }
 
-        // Update adapter
-        adapter.updateQueueList(queues);
+        // Update adapter on main thread (check if still attached to activity)
+        final List<QueueMetadata> finalQueues = queues;
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                if (adapter != null && isAdded()) {
+                    adapter.updateQueueList(finalQueues);
 
-        // Highlight last destination if available
-        if (viewModel != null) {
-            Long lastDest = viewModel.getLastDestinationValue();
-            if (lastDest != null) {
-                adapter.setCurrentQueueId(lastDest);
-            }
+                    // Highlight last destination if available
+                    if (viewModel != null) {
+                        Long lastDest = viewModel.getLastDestinationValue();
+                        if (lastDest != null) {
+                            adapter.setCurrentQueueId(lastDest);
+                        }
+                    }
+                }
+            });
         }
     }
 
@@ -252,7 +266,8 @@ public class QueueSelectionDialog extends androidx.fragment.app.DialogFragment {
         if (event.action == QueueEvent.Action.QUEUE_CREATED
                 || event.action == QueueEvent.Action.QUEUE_DELETED
                 || event.action == QueueEvent.Action.QUEUE_RENAMED) {
-            loadQueues();
+            // Reload queues asynchronously when list changes
+            java.util.concurrent.Executors.newSingleThreadExecutor().execute(this::loadQueuesAsync);
         }
     }
 }
