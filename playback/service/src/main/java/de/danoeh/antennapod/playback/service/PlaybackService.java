@@ -1364,6 +1364,10 @@ public class PlaybackService extends MediaBrowserServiceCompat {
      * @param playerStatus the current {@link PlayerStatus}
      */
     private void updateMediaSession(final PlayerStatus playerStatus) {
+        if (mediaSession == null) {
+            return;
+        }
+
         PlaybackStateCompat.Builder sessionState = new PlaybackStateCompat.Builder();
 
         int state;
