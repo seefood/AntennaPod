@@ -584,15 +584,36 @@ public final class DBReader {
         Log.d(TAG, "getNextInQueue() called with: " + "itemId = [" + item.getId() + "]");
         PodDBAdapter adapter = PodDBAdapter.getInstance();
         adapter.open();
-        try (FeedItemCursor cursor = new FeedItemCursor(adapter.getNextInQueue(item))) {
-            List<FeedItem> list = extractItemlistFromCursor(cursor);
-            if (!list.isEmpty()) {
-                FeedItem nextItem = list.get(0);
-                loadAdditionalFeedItemListData(list);
-                return nextItem;
+        try {
+            // First try to get the next item in queue order
+            try (FeedItemCursor cursor = new FeedItemCursor(adapter.getNextInQueue(item))) {
+                List<FeedItem> list = extractItemlistFromCursor(cursor);
+                if (!list.isEmpty()) {
+                    FeedItem nextItem = list.get(0);
+                    loadAdditionalFeedItemListData(list);
+                    Log.d(TAG, "getNextInQueue: Found next item in queue: " + nextItem.getId());
+                    return nextItem;
+                }
             }
+
+            // No next item found - we're at the end of the queue
+            // Get the queue ID for the current item and loop back to the first item
+            long queueId = adapter.getQueueIdForFeedItem(item.getId());
+            if (queueId > 0) {
+                try (FeedItemCursor cursor = new FeedItemCursor(adapter.getFirstInQueue(queueId))) {
+                    List<FeedItem> list = extractItemlistFromCursor(cursor);
+                    if (!list.isEmpty()) {
+                        FeedItem firstItem = list.get(0);
+                        loadAdditionalFeedItemListData(list);
+                        Log.d(TAG, "getNextInQueue: Looping back to first item in queue: " + firstItem.getId());
+                        return firstItem;
+                    }
+                }
+            }
+
             return null;
         } catch (Exception e) {
+            Log.e(TAG, "Error in getNextInQueue", e);
             return null;
         } finally {
             adapter.close();

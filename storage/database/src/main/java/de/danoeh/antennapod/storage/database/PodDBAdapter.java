@@ -1272,6 +1272,23 @@ public class PodDBAdapter {
     }
 
     /**
+     * Gets the queue ID for a specific feed item.
+     * Since v3080100+, an episode can only be in one queue at a time.
+     * @param feedItemId The feed item ID
+     * @return The queue ID, or -1 if item is not in any queue
+     */
+    public long getQueueIdForFeedItem(long feedItemId) {
+        try (Cursor cursor = db.query(TABLE_NAME_QUEUE, new String[]{KEY_QUEUE_ID},
+                KEY_FEEDITEM + " = ?", new String[]{String.valueOf(feedItemId)},
+                null, null, null, "1")) {
+            if (cursor.moveToFirst()) {
+                return cursor.getLong(0);
+            }
+            return -1;
+        }
+    }
+
+    /**
      * Insert new queue metadata (for multiple queues feature).
      * @param values ContentValues with queue metadata
      * @return Inserted queue ID, or -1 on error
@@ -1452,6 +1469,18 @@ public class PodDBAdapter {
                 + " AND " + TABLE_NAME_QUEUE + "." + KEY_QUEUE_ID + " = (SELECT " + KEY_QUEUE_ID
                 + " FROM " + TABLE_NAME_QUEUE + " WHERE " + KEY_FEEDITEM + " = " + item.getId() + ")"
                 + " ORDER BY Queue.ID"
+                + " LIMIT 1";
+        return db.rawQuery(query, null);
+    }
+
+    public Cursor getFirstInQueue(long queueId) {
+        final String query = "SELECT " + KEYS_FEED_ITEM_WITHOUT_DESCRIPTION + ", " + KEYS_FEED_MEDIA
+                + " FROM " + TABLE_NAME_QUEUE
+                + " INNER JOIN " + TABLE_NAME_FEED_ITEMS
+                + " ON " + SELECT_KEY_ITEM_ID + " = " + TABLE_NAME_QUEUE + "." + KEY_FEEDITEM
+                + JOIN_FEED_ITEM_AND_MEDIA
+                + " WHERE " + TABLE_NAME_QUEUE + "." + KEY_QUEUE_ID + " = " + queueId
+                + " ORDER BY " + TABLE_NAME_QUEUE + "." + KEY_ID
                 + " LIMIT 1";
         return db.rawQuery(query, null);
     }
