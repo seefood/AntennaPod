@@ -1802,6 +1802,8 @@ public class PlaybackService extends MediaBrowserServiceCompat {
 
             // QueueViewModel has already updated PlaybackPreferences with the new queue's saved episode
             long feedMediaId = PlaybackPreferences.getCurrentlyPlayingFeedMediaId();
+            Log.d(TAG, "Rule 3f: Queue switch feedMediaId from preferences: " + feedMediaId);
+
             if (feedMediaId < 0) {
                 Log.d(TAG, "No saved episode for this queue - stopping playback");
                 // Stop playback since new queue has no saved episode
@@ -1813,21 +1815,37 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                 return;
             }
 
-            // Load the new queue's last played episode in paused state
+            // Rule 3g: Load the new queue's last played episode in paused state
             // User should manually resume playback instead of auto-playing
-            Log.d(TAG, "Loading episode for new queue (paused): " + feedMediaId);
+            Log.d(TAG, "Rule 3g: Loading episode for new queue (paused): " + feedMediaId);
 
             // Must do database read on background thread to avoid I/O on main thread error
             Thread dbThread = new Thread(() -> {
-                FeedMedia playable = DBReader.getFeedMedia(feedMediaId);
-                if (playable != null) {
-                    // Post back to main thread to load media
-                    new Handler(Looper.getMainLooper()).post(() -> {
-                        loadPlayableInPausedState(playable);
-                        Log.d(TAG, "Loaded queue episode (paused): " + playable.getEpisodeTitle());
-                    });
-                } else {
-                    Log.e(TAG, "Could not load playable from queue (media not found)");
+                Log.d(TAG, "Rule 3g-1: Starting DB read for feedMediaId: " + feedMediaId);
+                try {
+                    FeedMedia playable = DBReader.getFeedMedia(feedMediaId);
+                    Log.d(TAG, "Rule 3g-2: DB read completed, playable=" + (playable != null ? playable.getEpisodeTitle() : "null"));
+
+                    if (playable != null) {
+                        // Post back to main thread to load media
+                        new Handler(Looper.getMainLooper()).post(() -> {
+                            Log.d(TAG, "Rule 3g-3: Loading playable on main thread: " + playable.getEpisodeTitle());
+                            loadPlayableInPausedState(playable);
+                            Log.d(TAG, "Rule 3g-4: Loaded queue episode (paused): " + playable.getEpisodeTitle());
+                        });
+                    } else {
+                        Log.e(TAG, "Rule 3g-2e: Could not load playable from queue (media not found): " + feedMediaId);
+                        new Handler(Looper.getMainLooper()).post(() -> {
+                            Log.d(TAG, "Rule 3g-2e-1: Stopping playback due to missing media");
+                            mediaPlayer.pause(true, true);
+                            PlaybackPreferences.writeNoMediaPlaying();
+                            updateNotificationAndMediaSession(null);
+                            IntentUtils.sendLocalBroadcast(getApplicationContext(), ACTION_PLAYER_STATUS_CHANGED);
+                            EventBus.getDefault().post(new PlayerStatusEvent());
+                        });
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Rule 3g: Exception while loading queue episode", e);
                     new Handler(Looper.getMainLooper()).post(() -> {
                         mediaPlayer.pause(true, true);
                         PlaybackPreferences.writeNoMediaPlaying();
