@@ -523,9 +523,21 @@ public class DBWriter {
                             + " Item ignored. It should never happen. id:" + itemId);
                     continue;
                 }
+
+                // Before removing, determine what the next episode should be
+                // This avoids race conditions where the next episode determination
+                // happens on a fresh queue without the current episode
+                FeedItem nextItem = null;
+                if (position + 1 < queue.size()) {
+                    nextItem = queue.get(position + 1);
+                }
+                Log.d(TAG, "Removing episode at position " + position
+                        + (nextItem != null ? ", next is: " + nextItem.getTitle() : ", no next episode"));
+
                 queue.remove(position);
                 item.removeTag(FeedItem.TAG_QUEUE);
-                events.add(QueueEvent.removed(item));
+                // Include the pre-determined next episode in the event
+                events.add(QueueEvent.removed(item, nextItem));
                 updatedItems.add(item);
                 queueModified = true;
             } else {

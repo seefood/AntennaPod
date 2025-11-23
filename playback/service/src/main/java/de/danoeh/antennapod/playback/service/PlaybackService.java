@@ -1892,9 +1892,24 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                             }
                         });
                     } else {
-                        // Rule 1b: Find next unfinished episode
-                        // Rule 1c: If no next, loop back to first
-                        FeedItem nextEpisode = findNextUnfinishedEpisode(queue);
+                        // Rule 1b-1c: Determine next episode to play
+                        // Priority 1: Use pre-determined next episode from event (avoids race conditions)
+                        // Priority 2: Search queue for first unfinished episode
+                        FeedItem nextEpisode = null;
+
+                        if (event.nextItem != null) {
+                            nextEpisode = event.nextItem;
+                            Log.d(TAG, "Rule 1b-1c: Using pre-determined next episode (calculated before removal): "
+                                    + nextEpisode.getTitle());
+                        } else {
+                            // Fallback: Find next unfinished episode in queue
+                            // This handles cases where nextItem wasn't set (e.g., old code paths)
+                            nextEpisode = findNextUnfinishedEpisode(queue);
+                            if (nextEpisode != null) {
+                                Log.d(TAG, "Rule 1b-1c: Using first unfinished episode from queue: "
+                                        + nextEpisode.getTitle());
+                            }
+                        }
 
                         if (nextEpisode == null || nextEpisode.getMedia() == null) {
                             Log.d(TAG, "Rule 1d-1f: No valid next episode, stopping playback");
