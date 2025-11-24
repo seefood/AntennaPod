@@ -14,6 +14,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import de.danoeh.antennapod.R;
@@ -343,7 +344,8 @@ public class FeedItemMenuHandler {
      */
     private static void handleMoveToQueue(@NonNull Fragment fragment, @NonNull FeedItem item) {
         // Run database query on background thread to avoid I/O on main thread
-        Executors.newSingleThreadExecutor().execute(() -> {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.submit(() -> {
             // Get source queue ID (episode should be in exactly one queue for move)
             List<Long> queueIds = DBReader.getQueueIdsForFeedItem(item.getId());
             if (queueIds.isEmpty()) {
@@ -357,6 +359,7 @@ public class FeedItemMenuHandler {
             // Post UI work back to main thread
             fragment.requireActivity().runOnUiThread(() -> showQueueSelectionDialog(fragment, item, sourceQueueId));
         });
+        executor.shutdown();
     }
 
     /**
