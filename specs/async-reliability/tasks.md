@@ -8,7 +8,7 @@
 
 ## Overview
 
-5 user stories (4 P1, 1 P2) organized into 7 phases. Total: 46 tasks. All tasks must complete before merge to develop.
+5 user stories (4 P1, 1 P2) organized into 7 phases. Total: 50 tasks (46 feature + 4 remediation for Constitution alignment). All tasks must complete before merge to develop.
 
 ### User Stories (Priority Order)
 
@@ -37,12 +37,15 @@ Phase 1 (Setup) → Phase 2 (US1) ↓
 
 ### Merge Gate Criteria (All Required)
 
-- ✓ All 46 tasks complete
-- ✓ 100 concurrent moveQueueItem operations: 100% consistency
-- ✓ 100 concurrent copyQueueItem operations: 100% consistency
-- ✓ 100 concurrent removeQueueItem operations: 100% consistency
-- ✓ Execution logs: zero operation interleaving verified
-- ✓ Code review: all 3 reviewers approve (atomicity, executors, async patterns)
+- ✓ All 50 tasks complete (46 feature + 4 remediation)
+- ✓ T057: Pre-review static analysis passed (0 violations)
+- ✓ 100 concurrent moveQueueItem operations: 100% consistency (T045)
+- ✓ 100 concurrent copyQueueItem operations: 100% consistency (T046)
+- ✓ 100 concurrent removeQueueItem operations: 100% consistency (T047)
+- ✓ Execution logs: zero operation interleaving verified (T048)
+- ✓ Code review: all 3 reviewers approve (atomicity, executors, async patterns) (T049-T051)
+- ✓ T053: Final static analysis passed (0 violations)
+- ✓ T058: MIN_PRIORITY verification complete (Constitution V)
 
 ---
 
@@ -127,6 +130,20 @@ Phase 1 (Setup) → Phase 2 (US1) ↓
   - Add fields: `public final boolean error`, `public final String errorMessage`
   - Update constructor to initialize error status
   - Getter: getError(), getErrorMessage()
+
+- [ ] T009a [US1] Write unit test: MoveResult.error field behavior
+  - File: `model/src/test/java/de/danoeh/antennapod/model/MoveResultTest.java`
+  - Test method: moveResult_errorField_correctlyInitialized()
+  - Test: MoveResult with error=true includes errorMessage
+  - Test: MoveResult with error=false has empty/null errorMessage
+  - Verify: Getters work correctly (Constitution II: test coverage for new business logic)
+
+- [ ] T010a [US1] Write unit test: CopyResult.error field behavior
+  - File: `model/src/test/java/de/danoeh/antennapod/model/CopyResultTest.java`
+  - Test method: copyResult_errorField_correctlyInitialized()
+  - Test: CopyResult with error=true includes errorMessage
+  - Test: CopyResult with error=false has empty/null errorMessage
+  - Verify: Getters work correctly (Constitution II: test coverage for new business logic)
 
 ### Test Tasks (US1)
 
@@ -455,8 +472,20 @@ Phase 1 (Setup) → Phase 2 (US1) ↓
 
 ### Code Review Tasks
 
+- [ ] T056 Assign code reviewers for domain expertise
+  - Atomicity patterns (T049): 1 architect (understands executor serialization + rollback patterns)
+  - Executor consolidation (T050): 1 architect (understands DBWriter + dependency injection)
+  - Async callbacks (T051): 1 Android expert (understands Handler.post + main thread safety)
+  - All reviewers must approve before Phase 7 completion (Merge Gate: "code review: approved")
+
+- [ ] T057 Run static analysis and fix violations before code review
+  - Command: `./gradlew checkstyle :app:lintPlayDebug spotbugsPlayDebug spotbugsDebug`
+  - Verify: 0 checkstyle violations, 0 lint errors, 0 spotbugs violations (Constitution I: Code Quality First)
+  - Fix: Address any violations before submitting for code review
+  - Rationale: Save reviewer time by ensuring code quality gates pass before review
+
 - [ ] T049 [P] Code review: US1 atomicity patterns
-  - Reviewers: 1 (architect)
+  - Reviewers: 1 (architect, assigned in T056)
   - Files: DBWriter.moveQueueItem(), copyQueueItem(), rollback logic, event posting
   - Checklist:
     - [ ] All multi-step operations in single dbExec.submit() task
@@ -467,7 +496,7 @@ Phase 1 (Setup) → Phase 2 (US1) ↓
   - Approval required before Phase 7 completion
 
 - [ ] T050 [P] Code review: US2 executor consolidation
-  - Reviewers: 1 (architect)
+  - Reviewers: 1 (architect, assigned in T056)
   - Files: PlaybackService, QueueSelectionDialog, FeedItemMenuHandler, RemoveFromQueueSwipeAction, DBWriter.getDbExecutor()
   - Checklist:
     - [ ] 0 private executor instances remain
@@ -477,7 +506,7 @@ Phase 1 (Setup) → Phase 2 (US1) ↓
   - Approval required
 
 - [ ] T051 [P] Code review: US3 async patterns
-  - Reviewers: 1 (Android expert)
+  - Reviewers: 1 (Android expert, assigned in T056)
   - Files: QueueSelectionDialog, FeedItemMenuHandler async callbacks
   - Checklist:
     - [ ] No `.get()` on main thread
@@ -497,19 +526,28 @@ Phase 1 (Setup) → Phase 2 (US1) ↓
   - Verify: 0 checkstyle violations, 0 lint errors, 0 spotbugs violations
   - Report: Summary
 
+- [ ] T058 Verify MIN_PRIORITY threads on DBWriter.dbExec (Constitution V: Database Integrity)
+  - File: `storage/database/src/main/java/de/danoeh/antennapod/storage/database/DBWriter.java`
+  - Code review: Verify dbExec initialization uses Thread.MIN_PRIORITY (FR-009 requirement)
+  - Test: Add runtime assertion or test that executor thread priority is MIN_PRIORITY
+  - Rationale: MIN_PRIORITY prevents database operations from starving UI thread
+
 - [ ] T054 Verify merge gate criteria met
   - Checklist:
-    - [ ] All 46 tasks complete
+    - [ ] All 50 tasks complete (T001-T058 including remediation tasks)
+    - [ ] T056: Reviewers assigned for each domain
+    - [ ] T057: Pre-review static analysis passed (0 violations)
     - [ ] T045, T046, T047: 100% consistency verified
     - [ ] T048: Zero interleaving verified
-    - [ ] T049, T050, T051: Code review approvals obtained
+    - [ ] T049, T050, T051: Code review approvals obtained (3 reviewers)
     - [ ] T052: All tests passing
-    - [ ] T053: Static analysis passing
+    - [ ] T053: Final static analysis passed
+    - [ ] T058: MIN_PRIORITY verification complete (FR-009, Constitution V)
   - Sign-off: [name], date
 
 - [ ] T055 Final commit: mark async-reliability phase complete
-  - Message: "feat: Complete async reliability & executor consolidation (all 6 phases, 46 tasks, merge gate passed)"
-  - Include: Test summary, concurrent operation results, code review approvals
+  - Message: "feat: Complete async reliability & executor consolidation (all 6 phases, 50 tasks incl. 4 remediation, merge gate passed)"
+  - Include: Test summary (T045-T048), concurrent operation results, code review approvals (3 reviewers), MIN_PRIORITY verification (T058)
 
 ---
 
@@ -518,13 +556,13 @@ Phase 1 (Setup) → Phase 2 (US1) ↓
 | Phase | Story | Task Count | Key Metrics |
 |-------|-------|-----------|-------------|
 | 1 | Setup | 4 | getDbExecutor() exposed, CLAUDE.md rules added |
-| 2 | US1 | 13 | moveQueueItem/copyQueueItem atomic, rollback tested |
+| 2 | US1 | 15 | moveQueueItem/copyQueueItem atomic, rollback tested, error fields tested (T009a, T010a) |
 | 3 | US2 | 9 | Single executor, 0 private instances |
 | 4 | US3 | 8 | No `.get()` on main thread, async callbacks tested |
 | 5 | US4 | 6 | moveQueueItem never modifies active queue, tested |
 | 6 | US5 | 10 | EventBus queueId fields corrected, audited |
-| 7 | Polish | 11 | 100 concurrent ops tested, code review approved |
-| **TOTAL** | | **46** | **Merge gate passed** |
+| 7 | Polish | 15 | 100 concurrent ops tested, code review approved, static analysis + MIN_PRIORITY verified (T056, T057, T058) |
+| **TOTAL** | | **50** | **All 6 phases + 4 remediation tasks (Constitution aligned)** |
 
 ---
 
@@ -548,10 +586,11 @@ Phase 1 (Setup) → Phase 2 (US1) ↓
 ## MVP Scope
 
 **Minimum Viable Product** (Phase 1 + Phase 2 only):
-- Establish atomicity pattern + expose getDbExecutor()
-- Refactor moveQueueItem/copyQueueItem to atomic operations with rollback
-- Basic concurrent operation testing
+- Establish atomicity pattern + expose getDbExecutor() (T001-T004)
+- Refactor moveQueueItem/copyQueueItem to atomic operations with rollback (T005-T010)
+- Error field tests + concurrent operation tests (T009a, T010a, T011-T013)
+- Foundation: 15 tasks covering US1 completely
 
-**Deliverable**: Foundation for all other fixes. After MVP, can proceed with US2-5 and Phase 7 testing.
+**Deliverable**: Foundation for all other fixes (US2-5) and Phase 7 (Polish & Tests).
 
-**Timeline**: 1 week for MVP (with 2 developers)
+**Timeline**: 1 week for MVP (with 2 developers) | Full feature: 3-4 weeks (4-5 developers with parallelization)
