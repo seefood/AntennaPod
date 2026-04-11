@@ -1086,7 +1086,25 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         FeedItem nextItem;
         nextItem = DBReader.getNextInQueue(item);
 
-        if (nextItem == null || nextItem.getMedia() == null) {
+        if (nextItem == null) {
+            // Queue exhausted — attempt auto-refill if a ruleset is configured
+            if (DBReader.hasQueueRuleset(1L)) {
+                try {
+                    DBWriter.refillQueue(1L, false).get();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (java.util.concurrent.ExecutionException e) {
+                    Log.w(TAG, "Auto-refill failed: " + e.getMessage());
+                }
+                nextItem = DBReader.selectNextUnfinishedEpisode(DBReader.getQueue());
+            }
+            if (nextItem == null || nextItem.getMedia() == null) {
+                PlaybackPreferences.writeNoMediaPlaying();
+                return null;
+            }
+        }
+
+        if (nextItem.getMedia() == null) {
             PlaybackPreferences.writeNoMediaPlaying();
             return null;
         }

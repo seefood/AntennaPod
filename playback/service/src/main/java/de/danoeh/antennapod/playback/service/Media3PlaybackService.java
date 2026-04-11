@@ -586,6 +586,19 @@ public class Media3PlaybackService extends MediaLibraryService {
         }
         queueLoaderDisposable = Maybe.fromCallable(() -> {
             FeedItem nextItem = DBReader.getNextInQueue(item);
+            if (nextItem == null) {
+                // Queue exhausted — attempt auto-refill if a ruleset is configured
+                if (DBReader.hasQueueRuleset(1L)) {
+                    try {
+                        DBWriter.refillQueue(1L, false).get();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    } catch (java.util.concurrent.ExecutionException e) {
+                        Log.w(TAG, "Auto-refill failed: " + e.getMessage());
+                    }
+                    nextItem = DBReader.selectNextUnfinishedEpisode(DBReader.getQueue());
+                }
+            }
             if (nextItem != null && nextItem.getMedia() != null) {
                 return new Pair<>(nextItem.getMedia(), MediaItemAdapter.fromPlayable(Media3PlaybackService.this, nextItem.getMedia()));
             }
