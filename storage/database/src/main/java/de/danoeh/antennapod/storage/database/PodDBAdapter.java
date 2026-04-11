@@ -54,7 +54,8 @@ public class PodDBAdapter {
 
     private static final String TAG = "PodDBAdapter";
     public static final String DATABASE_NAME = "Antennapod.db";
-    public static final int VERSION = 3110000;
+    public static final int VERSION = 3120000;
+    static final int DB_VERSION_SMART_QUEUES = 3120000;
 
     /**
      * Maximum number of arguments for IN-operator.
@@ -137,6 +138,19 @@ public class PodDBAdapter {
     public static final String TABLE_NAME_QUEUE = "Queue";
     public static final String TABLE_NAME_SIMPLECHAPTERS = "SimpleChapters";
     public static final String TABLE_NAME_FAVORITES = "Favorites";
+    public static final String TABLE_NAME_QUEUE_RULESET = "QueueRuleset";
+    public static final String TABLE_NAME_REFILL_RULE = "RefillRule";
+
+    // Smart Queues key constants
+    public static final String KEY_QUEUE_ID = "queue_id";
+    public static final String KEY_RULESET_ID = "ruleset_id";
+    // KEY_POSITION = "position" already defined above
+    public static final String KEY_SELECTION_METHOD = "selection_method";
+    public static final String KEY_COUNT = "count";
+    public static final String KEY_SOURCE_TYPE = "source_type";
+    public static final String KEY_SOURCE_ID = "source_id";
+    public static final String KEY_CREATED_AT = "created_at";
+    public static final String KEY_UPDATED_AT = "updated_at";
 
     // SQL Statements for creating new tables
     private static final String TABLE_PRIMARY_KEY = KEY_ID
@@ -249,6 +263,38 @@ public class PodDBAdapter {
     static final String CREATE_TABLE_FAVORITES = "CREATE TABLE "
             + TABLE_NAME_FAVORITES + "(" + KEY_ID + " INTEGER PRIMARY KEY,"
             + KEY_FEEDITEM + " INTEGER," + KEY_FEED + " INTEGER)";
+
+    static final String CREATE_TABLE_QUEUE_RULESET = "CREATE TABLE " + TABLE_NAME_QUEUE_RULESET + "("
+            + KEY_ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
+            + KEY_QUEUE_ID + " INTEGER NOT NULL UNIQUE,"
+            + KEY_CREATED_AT + " INTEGER NOT NULL,"
+            + KEY_UPDATED_AT + " INTEGER NOT NULL)";
+
+    static final String CREATE_INDEX_QUEUE_RULESET_QUEUE_ID = "CREATE INDEX IF NOT EXISTS "
+            + "idx_queue_ruleset_queue_id ON " + TABLE_NAME_QUEUE_RULESET + "(" + KEY_QUEUE_ID + ")";
+
+    static final String CREATE_TABLE_REFILL_RULE = "CREATE TABLE " + TABLE_NAME_REFILL_RULE + "("
+            + KEY_ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
+            + KEY_RULESET_ID + " INTEGER NOT NULL,"
+            + KEY_POSITION + " INTEGER NOT NULL,"
+            + KEY_SELECTION_METHOD + " TEXT NOT NULL CHECK(" + KEY_SELECTION_METHOD
+            + " IN ('OLDEST','NEWEST','RANDOM')),"
+            + KEY_COUNT + " INTEGER NOT NULL CHECK(" + KEY_COUNT + " > 0),"
+            + KEY_SOURCE_TYPE + " TEXT NOT NULL CHECK(" + KEY_SOURCE_TYPE
+            + " IN ('FEED','TAG','INBOX')),"
+            + KEY_SOURCE_ID + " TEXT,"
+            + KEY_CREATED_AT + " INTEGER NOT NULL,"
+            + KEY_UPDATED_AT + " INTEGER NOT NULL,"
+            + "FOREIGN KEY(" + KEY_RULESET_ID + ") REFERENCES " + TABLE_NAME_QUEUE_RULESET
+            + "(" + KEY_ID + ") ON DELETE CASCADE,"
+            + "UNIQUE(" + KEY_RULESET_ID + "," + KEY_POSITION + "))";
+
+    static final String CREATE_INDEX_REFILL_RULE_RULESET_ID = "CREATE INDEX IF NOT EXISTS "
+            + "idx_refill_rule_ruleset_id ON " + TABLE_NAME_REFILL_RULE + "(" + KEY_RULESET_ID + ")";
+
+    static final String CREATE_INDEX_REFILL_RULE_RULESET_POSITION = "CREATE INDEX IF NOT EXISTS "
+            + "idx_refill_rule_ruleset_position ON " + TABLE_NAME_REFILL_RULE
+            + "(" + KEY_RULESET_ID + "," + KEY_POSITION + ")";
 
     /**
      * All the tables in the database
@@ -1542,6 +1588,8 @@ public class PodDBAdapter {
             db.execSQL(CREATE_TABLE_QUEUE);
             db.execSQL(CREATE_TABLE_SIMPLECHAPTERS);
             db.execSQL(CREATE_TABLE_FAVORITES);
+            db.execSQL(CREATE_TABLE_QUEUE_RULESET);
+            db.execSQL(CREATE_TABLE_REFILL_RULE);
 
             db.execSQL(CREATE_INDEX_FEEDITEMS_FEED);
             db.execSQL(CREATE_INDEX_FEEDITEMS_PUBDATE);
@@ -1549,6 +1597,9 @@ public class PodDBAdapter {
             db.execSQL(CREATE_INDEX_FEEDMEDIA_FEEDITEM);
             db.execSQL(CREATE_INDEX_QUEUE_FEEDITEM);
             db.execSQL(CREATE_INDEX_SIMPLECHAPTERS_FEEDITEM);
+            db.execSQL(CREATE_INDEX_QUEUE_RULESET_QUEUE_ID);
+            db.execSQL(CREATE_INDEX_REFILL_RULE_RULESET_ID);
+            db.execSQL(CREATE_INDEX_REFILL_RULE_RULESET_POSITION);
         }
 
         @Override

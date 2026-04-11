@@ -355,6 +355,36 @@ class DBUpgrader {
             db.execSQL("DELETE FROM " + PodDBAdapter.TABLE_NAME_FAVORITES + " WHERE " + PodDBAdapter.KEY_FEEDITEM
                     + " NOT IN (SELECT " + PodDBAdapter.KEY_ID + " FROM " + PodDBAdapter.TABLE_NAME_FEED_ITEMS + ")");
         }
+        if (oldVersion < PodDBAdapter.DB_VERSION_SMART_QUEUES) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS " + PodDBAdapter.TABLE_NAME_QUEUE_RULESET + "("
+                    + PodDBAdapter.KEY_ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    + PodDBAdapter.KEY_QUEUE_ID + " INTEGER NOT NULL UNIQUE,"
+                    + PodDBAdapter.KEY_CREATED_AT + " INTEGER NOT NULL,"
+                    + PodDBAdapter.KEY_UPDATED_AT + " INTEGER NOT NULL)");
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_queue_ruleset_queue_id ON "
+                    + PodDBAdapter.TABLE_NAME_QUEUE_RULESET + "(" + PodDBAdapter.KEY_QUEUE_ID + ")");
+            db.execSQL("CREATE TABLE IF NOT EXISTS " + PodDBAdapter.TABLE_NAME_REFILL_RULE + "("
+                    + PodDBAdapter.KEY_ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    + PodDBAdapter.KEY_RULESET_ID + " INTEGER NOT NULL,"
+                    + PodDBAdapter.KEY_POSITION + " INTEGER NOT NULL,"
+                    + PodDBAdapter.KEY_SELECTION_METHOD + " TEXT NOT NULL CHECK("
+                    + PodDBAdapter.KEY_SELECTION_METHOD + " IN ('OLDEST','NEWEST','RANDOM')),"
+                    + PodDBAdapter.KEY_COUNT + " INTEGER NOT NULL CHECK(" + PodDBAdapter.KEY_COUNT + " > 0),"
+                    + PodDBAdapter.KEY_SOURCE_TYPE + " TEXT NOT NULL CHECK("
+                    + PodDBAdapter.KEY_SOURCE_TYPE + " IN ('FEED','TAG','INBOX')),"
+                    + PodDBAdapter.KEY_SOURCE_ID + " TEXT,"
+                    + PodDBAdapter.KEY_CREATED_AT + " INTEGER NOT NULL,"
+                    + PodDBAdapter.KEY_UPDATED_AT + " INTEGER NOT NULL,"
+                    + "FOREIGN KEY(" + PodDBAdapter.KEY_RULESET_ID + ") REFERENCES "
+                    + PodDBAdapter.TABLE_NAME_QUEUE_RULESET + "(" + PodDBAdapter.KEY_ID
+                    + ") ON DELETE CASCADE,"
+                    + "UNIQUE(" + PodDBAdapter.KEY_RULESET_ID + "," + PodDBAdapter.KEY_POSITION + "))");
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_refill_rule_ruleset_id ON "
+                    + PodDBAdapter.TABLE_NAME_REFILL_RULE + "(" + PodDBAdapter.KEY_RULESET_ID + ")");
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_refill_rule_ruleset_position ON "
+                    + PodDBAdapter.TABLE_NAME_REFILL_RULE + "("
+                    + PodDBAdapter.KEY_RULESET_ID + "," + PodDBAdapter.KEY_POSITION + ")");
+        }
     }
 
 }
