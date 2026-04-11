@@ -18,7 +18,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.model.feed.Feed;
@@ -203,29 +202,24 @@ class AddEditRuleDialog {
                 method = RefillRule.SelectionMethod.OLDEST;
             }
 
-            ExecutorService exec = DBWriter.getDbExecutor();
             final int finalCount = count;
             final String finalSourceId = sourceId;
             if (existingRule == null) {
-                exec.execute(() -> {
-                    try {
-                        DBWriter.createRefillRule(rulesetId, insertPosition, method,
-                                finalCount, sourceType, finalSourceId).get();
-                        listener.onRuleChanged();
-                    } catch (InterruptedException | java.util.concurrent.ExecutionException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                });
+                io.reactivex.rxjava3.core.Observable.fromCallable(() -> {
+                    DBWriter.createRefillRule(rulesetId, insertPosition, method,
+                            finalCount, sourceType, finalSourceId).get();
+                    return true;
+                })
+                        .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
+                        .subscribe(ignored -> listener.onRuleChanged(), throwable -> { });
             } else {
-                exec.execute(() -> {
-                    try {
-                        DBWriter.updateRefillRule(existingRule.getId(),
-                                method, finalCount, sourceType, finalSourceId).get();
-                        listener.onRuleChanged();
-                    } catch (InterruptedException | java.util.concurrent.ExecutionException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                });
+                io.reactivex.rxjava3.core.Observable.fromCallable(() -> {
+                    DBWriter.updateRefillRule(existingRule.getId(),
+                            method, finalCount, sourceType, finalSourceId).get();
+                    return true;
+                })
+                        .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
+                        .subscribe(ignored -> listener.onRuleChanged(), throwable -> { });
             }
             dialog.dismiss();
         });

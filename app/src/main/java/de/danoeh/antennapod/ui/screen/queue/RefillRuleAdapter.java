@@ -200,20 +200,18 @@ class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.RuleViewH
 
             View rootView = viewHolder.itemView.getRootView();
             Snackbar.make(rootView, R.string.rule_deleted, Snackbar.LENGTH_LONG)
-                    .setAction(R.string.undo, v -> {
-                        DBWriter.getDbExecutor().execute(() -> {
-                            try {
+                    .setAction(R.string.undo, v ->
+                            io.reactivex.rxjava3.core.Observable.fromCallable(() -> {
                                 DBWriter.createRefillRule(rulesetId, deletedPosition,
                                         deleted.getSelectionMethod(),
                                         deleted.getCount(),
                                         deleted.getSourceType(),
                                         deleted.getSourceId()).get();
-                                // Reload will be triggered by the fragment's ViewModel observer
-                            } catch (InterruptedException | java.util.concurrent.ExecutionException e) {
-                                Thread.currentThread().interrupt();
-                            }
-                        });
-                    })
+                                return true;
+                            })
+                                    .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
+                                    .subscribe(ignored -> { }, throwable -> { })
+                    )
                     .show();
         }
 

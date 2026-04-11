@@ -13,7 +13,6 @@ import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 
 import de.danoeh.antennapod.event.QueueEvent;
 import de.danoeh.antennapod.model.feed.RefillRule;
@@ -97,17 +96,17 @@ public class QueueRulesetViewModel extends AndroidViewModel {
      * Runs off main thread; callback is delivered on the DB executor thread.
      */
     public void ensureRulesetAndRun(Runnable callback) {
-        ExecutorService exec = DBWriter.getDbExecutor();
-        exec.execute(() -> {
-            try {
-                long rsId = DBWriter.createQueueRuleset(queueId).get();
-                rulesetId = rsId;
-                callback.run();
-                loadRules();
-            } catch (InterruptedException | java.util.concurrent.ExecutionException e) {
-                Thread.currentThread().interrupt();
-            }
-        });
+        disposables.add(
+                Observable.fromCallable(() -> {
+                    long rsId = DBWriter.createQueueRuleset(queueId).get();
+                    rulesetId = rsId;
+                    callback.run();
+                    return rsId;
+                })
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(ignored -> loadRules(), throwable -> { })
+        );
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
