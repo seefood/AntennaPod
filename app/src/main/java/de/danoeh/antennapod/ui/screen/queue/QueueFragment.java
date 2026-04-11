@@ -387,10 +387,11 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
     private void submitRefill(boolean clearFirst) {
         refillInProgress = true;
         refreshToolbarState();
-        DBWriter.getDbExecutor().execute(() -> {
-            try {
-                RefillResult result = DBWriter.refillQueue(QUEUE_ID, clearFirst).get();
-                new Handler(Looper.getMainLooper()).post(() -> {
+        // Submit refillQueue directly to dbExec (it returns a Future); wait on a separate IO thread.
+        Observable.fromCallable(() -> DBWriter.refillQueue(QUEUE_ID, clearFirst).get())
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(result -> {
                     refillInProgress = false;
                     refreshToolbarState();
                     if (!result.isSuccess()) {
@@ -407,9 +408,7 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
                         // List reload triggered by REFILLED QueueEvent subscription below
                         startPlaybackAfterRefill(result, clearFirst);
                     }
-                });
-            } catch (Exception e) {
-                new Handler(Looper.getMainLooper()).post(() -> {
+                }, error -> {
                     refillInProgress = false;
                     refreshToolbarState();
                     View view = getView();
@@ -417,8 +416,6 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
                         Snackbar.make(view, R.string.refill_failed, Snackbar.LENGTH_SHORT).show();
                     }
                 });
-            }
-        });
     }
 
     private void startPlaybackAfterRefill(RefillResult result, boolean clearFirst) {
