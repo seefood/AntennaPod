@@ -29,4 +29,21 @@
         android:title="@string/clear_queue_label"
         custom:showAsAction="collapseActionView"
         android:icon="@drawable/ic_check"/>
+
+    <item
+        android:id="@+id/queue_edit_rules"
+        android:title="@string/queue_edit_rules"
+        custom:showAsAction="never" />
+
+    <item
+        android:id="@+id/queue_refill_append"
+        android:title="@string/queue_refill_append"
+        custom:showAsAction="never"
+        android:visible="false" />
+
+    <item
+        android:id="@+id/queue_refill_clear"
+        android:title="@string/queue_refill_clear"
+        custom:showAsAction="never"
+        android:visible="false" />
 </menu>

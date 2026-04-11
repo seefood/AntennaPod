@@ -4,6 +4,8 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.ContextMenu;
 import android.view.KeyEvent;
@@ -41,9 +43,12 @@ import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
+import com.google.android.material.snackbar.Snackbar;
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.activity.MainActivity;
+import de.danoeh.antennapod.model.RefillResult;
 import de.danoeh.antennapod.ui.episodeslist.EpisodeItemListAdapter;
 import de.danoeh.antennapod.ui.common.ConfirmationDialog;
 import de.danoeh.antennapod.ui.MenuItemUtils;
@@ -96,10 +101,13 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
 
     private static final String PREFS = "QueueFragment";
     private static final String PREF_SHOW_LOCK_WARNING = "show_lock_warning";
+    private static final long QUEUE_ID = 1L;
 
     private Disposable disposable;
     private SwipeActions swipeActions;
     private SharedPreferences prefs;
+    private boolean hasRuleset = false;
+    private boolean refillInProgress = false;
 
     private FloatingSelectMenu floatingSelectMenu;
     private ProgressBar progressBar;
@@ -115,6 +123,7 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
         super.onStart();
         loadItems();
         EventBus.getDefault().register(this);
+        checkRulesetExists();
     }
 
     @Override
@@ -169,6 +178,23 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
                 queue.add(event.position, queue.remove(position));
                 recyclerAdapter.notifyItemMoved(position, event.position);
                 break;
+            case REFILLED:
+                if (event.getQueueId() == QUEUE_ID) {
+                    refillInProgress = false;
+                    loadItems();
+                    refreshToolbarState();
+                }
+                return;
+            case OPERATION_FAILED:
+                if (event.getQueueId() == QUEUE_ID) {
+                    refillInProgress = false;
+                    refreshToolbarState();
+                    View view = getView();
+                    if (view != null && event.errorMessage != null) {
+                        Snackbar.make(view, event.errorMessage, Snackbar.LENGTH_SHORT).show();
+                    }
+                }
+                return;
             default:
                 return;
         }
@@ -272,6 +298,32 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
         boolean keepSorted = UserPreferences.isQueueKeepSorted();
         toolbar.getMenu().findItem(R.id.queue_lock).setChecked(UserPreferences.isQueueLocked());
         toolbar.getMenu().findItem(R.id.queue_lock).setVisible(!keepSorted);
+        MenuItem editRulesItem = toolbar.getMenu().findItem(R.id.queue_edit_rules);
+        MenuItem refillAppendItem = toolbar.getMenu().findItem(R.id.queue_refill_append);
+        MenuItem refillClearItem = toolbar.getMenu().findItem(R.id.queue_refill_clear);
+        if (editRulesItem != null) {
+            editRulesItem.setVisible(hasRuleset);
+            editRulesItem.setEnabled(!refillInProgress);
+        }
+        if (refillAppendItem != null) {
+            refillAppendItem.setVisible(hasRuleset);
+            refillAppendItem.setEnabled(!refillInProgress);
+        }
+        if (refillClearItem != null) {
+            refillClearItem.setVisible(hasRuleset);
+            refillClearItem.setEnabled(!refillInProgress);
+        }
+    }
+
+    private void checkRulesetExists() {
+        ExecutorService exec = DBWriter.getDbExecutor();
+        exec.execute(() -> {
+            boolean exists = DBReader.hasQueueRuleset(QUEUE_ID);
+            new Handler(Looper.getMainLooper()).post(() -> {
+                hasRuleset = exists;
+                refreshToolbarState();
+            });
+        });
     }
 
     @Subscribe(sticky = true, threadMode = ThreadMode.MAIN)
@@ -314,8 +366,81 @@ public class QueueFragment extends Fragment implements MaterialToolbar.OnMenuIte
         } else if (itemId == R.id.action_search) {
             ((MainActivity) getActivity()).loadChildFragment(SearchFragment.newInstance());
             return true;
+        } else if (itemId == R.id.queue_edit_rules) {
+            ((MainActivity) getActivity()).loadChildFragment(new QueueRulesetEditFragment());
+            return true;
+        } else if (itemId == R.id.queue_refill_append) {
+            submitRefill(false);
+            return true;
+        } else if (itemId == R.id.queue_refill_clear) {
+            new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(R.string.refill_confirm_clear_title)
+                    .setMessage(R.string.refill_confirm_clear_message)
+                    .setPositiveButton(R.string.confirm_label, (d, which) -> submitRefill(true))
+                    .setNegativeButton(R.string.cancel_label, null)
+                    .show();
+            return true;
         }
         return false;
+    }
+
+    private void submitRefill(boolean clearFirst) {
+        refillInProgress = true;
+        refreshToolbarState();
+        DBWriter.getDbExecutor().execute(() -> {
+            try {
+                RefillResult result = DBWriter.refillQueue(QUEUE_ID, clearFirst).get();
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    refillInProgress = false;
+                    refreshToolbarState();
+                    if (!result.isSuccess()) {
+                        View view = getView();
+                        if (view != null) {
+                            Snackbar.make(view, R.string.refill_failed, Snackbar.LENGTH_SHORT).show();
+                        }
+                    } else if (result.getEpisodesAdded() == 0) {
+                        View view = getView();
+                        if (view != null) {
+                            Snackbar.make(view, R.string.refill_no_episodes_found, Snackbar.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        // List reload triggered by REFILLED QueueEvent subscription below
+                        startPlaybackAfterRefill(result, clearFirst);
+                    }
+                });
+            } catch (Exception e) {
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    refillInProgress = false;
+                    refreshToolbarState();
+                    View view = getView();
+                    if (view != null) {
+                        Snackbar.make(view, R.string.refill_failed, Snackbar.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+    }
+
+    private void startPlaybackAfterRefill(RefillResult result, boolean clearFirst) {
+        if (result.getEpisodesAdded() <= 0) {
+            return;
+        }
+        if (!clearFirst && !result.wasQueueEmpty()) {
+            // Append to non-empty queue: do not modify current playback
+            return;
+        }
+        Observable.fromCallable(DBReader::getQueue)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(currentQueue -> {
+                    if (currentQueue.isEmpty() || currentQueue.get(0).getMedia() == null) {
+                        return;
+                    }
+                    new de.danoeh.antennapod.playback.service.PlaybackServiceStarter(
+                            requireContext(), currentQueue.get(0).getMedia())
+                            .callEvenIfRunning(clearFirst)
+                            .start();
+                }, error -> Log.e(TAG, Log.getStackTraceString(error)));
     }
 
     private void toggleQueueLock() {

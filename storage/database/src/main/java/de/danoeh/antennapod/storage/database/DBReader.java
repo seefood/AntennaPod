@@ -945,9 +945,9 @@ public final class DBReader {
         if (sortOrder == SortOrder.RANDOM) {
             Collections.shuffle(merged);
         } else if (sortOrder == SortOrder.DATE_NEW_OLD) {
-            merged.sort((a, b) -> b.getPubDate().compareTo(a.getPubDate()));
+            Collections.sort(merged, (a, b) -> b.getPubDate().compareTo(a.getPubDate()));
         } else {
-            merged.sort(Comparator.comparing(FeedItem::getPubDate));
+            Collections.sort(merged, (a, b) -> a.getPubDate().compareTo(b.getPubDate()));
         }
         return applyStageExclusion(merged, stagedIds, rule.getCount());
     }

@@ -1032,4 +1032,25 @@
 
     <string name="echo_share_heading">My favorite podcasts</string>
     <string name="echo_share">My year %d in podcasts. #AntennaPodEcho</string>
+
+    <!-- Smart Queues: rule editor (T026) -->
+    <string name="queue_edit_rules">Edit Rules</string>
+    <string name="add_rule">Add Rule</string>
+    <string name="add_rule_at_top">Add Rule at Top</string>
+    <string name="rule_editor_disabled_during_refill">Cannot edit rules while refill is in progress</string>
+    <string name="rule_limit_reached">Rule limit reached (20 max)</string>
+    <string name="source_feed">Feed</string>
+    <string name="source_tag">Tag</string>
+    <string name="source_inbox">Inbox</string>
+    <string name="selection_oldest">Oldest first</string>
+    <string name="selection_newest">Newest first</string>
+    <string name="selection_random">Random</string>
+    <string name="rule_deleted">Rule deleted</string>
+    <!-- Smart Queues: manual refill (T037) -->
+    <string name="queue_refill_append">Refill Queue</string>
+    <string name="queue_refill_clear">Clear and Refill</string>
+    <string name="refill_confirm_clear_title">Clear and Refill?</string>
+    <string name="refill_confirm_clear_message">All episodes currently in the queue will be removed. Continue?</string>
+    <string name="refill_no_episodes_found">No new episodes found matching the rules</string>
+    <string name="refill_failed">Queue refill failed</string>
 </resources>
