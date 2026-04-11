@@ -30,3 +30,7 @@ gradle.properties
 .vscode
 .cursor
 *.hprof
+specs/
+.specify/
+CLAUDE.md
+android-xml-formatter.jar
