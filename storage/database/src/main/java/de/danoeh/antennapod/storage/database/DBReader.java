@@ -13,6 +13,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import de.danoeh.antennapod.model.feed.Chapter;
 import de.danoeh.antennapod.model.feed.Feed;
@@ -870,6 +871,141 @@ public final class DBReader {
         } finally {
             adapter.close();
         }
+    }
+
+    /**
+     * Returns up to {@code rule.getCount()} unplayed/unqueued episodes matching the given rule,
+     * excluding any episode IDs in {@code stagedIds} (already staged by prior rules in the same
+     * refill pass). Partial fulfillment is allowed: if fewer episodes are available than requested,
+     * all available are returned.
+     *
+     * <p>Source semantics:
+     * <ul>
+     *   <li>FEED: unplayed, not-queued episodes from the specified feed</li>
+     *   <li>TAG:  unplayed, not-queued episodes from all feeds with the specified tag</li>
+     *   <li>INBOX: NEW (inbox), not-queued episodes across all feeds</li>
+     * </ul>
+     */
+    @NonNull
+    public static List<FeedItem> getEpisodesForRule(@NonNull RefillRule rule,
+                                                    @NonNull Set<Long> stagedIds) {
+        SortOrder sortOrder = selectionMethodToSortOrder(rule.getSelectionMethod());
+        FeedItemFilter baseFilter = new FeedItemFilter(FeedItemFilter.NOT_QUEUED);
+
+        List<FeedItem> candidates;
+        switch (rule.getSourceType()) {
+            case FEED:
+                candidates = getEpisodesForFeedRule(rule, sortOrder, stagedIds);
+                break;
+            case TAG:
+                candidates = getEpisodesForTagRule(rule, sortOrder, baseFilter, stagedIds);
+                break;
+            case INBOX:
+            default:
+                candidates = getEpisodesForInboxRule(rule, sortOrder, stagedIds);
+                break;
+        }
+        return candidates;
+    }
+
+    private static List<FeedItem> getEpisodesForFeedRule(RefillRule rule, SortOrder sortOrder,
+                                                         Set<Long> stagedIds) {
+        long feedId;
+        try {
+            feedId = Long.parseLong(rule.getSourceId());
+        } catch (NumberFormatException e) {
+            return Collections.emptyList();
+        }
+        Feed feed = getFeed(feedId, false, 0, 0);
+        if (feed == null) {
+            return Collections.emptyList();
+        }
+        FeedItemFilter filter = new FeedItemFilter(FeedItemFilter.UNPLAYED, FeedItemFilter.NOT_QUEUED);
+        int fetchLimit = rule.getCount() + stagedIds.size();
+        List<FeedItem> items = getFeedItemList(feed, filter, sortOrder, 0, fetchLimit);
+        return applyStageExclusion(items, stagedIds, rule.getCount());
+    }
+
+    private static List<FeedItem> getEpisodesForTagRule(RefillRule rule, SortOrder sortOrder,
+                                                        FeedItemFilter baseFilter,
+                                                        Set<Long> stagedIds) {
+        List<Feed> allFeeds = getFeedList();
+        FeedItemFilter filter = new FeedItemFilter(FeedItemFilter.UNPLAYED, FeedItemFilter.NOT_QUEUED);
+        List<FeedItem> merged = new ArrayList<>();
+        for (Feed feed : allFeeds) {
+            if (feed.getPreferences() != null
+                    && feed.getPreferences().getTags().contains(rule.getSourceId())) {
+                // fetch generously; final trim applied after merge+sort
+                List<FeedItem> feedItems = getFeedItemList(feed, filter, sortOrder,
+                        0, rule.getCount() + stagedIds.size());
+                merged.addAll(feedItems);
+            }
+        }
+        // Sort merged list: DATE_OLD_NEW / DATE_NEW_OLD; shuffle for RANDOM
+        if (sortOrder == SortOrder.RANDOM) {
+            Collections.shuffle(merged);
+        } else if (sortOrder == SortOrder.DATE_NEW_OLD) {
+            merged.sort((a, b) -> b.getPubDate().compareTo(a.getPubDate()));
+        } else {
+            merged.sort(Comparator.comparing(FeedItem::getPubDate));
+        }
+        return applyStageExclusion(merged, stagedIds, rule.getCount());
+    }
+
+    private static List<FeedItem> getEpisodesForInboxRule(RefillRule rule, SortOrder sortOrder,
+                                                          Set<Long> stagedIds) {
+        FeedItemFilter filter = new FeedItemFilter(FeedItemFilter.NEW, FeedItemFilter.NOT_QUEUED);
+        int fetchLimit = rule.getCount() + stagedIds.size();
+        List<FeedItem> items = getEpisodes(0, fetchLimit, filter, sortOrder);
+        return applyStageExclusion(items, stagedIds, rule.getCount());
+    }
+
+    private static List<FeedItem> applyStageExclusion(List<FeedItem> items, Set<Long> stagedIds,
+                                                       int maxCount) {
+        if (stagedIds.isEmpty()) {
+            return items.size() > maxCount ? items.subList(0, maxCount) : items;
+        }
+        List<FeedItem> filtered = new ArrayList<>(Math.min(items.size(), maxCount));
+        for (FeedItem item : items) {
+            if (!stagedIds.contains(item.getId())) {
+                filtered.add(item);
+                if (filtered.size() >= maxCount) {
+                    break;
+                }
+            }
+        }
+        return filtered;
+    }
+
+    private static SortOrder selectionMethodToSortOrder(RefillRule.SelectionMethod method) {
+        switch (method) {
+            case OLDEST:
+                return SortOrder.DATE_OLD_NEW;
+            case NEWEST:
+                return SortOrder.DATE_NEW_OLD;
+            case RANDOM:
+            default:
+                return SortOrder.RANDOM;
+        }
+    }
+
+    /**
+     * Returns the first episode in {@code queue} where media position is less than duration
+     * (i.e., not fully played). Falls back to the first item if all are played.
+     * Returns null if the list is empty.
+     */
+    @Nullable
+    public static FeedItem selectNextUnfinishedEpisode(@NonNull List<FeedItem> queue) {
+        if (queue.isEmpty()) {
+            return null;
+        }
+        for (FeedItem item : queue) {
+            FeedMedia media = item.getMedia();
+            if (media != null && media.getPosition() < media.getDuration()) {
+                return item;
+            }
+        }
+        return queue.get(0);
     }
 
     private static List<RefillRule> refillRulesFromCursor(Cursor c) {
