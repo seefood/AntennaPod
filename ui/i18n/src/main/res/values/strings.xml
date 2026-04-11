@@ -1042,8 +1042,8 @@
     <string name="source_feed">Feed</string>
     <string name="source_tag">Tag</string>
     <string name="source_inbox">Inbox</string>
-    <string name="selection_oldest">Oldest first</string>
-    <string name="selection_newest">Newest first</string>
+    <string name="selection_oldest">Oldest</string>
+    <string name="selection_newest">Newest</string>
     <string name="selection_random">Random</string>
     <string name="rule_deleted">Rule deleted</string>
     <!-- Smart Queues: manual refill (T037) -->

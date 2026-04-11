@@ -32,8 +32,18 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
  */
 public class QueueRulesetViewModel extends AndroidViewModel {
 
-    private final MutableLiveData<List<RefillRule>> rules = new MutableLiveData<>(Collections.emptyList());
-    private final MutableLiveData<Map<Long, String>> feedTitles = new MutableLiveData<>(Collections.emptyMap());
+    static class RulesData {
+        final List<RefillRule> rules;
+        final Map<Long, String> feedTitles;
+
+        RulesData(List<RefillRule> rules, Map<Long, String> feedTitles) {
+            this.rules = rules;
+            this.feedTitles = feedTitles;
+        }
+    }
+
+    private final MutableLiveData<RulesData> rulesData =
+            new MutableLiveData<>(new RulesData(Collections.emptyList(), Collections.emptyMap()));
     private final MutableLiveData<Boolean> isRefillInProgress = new MutableLiveData<>(false);
     private final CompositeDisposable disposables = new CompositeDisposable();
     private long queueId;
@@ -59,14 +69,9 @@ public class QueueRulesetViewModel extends AndroidViewModel {
         loadRules();
     }
 
-    /** LiveData emitting the current ordered list of rules. */
-    public LiveData<List<RefillRule>> getRules() {
-        return rules;
-    }
-
-    /** LiveData emitting a feedId → title map for display in the rules list. */
-    public LiveData<Map<Long, String>> getFeedTitles() {
-        return feedTitles;
+    /** LiveData emitting rules and the feedId→title map together as a single update. */
+    public LiveData<RulesData> getRulesData() {
+        return rulesData;
     }
 
     /** LiveData emitting true while a refill operation is in-flight. */
@@ -105,13 +110,13 @@ public class QueueRulesetViewModel extends AndroidViewModel {
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(result -> {
                             //noinspection unchecked
-                            rules.setValue((List<RefillRule>) result[0]);
-                            //noinspection unchecked
-                            feedTitles.setValue((Map<Long, String>) result[1]);
-                        }, throwable -> {
-                            rules.setValue(Collections.emptyList());
-                            feedTitles.setValue(Collections.emptyMap());
-                        })
+                            rulesData.setValue(new RulesData(
+                                    (List<RefillRule>) result[0],
+                                    (Map<Long, String>) result[1]));
+                        }, throwable ->
+                            rulesData.setValue(new RulesData(
+                                    Collections.emptyList(), Collections.emptyMap()))
+                        )
         );
     }
 

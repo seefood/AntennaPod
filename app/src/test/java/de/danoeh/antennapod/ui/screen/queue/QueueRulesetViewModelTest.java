@@ -70,9 +70,9 @@ public class QueueRulesetViewModelTest {
         AtomicReference<List<RefillRule>> emittedRules = new AtomicReference<>();
 
         // Observe on main thread (Robolectric)
-        viewModel.getRules().observeForever(rules -> {
-            if (rules != null && !rules.isEmpty()) {
-                emittedRules.set(rules);
+        viewModel.getRulesData().observeForever(data -> {
+            if (data != null && !data.rules.isEmpty()) {
+                emittedRules.set(data.rules);
                 latch.countDown();
             }
         });
@@ -88,8 +88,9 @@ public class QueueRulesetViewModelTest {
         latch.await(5, TimeUnit.SECONDS);
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
 
-        List<RefillRule> rules = viewModel.getRules().getValue();
-        assertNotNull("rules LiveData must emit a non-null value", rules);
+        QueueRulesetViewModel.RulesData data = viewModel.getRulesData().getValue();
+        assertNotNull("rulesData LiveData must emit a non-null value", data);
+        List<RefillRule> rules = data.rules;
         assertEquals("One rule should be in the list", 1, rules.size());
         assertEquals("Rule selection method must match", RefillRule.SelectionMethod.OLDEST,
                 rules.get(0).getSelectionMethod());
@@ -139,8 +140,8 @@ public class QueueRulesetViewModelTest {
         CountDownLatch latch = new CountDownLatch(1);
 
         // Filter out the initial empty emission; wait for the DB-loaded non-empty result.
-        viewModel.getRules().observeForever(rules -> {
-            if (rules != null && !rules.isEmpty()) {
+        viewModel.getRulesData().observeForever(data -> {
+            if (data != null && !data.rules.isEmpty()) {
                 observedOnMain.set(Looper.myLooper() == Looper.getMainLooper());
                 latch.countDown();
             }

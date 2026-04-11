@@ -17,8 +17,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.snackbar.Snackbar;
 
-import java.util.List;
-
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.model.feed.RefillRule;
 
@@ -78,8 +76,7 @@ public class QueueRulesetEditFragment extends Fragment
         recyclerView.setAdapter(adapter);
         adapter.attachToRecyclerView(recyclerView);
 
-        viewModel.getRules().observe(getViewLifecycleOwner(), this::onRulesUpdated);
-        viewModel.getFeedTitles().observe(getViewLifecycleOwner(), adapter::setFeedTitles);
+        viewModel.getRulesData().observe(getViewLifecycleOwner(), this::onRulesUpdated);
         viewModel.getIsRefillInProgress().observe(getViewLifecycleOwner(), inProgress -> {
             refreshMenuState(inProgress != null && inProgress);
         });
@@ -88,16 +85,16 @@ public class QueueRulesetEditFragment extends Fragment
         viewModel.ensureRulesetAndRun(() -> { });
     }
 
-    private void onRulesUpdated(List<RefillRule> rules) {
-        if (rules == null || rules.isEmpty()) {
+    private void onRulesUpdated(QueueRulesetViewModel.RulesData data) {
+        if (data == null || data.rules.isEmpty()) {
             emptyView.setVisibility(View.VISIBLE);
             recyclerView.setVisibility(View.GONE);
         } else {
             emptyView.setVisibility(View.GONE);
             recyclerView.setVisibility(View.VISIBLE);
         }
-        if (rules != null) {
-            adapter.submitList(rules);
+        if (data != null) {
+            adapter.submitList(data.rules, data.feedTitles);
         }
         refreshMenuState(Boolean.TRUE.equals(viewModel.getIsRefillInProgress().getValue()));
     }

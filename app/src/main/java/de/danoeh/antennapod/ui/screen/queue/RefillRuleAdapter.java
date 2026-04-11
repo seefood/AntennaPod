@@ -14,7 +14,6 @@ import com.google.android.material.snackbar.Snackbar;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,7 +31,7 @@ class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.RuleViewH
     }
 
     private final List<RefillRule> rules = new ArrayList<>();
-    private Map<Long, String> feedTitles = new HashMap<>();
+    private Map<Long, String> feedTitles = Collections.emptyMap();
     private final long rulesetId;
     private final OnEditRequestedListener editListener;
     private ItemTouchHelper touchHelper;
@@ -49,14 +48,10 @@ class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.RuleViewH
         touchHelper.attachToRecyclerView(rv);
     }
 
-    void setFeedTitles(@NonNull Map<Long, String> titles) {
-        feedTitles = titles;
-        notifyDataSetChanged();
-    }
-
-    void submitList(@NonNull List<RefillRule> newRules) {
+    void submitList(@NonNull List<RefillRule> newRules, @NonNull Map<Long, String> titles) {
         rules.clear();
         rules.addAll(newRules);
+        feedTitles = titles;
         notifyDataSetChanged();
     }
 
