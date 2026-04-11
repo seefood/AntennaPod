@@ -22,6 +22,8 @@ import de.danoeh.antennapod.model.feed.FeedItemFilter;
 import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.model.feed.FeedOrder;
 import de.danoeh.antennapod.model.feed.FeedPreferences;
+import de.danoeh.antennapod.model.feed.QueueRuleset;
+import de.danoeh.antennapod.model.feed.RefillRule;
 import de.danoeh.antennapod.model.feed.SortOrder;
 import de.danoeh.antennapod.model.feed.SubscriptionsFilter;
 import de.danoeh.antennapod.model.download.DownloadResult;
@@ -810,5 +812,90 @@ public final class DBReader {
         } finally {
             adapter.close();
         }
+    }
+
+    // ---- Smart Queues ----
+
+    /**
+     * Returns the {@link QueueRuleset} for the given queueId, or null if none exists.
+     */
+    @Nullable
+    public static QueueRuleset getQueueRuleset(long queueId) {
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try (Cursor c = adapter.queryQueueRulesetByQueueId(queueId)) {
+            if (!c.moveToFirst()) {
+                return null;
+            }
+            long id = c.getLong(c.getColumnIndexOrThrow(PodDBAdapter.KEY_ID));
+            long createdAt = c.getLong(c.getColumnIndexOrThrow(PodDBAdapter.KEY_CREATED_AT));
+            long updatedAt = c.getLong(c.getColumnIndexOrThrow(PodDBAdapter.KEY_UPDATED_AT));
+            return new QueueRuleset(id, queueId, createdAt, updatedAt);
+        } finally {
+            adapter.close();
+        }
+    }
+
+    /**
+     * Returns true if a ruleset exists for the given queueId.
+     */
+    public static boolean hasQueueRuleset(long queueId) {
+        return getQueueRuleset(queueId) != null;
+    }
+
+    /**
+     * Returns all {@link RefillRule}s for the given rulesetId, ordered by position ASC.
+     */
+    @NonNull
+    public static List<RefillRule> getRefillRules(long rulesetId) {
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try (Cursor c = adapter.queryRefillRulesByRulesetId(rulesetId)) {
+            return refillRulesFromCursor(c);
+        } finally {
+            adapter.close();
+        }
+    }
+
+    /**
+     * Returns the {@link RefillRule} with the given id, or null if not found.
+     */
+    @Nullable
+    public static RefillRule getRefillRule(long ruleId) {
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try (Cursor c = adapter.queryRefillRuleById(ruleId)) {
+            List<RefillRule> rules = refillRulesFromCursor(c);
+            return rules.isEmpty() ? null : rules.get(0);
+        } finally {
+            adapter.close();
+        }
+    }
+
+    private static List<RefillRule> refillRulesFromCursor(Cursor c) {
+        List<RefillRule> rules = new ArrayList<>();
+        int idxId = c.getColumnIndexOrThrow(PodDBAdapter.KEY_ID);
+        int idxRulesetId = c.getColumnIndexOrThrow(PodDBAdapter.KEY_RULESET_ID);
+        int idxPosition = c.getColumnIndexOrThrow(PodDBAdapter.KEY_POSITION);
+        int idxSelectionMethod = c.getColumnIndexOrThrow(PodDBAdapter.KEY_SELECTION_METHOD);
+        int idxCount = c.getColumnIndexOrThrow(PodDBAdapter.KEY_COUNT);
+        int idxSourceType = c.getColumnIndexOrThrow(PodDBAdapter.KEY_SOURCE_TYPE);
+        int idxSourceId = c.getColumnIndexOrThrow(PodDBAdapter.KEY_SOURCE_ID);
+        int idxCreatedAt = c.getColumnIndexOrThrow(PodDBAdapter.KEY_CREATED_AT);
+        int idxUpdatedAt = c.getColumnIndexOrThrow(PodDBAdapter.KEY_UPDATED_AT);
+        while (c.moveToNext()) {
+            rules.add(new RefillRule(
+                    c.getLong(idxId),
+                    c.getLong(idxRulesetId),
+                    c.getInt(idxPosition),
+                    RefillRule.SelectionMethod.valueOf(c.getString(idxSelectionMethod)),
+                    c.getInt(idxCount),
+                    RefillRule.SourceType.valueOf(c.getString(idxSourceType)),
+                    c.isNull(idxSourceId) ? null : c.getString(idxSourceId),
+                    c.getLong(idxCreatedAt),
+                    c.getLong(idxUpdatedAt)
+            ));
+        }
+        return rules;
     }
 }

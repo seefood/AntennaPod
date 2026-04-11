@@ -306,7 +306,9 @@ public class PodDBAdapter {
             TABLE_NAME_DOWNLOAD_LOG,
             TABLE_NAME_QUEUE,
             TABLE_NAME_SIMPLECHAPTERS,
-            TABLE_NAME_FAVORITES
+            TABLE_NAME_FAVORITES,
+            TABLE_NAME_REFILL_RULE,
+            TABLE_NAME_QUEUE_RULESET
     };
 
     public static final String SELECT_KEY_ITEM_ID = "item_id";
@@ -1531,6 +1533,172 @@ public class PodDBAdapter {
         sb.append(" ORDER BY " + KEY_TITLE + " ASC LIMIT 300");
 
         return db.rawQuery(sb.toString(), null);
+    }
+
+    // ---- Smart Queues: QueueRuleset CRUD ----
+
+    /**
+     * Inserts a new QueueRuleset row. Returns the new row id, or -1 on error.
+     */
+    long insertQueueRuleset(long queueId, long now) {
+        ContentValues values = new ContentValues();
+        values.put(KEY_QUEUE_ID, queueId);
+        values.put(KEY_CREATED_AT, now);
+        values.put(KEY_UPDATED_AT, now);
+        return db.insertWithOnConflict(TABLE_NAME_QUEUE_RULESET, null, values,
+                SQLiteDatabase.CONFLICT_IGNORE);
+    }
+
+    /**
+     * Returns a Cursor over the QueueRuleset row for the given queueId, or an empty cursor.
+     */
+    Cursor queryQueueRulesetByQueueId(long queueId) {
+        return db.query(TABLE_NAME_QUEUE_RULESET, null,
+                KEY_QUEUE_ID + "=?", new String[]{String.valueOf(queueId)},
+                null, null, null);
+    }
+
+    /**
+     * Updates the updated_at timestamp for the given ruleset id.
+     */
+    void updateQueueRulesetUpdatedAt(long rulesetId, long now) {
+        ContentValues values = new ContentValues();
+        values.put(KEY_UPDATED_AT, now);
+        db.update(TABLE_NAME_QUEUE_RULESET, values,
+                KEY_ID + "=?", new String[]{String.valueOf(rulesetId)});
+    }
+
+    /**
+     * Deletes the QueueRuleset row with the given id, explicitly removing all associated
+     * RefillRule rows first (FK cascade is not enforced without PRAGMA foreign_keys=ON).
+     */
+    void deleteQueueRulesetById(long rulesetId) {
+        db.delete(TABLE_NAME_REFILL_RULE, KEY_RULESET_ID + "=?",
+                new String[]{String.valueOf(rulesetId)});
+        db.delete(TABLE_NAME_QUEUE_RULESET, KEY_ID + "=?",
+                new String[]{String.valueOf(rulesetId)});
+    }
+
+    // ---- Smart Queues: RefillRule CRUD ----
+
+    /**
+     * Inserts a RefillRule at the given position, shifting all existing rules with
+     * position >= targetPosition upward by one.
+     * Returns the new row id, or -1 on error.
+     */
+    long insertRefillRuleWithPositionShift(long rulesetId, int targetPosition,
+                                           String selectionMethod, int count,
+                                           String sourceType, String sourceId, long now) {
+        // Two-pass shift to avoid UNIQUE(ruleset_id, position) constraint violations.
+        // Pass 1: move affected rows to a safe high range (10000+)
+        db.execSQL("UPDATE " + TABLE_NAME_REFILL_RULE
+                + " SET " + KEY_POSITION + " = " + KEY_POSITION + " + 10000"
+                + " WHERE " + KEY_RULESET_ID + " = ? AND " + KEY_POSITION + " >= ?",
+                new Object[]{rulesetId, targetPosition});
+        // Pass 2: move from high range back to final positions (+1 from original)
+        db.execSQL("UPDATE " + TABLE_NAME_REFILL_RULE
+                + " SET " + KEY_POSITION + " = " + KEY_POSITION + " - 10000 + 1"
+                + " WHERE " + KEY_RULESET_ID + " = ? AND " + KEY_POSITION + " >= 10000",
+                new Object[]{rulesetId});
+        ContentValues values = new ContentValues();
+        values.put(KEY_RULESET_ID, rulesetId);
+        values.put(KEY_POSITION, targetPosition);
+        values.put(KEY_SELECTION_METHOD, selectionMethod);
+        values.put(KEY_COUNT, count);
+        values.put(KEY_SOURCE_TYPE, sourceType);
+        values.put(KEY_SOURCE_ID, sourceId);
+        values.put(KEY_CREATED_AT, now);
+        values.put(KEY_UPDATED_AT, now);
+        return db.insert(TABLE_NAME_REFILL_RULE, null, values);
+    }
+
+    /**
+     * Returns a Cursor over all RefillRule rows for the given rulesetId, ordered by position ASC.
+     */
+    Cursor queryRefillRulesByRulesetId(long rulesetId) {
+        return db.query(TABLE_NAME_REFILL_RULE, null,
+                KEY_RULESET_ID + "=?", new String[]{String.valueOf(rulesetId)},
+                null, null, KEY_POSITION + " ASC");
+    }
+
+    /**
+     * Returns a Cursor for the RefillRule row with the given id.
+     */
+    Cursor queryRefillRuleById(long ruleId) {
+        return db.query(TABLE_NAME_REFILL_RULE, null,
+                KEY_ID + "=?", new String[]{String.valueOf(ruleId)},
+                null, null, null);
+    }
+
+    /**
+     * Updates the mutable fields of a RefillRule row and bumps updated_at.
+     */
+    void updateRefillRuleMutableFields(long ruleId, String selectionMethod, int count,
+                                       String sourceType, String sourceId, long now) {
+        ContentValues values = new ContentValues();
+        values.put(KEY_SELECTION_METHOD, selectionMethod);
+        values.put(KEY_COUNT, count);
+        values.put(KEY_SOURCE_TYPE, sourceType);
+        values.put(KEY_SOURCE_ID, sourceId);
+        values.put(KEY_UPDATED_AT, now);
+        db.update(TABLE_NAME_REFILL_RULE, values,
+                KEY_ID + "=?", new String[]{String.valueOf(ruleId)});
+    }
+
+    /**
+     * Deletes the RefillRule with the given id and compacts remaining positions so they
+     * form a contiguous 0-based sequence.
+     */
+    void deleteRefillRuleByIdAndCompact(long ruleId, long rulesetId) {
+        Cursor c = db.query(TABLE_NAME_REFILL_RULE, new String[]{KEY_POSITION},
+                KEY_ID + "=?", new String[]{String.valueOf(ruleId)}, null, null, null);
+        int deletedPosition = -1;
+        if (c.moveToFirst()) {
+            deletedPosition = c.getInt(0);
+        }
+        c.close();
+        if (deletedPosition < 0) {
+            return;
+        }
+        db.delete(TABLE_NAME_REFILL_RULE, KEY_ID + "=?",
+                new String[]{String.valueOf(ruleId)});
+        // After deletion, rows with position > deletedPosition need to shift down by 1.
+        // Two-pass to avoid UNIQUE constraint violations during the shift.
+        db.execSQL("UPDATE " + TABLE_NAME_REFILL_RULE
+                + " SET " + KEY_POSITION + " = " + KEY_POSITION + " + 10000"
+                + " WHERE " + KEY_RULESET_ID + " = ? AND " + KEY_POSITION + " > ?",
+                new Object[]{rulesetId, deletedPosition});
+        db.execSQL("UPDATE " + TABLE_NAME_REFILL_RULE
+                + " SET " + KEY_POSITION + " = " + KEY_POSITION + " - 10000 - 1"
+                + " WHERE " + KEY_RULESET_ID + " = ? AND " + KEY_POSITION + " >= 10000",
+                new Object[]{rulesetId});
+    }
+
+    /**
+     * Assigns positions 0…N-1 to the rules in the given ordered list of IDs.
+     *
+     * <p>Uses a two-pass approach to avoid UNIQUE(ruleset_id, position) constraint violations:
+     * first shifts all positions to a large temp offset, then sets them to final values.
+     */
+    void bulkUpdateRefillRulePositions(List<Long> orderedRuleIds) {
+        if (orderedRuleIds.isEmpty()) {
+            return;
+        }
+        final int tempOffset = 10000;
+        // Pass 1: shift to temp positions (e.g. 10000, 10001, 10002…)
+        for (int i = 0; i < orderedRuleIds.size(); i++) {
+            ContentValues values = new ContentValues();
+            values.put(KEY_POSITION, tempOffset + i);
+            db.update(TABLE_NAME_REFILL_RULE, values,
+                    KEY_ID + "=?", new String[]{String.valueOf(orderedRuleIds.get(i))});
+        }
+        // Pass 2: set final positions (0, 1, 2…)
+        for (int i = 0; i < orderedRuleIds.size(); i++) {
+            ContentValues values = new ContentValues();
+            values.put(KEY_POSITION, i);
+            db.update(TABLE_NAME_REFILL_RULE, values,
+                    KEY_ID + "=?", new String[]{String.valueOf(orderedRuleIds.get(i))});
+        }
     }
 
     /**

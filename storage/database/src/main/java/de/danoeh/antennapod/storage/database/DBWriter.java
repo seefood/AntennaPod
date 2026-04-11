@@ -49,6 +49,8 @@ import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.model.feed.FeedPreferences;
+import de.danoeh.antennapod.model.feed.QueueRuleset;
+import de.danoeh.antennapod.model.feed.RefillRule;
 import de.danoeh.antennapod.model.feed.SortOrder;
 import de.danoeh.antennapod.model.playback.Playable;
 import de.danoeh.antennapod.net.sync.serviceinterface.EpisodeAction;
@@ -75,6 +77,15 @@ public class DBWriter {
     }
 
     private DBWriter() {
+    }
+
+    /**
+     * Returns the single shared executor used for all database write operations.
+     * External callers (UI, playback services) should submit tasks here instead of
+     * creating their own executors.
+     */
+    public static ExecutorService getDbExecutor() {
+        return dbExec;
     }
 
     /**
@@ -985,6 +996,147 @@ public class DBWriter {
         } else {
             Log.w(TAG, "removeFeedWithDownloadUrl: Could not find feed with url: " + downloadUrl);
         }
+    }
+
+    // ---- Smart Queues: QueueRuleset writes ----
+
+    /**
+     * Creates a ruleset for the given queueId if one does not already exist.
+     * Idempotent: returns the existing id on subsequent calls.
+     */
+    public static Future<Long> createQueueRuleset(long queueId) {
+        return dbExec.submit(() -> {
+            QueueRuleset existing = DBReader.getQueueRuleset(queueId);
+            if (existing != null) {
+                return existing.getId();
+            }
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                long now = System.currentTimeMillis();
+                long id = adapter.insertQueueRuleset(queueId, now);
+                if (id < 0) {
+                    // Race: another thread inserted between our check and insert — read again
+                    QueueRuleset race = DBReader.getQueueRuleset(queueId);
+                    return race != null ? race.getId() : -1L;
+                }
+                return id;
+            } finally {
+                adapter.close();
+            }
+        });
+    }
+
+    /**
+     * Bumps the updated_at timestamp of the given ruleset.
+     */
+    public static Future<?> updateQueueRuleset(long rulesetId) {
+        return dbExec.submit(() -> {
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                adapter.updateQueueRulesetUpdatedAt(rulesetId, System.currentTimeMillis());
+            } finally {
+                adapter.close();
+            }
+        });
+    }
+
+    /**
+     * Deletes the ruleset with the given id. Cascades to all associated RefillRules.
+     */
+    public static Future<?> deleteQueueRuleset(long rulesetId) {
+        return dbExec.submit(() -> {
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                adapter.deleteQueueRulesetById(rulesetId);
+            } finally {
+                adapter.close();
+            }
+        });
+    }
+
+    // ---- Smart Queues: RefillRule writes ----
+
+    /**
+     * Creates a new RefillRule at {@code position}, shifting existing rules at or after that
+     * position upward by one. Returns the new rule id.
+     */
+    public static Future<Long> createRefillRule(long rulesetId, int position,
+                                                RefillRule.SelectionMethod selectionMethod,
+                                                int count, RefillRule.SourceType sourceType,
+                                                @Nullable String sourceId) {
+        return dbExec.submit(() -> {
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                long now = System.currentTimeMillis();
+                return adapter.insertRefillRuleWithPositionShift(
+                        rulesetId, position, selectionMethod.name(),
+                        count, sourceType.name(), sourceId, now);
+            } finally {
+                adapter.close();
+            }
+        });
+    }
+
+    /**
+     * Updates the mutable fields of a RefillRule.
+     */
+    public static Future<?> updateRefillRule(long ruleId,
+                                             RefillRule.SelectionMethod selectionMethod,
+                                             int count, RefillRule.SourceType sourceType,
+                                             @Nullable String sourceId) {
+        return dbExec.submit(() -> {
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                adapter.updateRefillRuleMutableFields(
+                        ruleId, selectionMethod.name(), count, sourceType.name(),
+                        sourceId, System.currentTimeMillis());
+            } finally {
+                adapter.close();
+            }
+        });
+    }
+
+    /**
+     * Deletes the RefillRule with the given id and compacts remaining positions.
+     */
+    public static Future<?> deleteRefillRule(long ruleId) {
+        return dbExec.submit(() -> {
+            RefillRule rule = DBReader.getRefillRule(ruleId);
+            if (rule == null) {
+                return;
+            }
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                adapter.deleteRefillRuleByIdAndCompact(ruleId, rule.getRulesetId());
+            } finally {
+                adapter.close();
+            }
+        });
+    }
+
+    /**
+     * Reorders rules in a ruleset by assigning positions 0…N-1 in the provided order.
+     *
+     * @param rulesetId     the ruleset owning the rules
+     * @param orderedRuleIds rule IDs in the desired order
+     */
+    public static Future<?> reorderRefillRules(long rulesetId, List<Long> orderedRuleIds) {
+        return dbExec.submit(() -> {
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            try {
+                adapter.bulkUpdateRefillRulePositions(orderedRuleIds);
+                adapter.updateQueueRulesetUpdatedAt(rulesetId, System.currentTimeMillis());
+            } finally {
+                adapter.close();
+            }
+        });
     }
 
     /**
