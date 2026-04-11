@@ -98,7 +98,7 @@ public class AsyncOperationAtomicityTest {
             }
         }
 
-        callers.shutdownNow();
+        callers.shutdown();
 
         // Assert queue integrity: same count, same set of IDs.
         List<FeedItem> queue = DBReader.getQueue();

@@ -3,9 +3,6 @@ package de.danoeh.antennapod.ui.screen.queue;
 import android.content.Context;
 import android.os.Looper;
 
-import androidx.lifecycle.Observer;
-import androidx.test.platform.app.InstrumentationRegistry;
-
 import de.danoeh.antennapod.event.QueueEvent;
 import de.danoeh.antennapod.model.feed.RefillRule;
 import de.danoeh.antennapod.storage.database.DBWriter;
@@ -22,7 +19,6 @@ import org.robolectric.RuntimeEnvironment;
 import org.robolectric.Shadows;
 import org.robolectric.shadows.ShadowLooper;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -86,7 +82,8 @@ public class QueueRulesetViewModelTest {
                 3, RefillRule.SourceType.INBOX, null).get();
         viewModel.loadRules();
 
-        // Pump the main looper so LiveData observers receive updates
+        // Pump the main looper, let the IO thread complete, then pump again.
+        // Under Robolectric, await() acts as a sleep; LiveData is delivered on the second pump.
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
         latch.await(5, TimeUnit.SECONDS);
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
@@ -132,20 +129,21 @@ public class QueueRulesetViewModelTest {
     }
 
     @Test
-    public void testLoadRulesRunsOffMainThread() throws Exception {
+    public void testLoadRulesDeliversResultOnMainThread() throws Exception {
         viewModel.init(QUEUE_ID);
-        DBWriter.createQueueRuleset(QUEUE_ID).get();
+        long rulesetId = DBWriter.createQueueRuleset(QUEUE_ID).get();
+        DBWriter.createRefillRule(rulesetId, 0, RefillRule.SelectionMethod.NEWEST,
+                5, RefillRule.SourceType.INBOX, null).get();
 
         AtomicBoolean observedOnMain = new AtomicBoolean(false);
         CountDownLatch latch = new CountDownLatch(1);
 
-        // The Observable.fromCallable in loadRules() runs on Schedulers.io().
-        // We verify indirectly: the DB call must not occur on Looper.getMainLooper().
-        // Since Robolectric's Schedulers.io() uses a thread pool, the fromCallable
-        // lambda runs off-main. We can assert the observer callback IS on main.
+        // Filter out the initial empty emission; wait for the DB-loaded non-empty result.
         viewModel.getRules().observeForever(rules -> {
-            observedOnMain.set(Looper.myLooper() == Looper.getMainLooper());
-            latch.countDown();
+            if (rules != null && !rules.isEmpty()) {
+                observedOnMain.set(Looper.myLooper() == Looper.getMainLooper());
+                latch.countDown();
+            }
         });
 
         viewModel.loadRules();
@@ -153,6 +151,6 @@ public class QueueRulesetViewModelTest {
         latch.await(5, TimeUnit.SECONDS);
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
 
-        assertTrue("LiveData observer must be called on main thread", observedOnMain.get());
+        assertTrue("LiveData observer must be invoked on the main thread", observedOnMain.get());
     }
 }

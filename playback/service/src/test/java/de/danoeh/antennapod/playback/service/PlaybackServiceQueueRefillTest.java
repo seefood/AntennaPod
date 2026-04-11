@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -84,21 +85,14 @@ public class PlaybackServiceQueueRefillTest {
     }
 
     /**
-     * When queue is empty and no ruleset exists, refill is not triggered
-     * and null is returned — playback stops.
+     * When no ruleset exists, hasQueueRuleset returns false — the service skips
+     * refill and stops playback.
      */
     @Test
     public void testQueueEmptyWithoutRulesetReturnsNull() {
         assertFalse("No ruleset should exist", DBReader.hasQueueRuleset(QUEUE_ID));
-
-        // Simulate service logic: no ruleset → return null (existing stop behaviour)
-        FeedItem next = null;
-        if (DBReader.hasQueueRuleset(QUEUE_ID)) {
-            // (would refill here)
-            List<FeedItem> queue = DBReader.getQueue();
-            next = DBReader.selectNextUnfinishedEpisode(queue);
-        }
-        assertNull("Without ruleset, result must be null", next);
+        // selectNextUnfinishedEpisode on an empty queue must return null.
+        assertNull("Empty queue must yield null", DBReader.selectNextUnfinishedEpisode(DBReader.getQueue()));
     }
 
     /**
@@ -124,8 +118,8 @@ public class PlaybackServiceQueueRefillTest {
     }
 
     /**
-     * When refill succeeds, selectNextUnfinishedEpisode skips fully-played episodes
-     * and returns the first unfinished one.
+     * When refill succeeds, selectNextUnfinishedEpisode skips a fully-played first
+     * episode and returns the next unfinished one.
      */
     @Test
     public void testRefillSelectsFirstUnfinishedEpisode() throws Exception {
@@ -140,16 +134,50 @@ public class PlaybackServiceQueueRefillTest {
 
         List<FeedItem> queue = DBReader.getQueue();
         assertFalse("Queue must not be empty after refill", queue.isEmpty());
+        assertTrue("Queue must have at least 2 items to test skipping", queue.size() >= 2);
 
-        // Mark first episode as fully played (position == duration)
-        if (!queue.isEmpty() && queue.get(0).getMedia() != null) {
-            FeedMedia media = queue.get(0).getMedia();
-            media.setPosition(media.getDuration());
-        }
+        // Mark first episode as fully played (position == duration).
+        FeedMedia firstMedia = queue.get(0).getMedia();
+        assertNotNull("First item must have media", firstMedia);
+        firstMedia.setPosition(firstMedia.getDuration());
 
         FeedItem next = DBReader.selectNextUnfinishedEpisode(queue);
         assertNotNull("Must return a non-null item", next);
-        // If all have position < duration, first item is returned; either way non-null
+        // The fully-played item must be skipped; the second item must be returned.
+        assertEquals("Must skip fully-played first episode and return second",
+                queue.get(1).getId(), next.getId());
+    }
+
+    /**
+     * When all episodes in the queue are fully played, selectNextUnfinishedEpisode
+     * falls back to the first item (not null) — documented fallback behaviour.
+     */
+    @Test
+    public void testAllFullyPlayedFallsBackToFirstItem() throws Exception {
+        Feed feed = createAndStoreFeed("http://all-finished.example");
+        addItems(feed, 2, FeedItem.UNPLAYED);
+
+        long rulesetId = DBWriter.createQueueRuleset(QUEUE_ID).get();
+        DBWriter.createRefillRule(rulesetId, 0, RefillRule.SelectionMethod.OLDEST,
+                2, RefillRule.SourceType.FEED, String.valueOf(feed.getId())).get();
+
+        DBWriter.refillQueue(QUEUE_ID, false).get();
+
+        List<FeedItem> queue = DBReader.getQueue();
+        assertFalse("Queue must not be empty", queue.isEmpty());
+
+        // Mark all episodes as fully played.
+        for (FeedItem item : queue) {
+            FeedMedia media = item.getMedia();
+            if (media != null) {
+                media.setPosition(media.getDuration());
+            }
+        }
+
+        FeedItem next = DBReader.selectNextUnfinishedEpisode(queue);
+        // Fallback: returns queue.get(0) rather than null.
+        assertNotNull("Fallback must return first item, not null", next);
+        assertEquals("Fallback must be queue.get(0)", queue.get(0).getId(), next.getId());
     }
 
     // ---- helpers ----
