@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -49,6 +50,7 @@ import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.model.feed.FeedPreferences;
+import de.danoeh.antennapod.model.RefillResult;
 import de.danoeh.antennapod.model.feed.QueueRuleset;
 import de.danoeh.antennapod.model.feed.RefillRule;
 import de.danoeh.antennapod.model.feed.SortOrder;
@@ -1135,6 +1137,97 @@ public class DBWriter {
                 adapter.updateQueueRulesetUpdatedAt(rulesetId, System.currentTimeMillis());
             } finally {
                 adapter.close();
+            }
+        });
+    }
+
+    /**
+     * Refills the specified queue according to its ruleset.
+     *
+     * <p>Algorithm (runs atomically on the DB executor thread):
+     * <ol>
+     *   <li>Read phase: load ruleset and rules; capture {@code queueWasEmpty} before any write</li>
+     *   <li>For each rule: call {@link DBReader#getEpisodesForRule} with a growing
+     *       {@code stagedIds} set for cross-rule deduplication</li>
+     *   <li>Write phase: single {@code adapter.open()} → optional {@code clearQueue()} →
+     *       {@code setQueue()} → {@code adapter.close()}</li>
+     *   <li>Post {@link QueueEvent#refilled} after close</li>
+     * </ol>
+     *
+     * @param queueId   the queue to refill (1 for the single queue in develop)
+     * @param clearFirst true = Clear-and-Fill; false = Append
+     * @return a {@link RefillResult} with episode counts and {@code queueWasEmpty} flag
+     */
+    public static Future<RefillResult> refillQueue(long queueId, boolean clearFirst) {
+        return dbExec.submit(() -> {
+            try {
+                QueueRuleset ruleset = DBReader.getQueueRuleset(queueId);
+                if (ruleset == null) {
+                    return new RefillResult(0, 0, 0, true, false);
+                }
+
+                List<RefillRule> rules = DBReader.getRefillRules(ruleset.getId());
+                List<FeedItem> existingQueue = clearFirst
+                        ? Collections.emptyList() : DBReader.getQueue();
+                final boolean queueWasEmpty = clearFirst || existingQueue.isEmpty();
+
+                // Seed stagedIds with items already in queue (Append) to prevent duplicates
+                Set<Long> stagedIds = new HashSet<>();
+                for (FeedItem item : existingQueue) {
+                    stagedIds.add(item.getId());
+                }
+
+                int rulesProcessed = 0;
+                int rulesSkipped = 0;
+                List<FeedItem> toAdd = new ArrayList<>();
+
+                for (RefillRule rule : rules) {
+                    rulesProcessed++;
+                    List<FeedItem> candidates = DBReader.getEpisodesForRule(rule, stagedIds);
+                    if (candidates.isEmpty()
+                            && rule.getSourceType() == RefillRule.SourceType.FEED) {
+                        // Check if this is due to a non-existent feed (skip vs. no match)
+                        try {
+                            long feedId = Long.parseLong(rule.getSourceId());
+                            if (DBReader.getFeed(feedId, false, 0, 0) == null) {
+                                rulesSkipped++;
+                                rulesProcessed--;
+                            }
+                        } catch (NumberFormatException ignored) {
+                            rulesSkipped++;
+                            rulesProcessed--;
+                        }
+                    }
+                    for (FeedItem item : candidates) {
+                        stagedIds.add(item.getId());
+                    }
+                    toAdd.addAll(candidates);
+                }
+
+                // Write phase: single adapter open/close
+                List<FeedItem> finalQueue = new ArrayList<>(existingQueue);
+                finalQueue.addAll(toAdd);
+
+                PodDBAdapter adapter = PodDBAdapter.getInstance();
+                adapter.open();
+                try {
+                    if (clearFirst) {
+                        adapter.clearQueue();
+                    }
+                    adapter.setQueue(finalQueue);
+                } finally {
+                    adapter.close();
+                }
+
+                int episodesAdded = toAdd.size();
+                EventBus.getDefault().post(QueueEvent.refilled(queueId, episodesAdded));
+                return new RefillResult(episodesAdded, rulesProcessed, rulesSkipped, true,
+                        queueWasEmpty);
+            } catch (RuntimeException e) {
+                Log.e(TAG, "refillQueue failed for queueId=" + queueId, e);
+                EventBus.getDefault().post(QueueEvent.operationFailed(queueId,
+                        e.getMessage() != null ? e.getMessage() : "Unknown error"));
+                return new RefillResult(0, 0, 0, false, false);
             }
         });
     }
