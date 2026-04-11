@@ -79,6 +79,7 @@ public class QueueRulesetEditFragment extends Fragment
         adapter.attachToRecyclerView(recyclerView);
 
         viewModel.getRules().observe(getViewLifecycleOwner(), this::onRulesUpdated);
+        viewModel.getFeedTitles().observe(getViewLifecycleOwner(), adapter::setFeedTitles);
         viewModel.getIsRefillInProgress().observe(getViewLifecycleOwner(), inProgress -> {
             refreshMenuState(inProgress != null && inProgress);
         });

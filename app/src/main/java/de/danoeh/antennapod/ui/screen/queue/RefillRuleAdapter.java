@@ -14,7 +14,9 @@ import com.google.android.material.snackbar.Snackbar;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.model.feed.RefillRule;
@@ -30,6 +32,7 @@ class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.RuleViewH
     }
 
     private final List<RefillRule> rules = new ArrayList<>();
+    private Map<Long, String> feedTitles = new HashMap<>();
     private final long rulesetId;
     private final OnEditRequestedListener editListener;
     private ItemTouchHelper touchHelper;
@@ -44,6 +47,11 @@ class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.RuleViewH
         DragCallback callback = new DragCallback();
         touchHelper = new ItemTouchHelper(callback);
         touchHelper.attachToRecyclerView(rv);
+    }
+
+    void setFeedTitles(@NonNull Map<Long, String> titles) {
+        feedTitles = titles;
+        notifyDataSetChanged();
     }
 
     void submitList(@NonNull List<RefillRule> newRules) {
@@ -114,7 +122,15 @@ class RefillRuleAdapter extends RecyclerView.Adapter<RefillRuleAdapter.RuleViewH
                 case INBOX:
                     return ctx.getString(R.string.source_inbox);
                 default:
-                    return ctx.getString(R.string.source_feed) + ": " + rule.getSourceId();
+                    String feedTitle = null;
+                    try {
+                        long feedId = Long.parseLong(rule.getSourceId());
+                        feedTitle = feedTitles.get(feedId);
+                    } catch (NumberFormatException ignored) {
+                        // fall through to raw id
+                    }
+                    String displayName = feedTitle != null ? feedTitle : rule.getSourceId();
+                    return ctx.getString(R.string.source_feed) + ": " + displayName;
             }
         }
 

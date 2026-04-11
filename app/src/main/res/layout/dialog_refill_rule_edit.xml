@@ -91,7 +91,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/selection_oldest"
-                style="?attr/materialButtonOutlinedStyle" />
+                style="@style/OutlinedButtonBetterContrast.Compact" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/method_newest"
@@ -99,7 +99,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/selection_newest"
-                style="?attr/materialButtonOutlinedStyle" />
+                style="@style/OutlinedButtonBetterContrast.Compact" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/method_random"
@@ -107,7 +107,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/selection_random"
-                style="?attr/materialButtonOutlinedStyle" />
+                style="@style/OutlinedButtonBetterContrast.Compact" />
 
         </com.google.android.material.button.MaterialButtonToggleGroup>
 

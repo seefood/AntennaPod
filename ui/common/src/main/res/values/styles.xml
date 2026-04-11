@@ -307,6 +307,13 @@
         <item name="backgroundTint">@color/button_bg_selector</item>
     </style>
 
+    <!-- Compact variant for toggle groups in dialogs where horizontal space is limited. -->
+    <style name="OutlinedButtonBetterContrast.Compact">
+        <item name="android:paddingStart">8dp</item>
+        <item name="android:paddingEnd">8dp</item>
+        <item name="android:minWidth">0dp</item>
+    </style>
+
     <style name="FastScrollRecyclerView" parent="android:Widget">
         <item name="android:scrollbars">none</item>
         <item name="fastScrollEnabled">true</item>

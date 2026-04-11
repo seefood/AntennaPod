@@ -12,9 +12,12 @@ import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import de.danoeh.antennapod.event.QueueEvent;
+import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.model.feed.RefillRule;
 import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.storage.database.DBWriter;
@@ -30,6 +33,7 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 public class QueueRulesetViewModel extends AndroidViewModel {
 
     private final MutableLiveData<List<RefillRule>> rules = new MutableLiveData<>(Collections.emptyList());
+    private final MutableLiveData<Map<Long, String>> feedTitles = new MutableLiveData<>(Collections.emptyMap());
     private final MutableLiveData<Boolean> isRefillInProgress = new MutableLiveData<>(false);
     private final CompositeDisposable disposables = new CompositeDisposable();
     private long queueId;
@@ -60,6 +64,11 @@ public class QueueRulesetViewModel extends AndroidViewModel {
         return rules;
     }
 
+    /** LiveData emitting a feedId → title map for display in the rules list. */
+    public LiveData<Map<Long, String>> getFeedTitles() {
+        return feedTitles;
+    }
+
     /** LiveData emitting true while a refill operation is in-flight. */
     public LiveData<Boolean> getIsRefillInProgress() {
         return isRefillInProgress;
@@ -72,22 +81,37 @@ public class QueueRulesetViewModel extends AndroidViewModel {
         return rulesetId;
     }
 
-    /** Reloads rules from database on an IO thread. */
+    /** Reloads rules and feed titles from database on an IO thread. */
     public void loadRules() {
         disposables.add(
                 Observable.fromCallable(() -> {
                     de.danoeh.antennapod.model.feed.QueueRuleset ruleset =
                             DBReader.getQueueRuleset(queueId);
+                    List<RefillRule> ruleList;
                     if (ruleset == null) {
-                        return Collections.<RefillRule>emptyList();
+                        ruleList = Collections.emptyList();
+                    } else {
+                        rulesetId = ruleset.getId();
+                        ruleList = DBReader.getRefillRules(rulesetId);
                     }
-                    rulesetId = ruleset.getId();
-                    return DBReader.getRefillRules(rulesetId);
+                    List<Feed> feeds = DBReader.getFeedList();
+                    Map<Long, String> titles = new HashMap<>(feeds.size());
+                    for (Feed feed : feeds) {
+                        titles.put(feed.getId(), feed.getTitle());
+                    }
+                    return new Object[]{ruleList, titles};
                 })
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(rules::setValue,
-                                throwable -> rules.setValue(Collections.emptyList()))
+                        .subscribe(result -> {
+                            //noinspection unchecked
+                            rules.setValue((List<RefillRule>) result[0]);
+                            //noinspection unchecked
+                            feedTitles.setValue((Map<Long, String>) result[1]);
+                        }, throwable -> {
+                            rules.setValue(Collections.emptyList());
+                            feedTitles.setValue(Collections.emptyMap());
+                        })
         );
     }
 
